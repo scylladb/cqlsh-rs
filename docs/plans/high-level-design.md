@@ -156,7 +156,32 @@ cqlsh-rs must use the same paths for drop-in compatibility.
 
 ## Feature Breakdown
 
+> **How to read the Status blocks**
+>
+> Each phase has a **Status** table immediately below its heading. Update this table as work progresses:
+>
+> | Field | Meaning |
+> |---|---|
+> | Progress | ASCII progress bar + count. Fill one `█` per completed item; leave `░` for remaining ones. |
+> | Status | 🔴 Not Started · 🟡 In Progress · 🟢 Complete |
+> | First commit | Date (YYYY-MM-DD) of the first commit touching code for this phase. |
+> | Completed | Date (YYYY-MM-DD) the last feature in this phase was merged and verified. |
+> | Time spent | Human estimate of total active development time (e.g. `~8 h`, `~3 days`). |
+>
+> **Progress bar key:** `░` = not started, `█` = done. Bar is always 10 characters wide; one character ≈ 10% regardless of the exact item count.
+> Example at 3/7 done → `████░░░░░░ 3 / 7 items complete`
+
 ### Phase 1 — Bootstrap (MVP)
+
+#### Status
+
+| Field | Value |
+|---|---|
+| Progress | `░░░░░░░░░░` 0 / 7 items complete |
+| Status | 🔴 Not Started |
+| First commit | — |
+| Completed | — |
+| Time spent | — |
 
 | Feature | scylla-cqlsh reference | Details |
 |---|---|---|
@@ -169,6 +194,16 @@ cqlsh-rs must use the same paths for drop-in compatibility.
 | Quit / exit commands | `do_quit()` | `QUIT`, `EXIT`, `Ctrl-D` |
 
 ### Phase 2 — Usable Shell
+
+#### Status
+
+| Field | Value |
+|---|---|
+| Progress | `░░░░░░░░░░` 0 / 9 items complete |
+| Status | 🔴 Not Started |
+| First commit | — |
+| Completed | — |
+| Time spent | — |
 
 | Feature | scylla-cqlsh reference | Details |
 |---|---|---|
@@ -183,6 +218,16 @@ cqlsh-rs must use the same paths for drop-in compatibility.
 | Unix socket support | `is_unix_socket()` | Detect socket path, connect via Unix domain socket |
 
 ### Phase 3 — Quality of Life
+
+#### Status
+
+| Field | Value |
+|---|---|
+| Progress | `░░░░░░░░░░` 0 / 11 items complete |
+| Status | 🔴 Not Started |
+| First commit | — |
+| Completed | — |
+| Time spent | — |
 
 | Feature | scylla-cqlsh reference | Details |
 |---|---|---|
@@ -199,6 +244,16 @@ cqlsh-rs must use the same paths for drop-in compatibility.
 | `--no-compression` | `--no-compression` | Disable LZ4 compression |
 
 ### Phase 4 — Advanced
+
+#### Status
+
+| Field | Value |
+|---|---|
+| Progress | `░░░░░░░░░░` 0 / 10 items complete |
+| Status | 🔴 Not Started |
+| First commit | — |
+| Completed | — |
+| Time spent | — |
 
 | Feature | scylla-cqlsh reference | Details |
 |---|---|---|
