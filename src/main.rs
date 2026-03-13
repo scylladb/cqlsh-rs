@@ -1,6 +1,7 @@
 //! cqlsh-rs — A Rust re-implementation of the Apache Cassandra cqlsh shell.
 
 mod cli;
+#[allow(dead_code)]
 mod config;
 mod shell_completions;
 

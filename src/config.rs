@@ -3,6 +3,8 @@
 //! Handles `~/.cassandra/cqlshrc` (INI format) parsing, environment variable loading,
 //! and merging with CLI arguments following the precedence rule:
 //! CLI > environment variables > cqlshrc > defaults.
+//!
+//! Many fields are defined ahead of their use in later development phases.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -164,9 +166,7 @@ impl CqlshrcConfig {
             },
             connection: ConnectionSection {
                 hostname: ini.get("connection", "hostname"),
-                port: ini
-                    .get("connection", "port")
-                    .and_then(|v| v.parse().ok()),
+                port: ini.get("connection", "port").and_then(|v| v.parse().ok()),
                 factory: ini.get("connection", "factory"),
                 timeout: ini
                     .get("connection", "timeout")
@@ -205,9 +205,7 @@ impl CqlshrcConfig {
                 double_precision: ini
                     .get("ui", "double_precision")
                     .and_then(|v| v.parse().ok()),
-                max_trace_wait: ini
-                    .get("ui", "max_trace_wait")
-                    .and_then(|v| v.parse().ok()),
+                max_trace_wait: ini.get("ui", "max_trace_wait").and_then(|v| v.parse().ok()),
                 encoding: ini.get("ui", "encoding"),
                 completekey: ini.get("ui", "completekey"),
                 browser: ini.get("ui", "browser"),
@@ -221,20 +219,14 @@ impl CqlshrcConfig {
                     .and_then(|v| v.parse().ok()),
             },
             copy: CopySection {
-                numprocesses: ini
-                    .get("copy", "numprocesses")
-                    .and_then(|v| v.parse().ok()),
-                maxattempts: ini
-                    .get("copy", "maxattempts")
-                    .and_then(|v| v.parse().ok()),
+                numprocesses: ini.get("copy", "numprocesses").and_then(|v| v.parse().ok()),
+                maxattempts: ini.get("copy", "maxattempts").and_then(|v| v.parse().ok()),
                 reportfrequency: ini
                     .get("copy", "reportfrequency")
                     .and_then(|v| v.parse().ok()),
             },
             copy_to: CopyToSection {
-                pagesize: ini
-                    .get("copy-to", "pagesize")
-                    .and_then(|v| v.parse().ok()),
+                pagesize: ini.get("copy-to", "pagesize").and_then(|v| v.parse().ok()),
                 pagetimeout: ini
                     .get("copy-to", "pagetimeout")
                     .and_then(|v| v.parse().ok()),
@@ -275,9 +267,7 @@ impl CqlshrcConfig {
                 preparedstatements: ini
                     .get("copy-from", "preparedstatements")
                     .map(|v| parse_bool(&v)),
-                ttl: ini
-                    .get("copy-from", "ttl")
-                    .and_then(|v| v.parse().ok()),
+                ttl: ini.get("copy-from", "ttl").and_then(|v| v.parse().ok()),
             },
             tracing: TracingSection {
                 max_trace_wait: ini
@@ -291,10 +281,7 @@ impl CqlshrcConfig {
 /// Parse boolean values in the same way Python cqlsh does:
 /// "true", "yes", "on", "1" → true, everything else → false.
 fn parse_bool(val: &str) -> bool {
-    matches!(
-        val.to_lowercase().as_str(),
-        "true" | "yes" | "on" | "1"
-    )
+    matches!(val.to_lowercase().as_str(), "true" | "yes" | "on" | "1")
 }
 
 /// The fully resolved configuration after merging CLI args, environment variables,
@@ -365,9 +352,7 @@ impl EnvConfig {
                 .ok()
                 .and_then(|v| v.parse().ok()),
             ssl_certfile: std::env::var("SSL_CERTFILE").ok(),
-            ssl_validate: std::env::var("SSL_VALIDATE")
-                .ok()
-                .map(|v| parse_bool(&v)),
+            ssl_validate: std::env::var("SSL_VALIDATE").ok().map(|v| parse_bool(&v)),
             connect_timeout: std::env::var("CQLSH_DEFAULT_CONNECT_TIMEOUT_SECONDS")
                 .ok()
                 .and_then(|v| v.parse().ok()),
@@ -383,7 +368,12 @@ impl MergedConfig {
     /// Build a merged configuration from CLI args, environment, and cqlshrc.
     ///
     /// Precedence: CLI > environment > cqlshrc > defaults.
-    pub fn build(cli: &CliArgs, env: &EnvConfig, cqlshrc: CqlshrcConfig, cqlshrc_path: PathBuf) -> Self {
+    pub fn build(
+        cli: &CliArgs,
+        env: &EnvConfig,
+        cqlshrc: CqlshrcConfig,
+        cqlshrc_path: PathBuf,
+    ) -> Self {
         // Host: CLI > env > cqlshrc > default
         let host = cli
             .host
@@ -458,10 +448,7 @@ impl MergedConfig {
             .or_else(|| cqlshrc.cql.version.clone());
 
         // Browser: CLI > cqlshrc
-        let browser = cli
-            .browser
-            .clone()
-            .or_else(|| cqlshrc.ui.browser.clone());
+        let browser = cli.browser.clone().or_else(|| cqlshrc.ui.browser.clone());
 
         MergedConfig {
             host,
@@ -588,10 +575,7 @@ mod tests {
             "[ssl]\ncertfile = /path/to/cert.pem\nvalidate = true\nuserkey = /path/to/key.pem\nusercert = /path/to/usercert.pem\nversion = TLSv1_2\n",
         )
         .unwrap();
-        assert_eq!(
-            config.ssl.certfile.as_deref(),
-            Some("/path/to/cert.pem")
-        );
+        assert_eq!(config.ssl.certfile.as_deref(), Some("/path/to/cert.pem"));
         assert_eq!(config.ssl.validate, Some(true));
         assert_eq!(config.ssl.userkey.as_deref(), Some("/path/to/key.pem"));
         assert_eq!(config.ssl.version.as_deref(), Some("TLSv1_2"));
@@ -671,8 +655,7 @@ mod tests {
 
     #[test]
     fn parse_tracing_section() {
-        let config =
-            CqlshrcConfig::parse("[tracing]\nmax_trace_wait = 10.0\n").unwrap();
+        let config = CqlshrcConfig::parse("[tracing]\nmax_trace_wait = 10.0\n").unwrap();
         assert_eq!(config.tracing.max_trace_wait, Some(10.0));
     }
 
@@ -754,17 +737,15 @@ max_trace_wait = 10.0
 
     #[test]
     fn parse_unknown_keys_ignored() {
-        let config = CqlshrcConfig::parse(
-            "[authentication]\nunknown_key = value\nusername = test\n",
-        )
-        .unwrap();
+        let config =
+            CqlshrcConfig::parse("[authentication]\nunknown_key = value\nusername = test\n")
+                .unwrap();
         assert_eq!(config.authentication.username.as_deref(), Some("test"));
     }
 
     #[test]
     fn load_nonexistent_file_returns_default() {
-        let config =
-            CqlshrcConfig::load(Path::new("/nonexistent/path/cqlshrc")).unwrap();
+        let config = CqlshrcConfig::load(Path::new("/nonexistent/path/cqlshrc")).unwrap();
         assert!(config.authentication.username.is_none());
         assert!(config.connection.hostname.is_none());
     }
@@ -808,8 +789,7 @@ max_trace_wait = 10.0
         let cli = default_cli();
         let env = EnvConfig::default();
         let cqlshrc = CqlshrcConfig::default();
-        let config =
-            MergedConfig::build(&cli, &env, cqlshrc, default_cqlshrc_path());
+        let config = MergedConfig::build(&cli, &env, cqlshrc, default_cqlshrc_path());
 
         assert_eq!(config.host, "127.0.0.1");
         assert_eq!(config.port, 9042);
@@ -844,8 +824,7 @@ max_trace_wait = 10.0
         cqlshrc.connection.connect_timeout = Some(77);
         cqlshrc.authentication.username = Some("cqlshrc-user".to_string());
 
-        let config =
-            MergedConfig::build(&cli, &env, cqlshrc, default_cqlshrc_path());
+        let config = MergedConfig::build(&cli, &env, cqlshrc, default_cqlshrc_path());
 
         assert_eq!(config.host, "cli-host");
         assert_eq!(config.port, 9999);
@@ -867,8 +846,7 @@ max_trace_wait = 10.0
         cqlshrc.connection.port = Some(7777);
         cqlshrc.connection.connect_timeout = Some(77);
 
-        let config =
-            MergedConfig::build(&cli, &env, cqlshrc, default_cqlshrc_path());
+        let config = MergedConfig::build(&cli, &env, cqlshrc, default_cqlshrc_path());
 
         assert_eq!(config.host, "env-host");
         assert_eq!(config.port, 8888);
@@ -887,8 +865,7 @@ max_trace_wait = 10.0
         cqlshrc.authentication.username = Some("cqlshrc-user".to_string());
         cqlshrc.authentication.keyspace = Some("cqlshrc-ks".to_string());
 
-        let config =
-            MergedConfig::build(&cli, &env, cqlshrc, default_cqlshrc_path());
+        let config = MergedConfig::build(&cli, &env, cqlshrc, default_cqlshrc_path());
 
         assert_eq!(config.host, "cqlshrc-host");
         assert_eq!(config.port, 7777);
@@ -985,12 +962,8 @@ max_trace_wait = 10.0
             encoding: Some("utf-16".to_string()),
             ..default_cli()
         };
-        let config = MergedConfig::build(
-            &cli,
-            &EnvConfig::default(),
-            cqlshrc,
-            default_cqlshrc_path(),
-        );
+        let config =
+            MergedConfig::build(&cli, &EnvConfig::default(), cqlshrc, default_cqlshrc_path());
         assert_eq!(config.encoding, "utf-16");
     }
 
@@ -1011,12 +984,8 @@ max_trace_wait = 10.0
             cqlversion: Some("3.4.7".to_string()),
             ..default_cli()
         };
-        let config = MergedConfig::build(
-            &cli,
-            &EnvConfig::default(),
-            cqlshrc,
-            default_cqlshrc_path(),
-        );
+        let config =
+            MergedConfig::build(&cli, &EnvConfig::default(), cqlshrc, default_cqlshrc_path());
         assert_eq!(config.cqlversion.as_deref(), Some("3.4.7"));
     }
 
@@ -1057,22 +1026,19 @@ max_trace_wait = 10.0
 
     #[test]
     fn copy_from_preparedstatements_false() {
-        let config =
-            CqlshrcConfig::parse("[copy-from]\npreparedstatements = false\n").unwrap();
+        let config = CqlshrcConfig::parse("[copy-from]\npreparedstatements = false\n").unwrap();
         assert_eq!(config.copy_from.preparedstatements, Some(false));
     }
 
     #[test]
     fn invalid_numeric_ignored() {
-        let config =
-            CqlshrcConfig::parse("[connection]\nport = not_a_number\n").unwrap();
+        let config = CqlshrcConfig::parse("[connection]\nport = not_a_number\n").unwrap();
         assert!(config.connection.port.is_none());
     }
 
     #[test]
     fn copy_to_empty_begintoken() {
-        let config =
-            CqlshrcConfig::parse("[copy-to]\nbegintoken = \n").unwrap();
+        let config = CqlshrcConfig::parse("[copy-to]\nbegintoken = \n").unwrap();
         assert!(config.copy_to.begintoken.is_none());
     }
 }
