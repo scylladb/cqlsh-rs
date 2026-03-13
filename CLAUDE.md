@@ -39,6 +39,7 @@ Skills are stored in `.github/skills/` and symlinked to `.claude/skills/` for du
 - `/rust-error-handling` — Idiomatic error handling with thiserror/anyhow
 - `/rust-code-review` — Comprehensive multi-dimensional code review
 - `/rust-performance` — Performance optimization, profiling, and benchmarking
+- `/development-process` — End-to-end development workflow from plan to implementation
 
 ## Testing
 
