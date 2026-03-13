@@ -76,6 +76,26 @@ Create a comprehensive benchmark suite that measures cqlsh-rs performance across
 | `cqlshrc_load_file` | `nonexistent_file`, `minimal_file`, `full_file` | File I/O + parsing combined |
 | `end_to_end_startup` | `minimal`, `full` | Complete startup path (parse CLI + load config + merge) |
 
+##### Benchmark Readiness by SP — Add Benchmarks Incrementally
+
+> **Key insight:** Benchmarks should NOT wait until Phase 5. Add each benchmark
+> group immediately after its corresponding SP is implemented. The CI
+> infrastructure (bench.yml, GitHub Pages dashboard) is already in place.
+
+| SP | Component | Benchmarks Unlocked | Benchmark File |
+|----|-----------|---------------------|----------------|
+| **SP1** ✅ | CLI & Config | `cli_parse_args`, `cqlshrc_parse`, `config_merge`, `end_to_end_startup` | `startup.rs` ✅ |
+| **SP4** | Statement Parser | `parse_statement`, `parse_multiline` | `parser.rs` |
+| **SP2** | Driver & Connection | Macro-benchmarks: connect + query roundtrip (hyperfine) | `macro/` |
+| **SP6 + SP9** | Output Formatting + CQL Types | `format_table_{10,100,1000}`, `format_json_100`, `format_csv_100`, `format_each_type` | `format.rs` |
+| **SP5** | Tab Completion | `complete_keyword`, `complete_table`, `complete_column` | `completion.rs` |
+| **SP8** | COPY TO/FROM | COPY throughput macro-benchmarks (hyperfine), COPY memory benchmarks | `macro/` |
+
+> **Action:** After completing each SP above, immediately implement its
+> corresponding benchmarks before moving to the next SP. This ensures
+> performance regressions are caught early and baselines are established
+> while the code is fresh.
+
 ##### Planned — Future phases
 
 | Benchmark | File | What it Measures |
