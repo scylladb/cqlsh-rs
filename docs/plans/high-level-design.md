@@ -8,6 +8,7 @@
 
 ## Table of Contents
 
+0. [Living Document Policy](#living-document-policy)
 1. [Goals & Non-Goals](#goals--non-goals)
 2. [100% Compatibility Matrix](#100-compatibility-matrix)
 3. [Architecture Overview](#architecture-overview)
@@ -19,6 +20,20 @@
 9. [Skills Development Plan](#skills-development-plan)
 10. [Risk Register](#risk-register)
 11. [Open Questions & Decisions](#open-questions--decisions)
+
+---
+
+## Living Document Policy
+
+> **All plans in this repository are living documents.** They must be continuously updated to reflect decisions made during development. Specifically:
+>
+> - **Update on decision:** When an open question is resolved or a design choice is made, update the relevant plan immediately. Do not let plans drift from reality.
+> - **Prune after research:** Once a research phase completes, remove speculative options that were not chosen. Keep only the selected approach and a brief rationale for why alternatives were rejected.
+> - **Drop irrelevant sections:** If a section becomes irrelevant due to changed requirements or new information, delete it rather than leaving stale content. A shorter, accurate plan is better than a comprehensive but outdated one.
+> - **Mark completion:** When a task or phase is fully implemented, mark it as done with a date and link to the implementing PR/commit.
+> - **Track divergences:** If implementation diverges from the plan (it will), update the plan to match reality — the codebase is the source of truth, the plan documents the reasoning.
+>
+> Plans that are not actively maintained become misleading. **An outdated plan is worse than no plan.**
 
 ---
 
@@ -592,6 +607,9 @@ max_trace_wait = 10.0
 | 6.5 | Migration guide (Python cqlsh -> cqlsh-rs) | `docs/migration.md` | Phase 4 |
 | 6.6 | Compatibility divergence documentation | `docs/divergences.md` | Phase 5 |
 | 6.7 | Performance comparison report | `docs/benchmarks.md` | Phase 5 |
+| 6.8 | Documentation site (mdBook/Zola) with CI deploy | `docs/` | Phase 4 |
+| 6.9 | LLM-oriented documentation (llms.txt, skill definitions) | `docs/llm/` | Phase 4 |
+| 6.10 | Publish skills to marketplaces (MCP, Claude, GPTs, etc.) | `docs/llm/skills/` | 6.9 |
 
 ---
 
@@ -614,6 +632,7 @@ Each area below gets its own dedicated research and execution plan document:
 | SP11 | **Benchmarking** | [`11-benchmarking.md`](11-benchmarking.md) | Performance benchmarks, comparison framework, CI tracking |
 | SP12 | **Cross-Platform & Release** | [`12-cross-platform-release.md`](12-cross-platform-release.md) | Multi-platform builds, packaging, distribution |
 | SP13 | **Skills Development** | [`13-skills-development.md`](13-skills-development.md) | Team skills assessment, training plans, knowledge prerequisites |
+| SP14 | **Documentation & LLM Skills** | [`14-documentation.md`](14-documentation.md) | Doc generation tooling, CI previews, LLM-oriented docs, skills marketplace publishing |
 
 ---
 
@@ -902,7 +921,24 @@ cqlsh-rs/
 │   │   ├── 10-testing-strategy.md
 │   │   ├── 11-benchmarking.md
 │   │   ├── 12-cross-platform-release.md
-│   │   └── 13-skills-development.md
+│   │   ├── 13-skills-development.md
+│   │   └── 14-documentation.md
+│   ├── book/                     # mdBook source for documentation site
+│   │   ├── book.toml
+│   │   └── src/
+│   │       ├── SUMMARY.md
+│   │       ├── getting-started.md
+│   │       ├── commands/
+│   │       ├── configuration/
+│   │       └── migration.md
+│   ├── llm/                      # LLM-oriented documentation
+│   │   ├── llms.txt              # LLM site index (llmstxt.org standard)
+│   │   ├── llms-full.txt         # Full context for LLMs
+│   │   ├── skills/               # Skill definitions for AI marketplaces
+│   │   │   ├── cqlsh-expert.md   # Skill: CQL shell expert
+│   │   │   ├── cassandra-ops.md  # Skill: Cassandra operations
+│   │   │   └── schema-design.md  # Skill: Schema design advisor
+│   │   └── AGENTS.md             # Agent instructions (Copilot/Claude/etc.)
 │   ├── migration.md              # Python cqlsh -> cqlsh-rs guide
 │   ├── divergences.md            # Documented behavioral differences
 │   └── benchmarks.md             # Performance comparison report
