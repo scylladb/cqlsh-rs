@@ -187,4 +187,5 @@ strategy:
 - `insta` snapshot testing (C12)
 - `proptest` property testing (C10)
 - CI/CD with GitHub Actions (S11)
+- AI-powered CI failure summaries — see [SP15: AI CI Failure Summaries](15-ai-ci-failure-summaries.md)
 - `cargo-tarpaulin` / `llvm-cov` (S9)
