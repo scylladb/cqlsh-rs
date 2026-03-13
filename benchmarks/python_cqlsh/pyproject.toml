@@ -1,0 +1,21 @@
+[project]
+name = "cqlsh-rs-python-benchmarks"
+version = "0.1.0"
+description = "Python cqlsh benchmarks for cqlsh-rs comparative analysis"
+requires-python = ">=3.10"
+
+[dependency-groups]
+dev = [
+    "cqlsh>=6.2.0",
+    "pytest>=7.0",
+    "pytest-benchmark>=5.1.0",
+    "testcontainers>=4.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "-v --benchmark-enable --benchmark-sort=name --benchmark-columns=mean,stddev,rounds,iterations"
+python_files = ["bench_*.py"]
+testpaths = ["benchmarks"]
+
+[tool.uv]
+required-version = ">=0.5.0"
