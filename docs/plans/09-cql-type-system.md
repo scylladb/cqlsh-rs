@@ -95,13 +95,6 @@ Implement complete CQL type system mapping from Cassandra wire format to display
 - [ ] Empty collections display correctly
 - [ ] Frozen types display the same as their unfrozen counterparts
 
-### Estimated Effort
-
-- Research: 2 days
-- Implementation: 4 days
-- Testing: 3 days
-- **Total: 9 days**
-
 ---
 
 ## Skills Required

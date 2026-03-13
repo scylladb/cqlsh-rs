@@ -70,33 +70,100 @@ Create a comprehensive benchmark suite that measures cqlsh-rs performance across
 | COPY memory | Peak RSS during 100K COPY TO |
 | Completion memory | RSS with large schema loaded |
 
-### CI Tracking
+### CI Tracking & Historical Benchmark Reports
+
+> **Reference:** Adopt the pattern from [fruch/coodie](https://github.com/fruch/coodie) — automatic historical tracking of benchmark results with GitHub Pages, regression alerts, and conditional execution.
+
+#### Execution Strategy
+
+| Trigger | When | Purpose |
+|---------|------|---------|
+| Main push | Every merge to `main` | Track historical trends |
+| PR with `benchmark` label | On-demand | Compare PR performance impact |
+| Weekly schedule | Monday 06:00 UTC | Catch regressions from dependency updates |
+| Manual dispatch | On-demand | Investigate specific scenarios |
+
+> Benchmarks do **not** run on every PR (too slow, too noisy). Use the `benchmark` label to opt-in per PR.
+
+#### Historical Results Storage
+
+| Layer | Storage | Retention | Purpose |
+|-------|---------|-----------|---------|
+| JSON artifacts | GitHub Actions artifacts | 90 days | Post-mortem debugging |
+| GitHub Pages | `gh-pages` branch | Permanent | Long-term trend visualization |
+| PR comments | PR thread | Permanent | Per-PR regression alerts |
+
+#### Workflow
 
 ```yaml
 # .github/workflows/bench.yml
+name: Benchmarks
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    types: [labeled]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 06:00 UTC
+  workflow_dispatch:
 
 jobs:
   benchmark:
+    # Only run on main push, schedule, dispatch, or when "benchmark" label is added
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'benchmark')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Run benchmarks
         run: cargo bench --bench all -- --output-format bencher | tee output.txt
-      - name: Store results
+
+      - name: Upload benchmark JSON as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: target/criterion/
+          retention-days: 90
+
+      - name: Store results & track history
         uses: benchmark-action/github-action-benchmark@v1
         with:
           tool: 'cargo'
           output-file-path: output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
-          alert-threshold: '120%'
+          # Push results to gh-pages for historical tracking
+          auto-push: ${{ github.event_name == 'push' }}
+          # Alert if any benchmark regresses >50% from baseline
+          alert-threshold: '150%'
+          # Post comment on PR when regression detected
           comment-on-alert: true
+          # Fail the workflow on severe regression
+          fail-on-alert: false
+          # Keep historical data on gh-pages branch
+          benchmark-data-dir-path: 'dev/bench'
 ```
+
+#### Comparative Benchmarking
+
+Following the coodie pattern, benchmark against a baseline implementation:
+
+| Variant | Purpose |
+|---------|---------|
+| **cqlsh-rs** | Project under test |
+| **Python cqlsh** | Compatibility & performance target |
+| **Raw scylla driver** | Performance floor (minimum possible overhead) |
+
+This allows statements like "cqlsh-rs adds 1.1x overhead vs raw driver" and "cqlsh-rs is 5x faster than Python cqlsh" — both meaningful numbers.
+
+#### Viewing Historical Results
+
+- **Dashboard:** `https://<user>.github.io/cqlsh-rs/dev/bench/` — auto-generated trend charts
+- **Artifacts:** Download JSON from any workflow run for detailed analysis
+- **PR comments:** Automatic regression alerts with before/after numbers
 
 ### Performance Targets
 
@@ -121,15 +188,6 @@ jobs:
 - [ ] Memory usage is lower than Python cqlsh
 - [ ] CI tracks benchmarks and alerts on regressions (>20%)
 - [ ] Benchmark results are reproducible
-
-### Estimated Effort
-
-- Research: 2 days
-- Micro-benchmark setup: 3 days
-- Macro-benchmark setup: 2 days
-- Memory profiling setup: 1 day
-- CI tracking: 1 day
-- **Total: 9 days**
 
 ---
 

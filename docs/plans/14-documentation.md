@@ -379,19 +379,6 @@ Build a lightweight MCP server that exposes cqlsh-rs knowledge as tools:
 
 ---
 
-## Estimated Effort
-
-| Area | Effort |
-|------|--------|
-| Documentation site setup + content | 5 days |
-| CI pipeline (build, preview, deploy) | 2 days |
-| LLM documentation (llms.txt, AGENTS.md) | 2 days |
-| Skill definitions (5 skills) | 3 days |
-| MCP server | 3 days |
-| Marketplace submissions | 2 days |
-| Man pages + shell completions | 1 day |
-| **Total** | **18 days** |
-
 ---
 
 ## Skills Required

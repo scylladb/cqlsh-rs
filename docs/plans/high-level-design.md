@@ -421,39 +421,39 @@ max_trace_wait = 10.0
 
 ### Key Modules (Expanded)
 
-| Module | Responsibility | Estimated Complexity |
-|--------|---------------|---------------------|
-| `main.rs` | Entry point: parse CLI, bootstrap session, choose run-mode | Low |
-| `config.rs` | Load and merge `~/.cqlshrc`, CLI args, env vars with precedence rules | Medium |
-| `session.rs` | Manage Cassandra connection pool, auth, keyspace tracking, consistency state | High |
-| `repl.rs` | Interactive REPL loop using `rustyline`, prompt management, multi-line input | Medium |
-| `runner.rs` | Non-interactive execution (file / `-e`), exit code management | Low |
-| `parser.rs` | Multi-line buffering, semicolon detection, comment stripping, command routing | Medium |
-| `formatter.rs` | Tabular, JSON, CSV, expanded output; type-aware formatting for all CQL types | High |
-| `colorizer.rs` | Syntax highlighting for CQL, color-coded output | Medium |
-| `completer.rs` | Context-aware tab-completion with schema introspection cache | High |
-| `error.rs` | Unified error type with Cassandra error code mapping | Low |
-| `types.rs` | CQL type system mapping and formatting rules | High |
-| `commands/describe.rs` | Full DESCRIBE command tree (15+ sub-commands) | High |
-| `commands/copy.rs` | COPY TO/FROM with all options, parallel workers, progress reporting | Very High |
-| `commands/source.rs` | SOURCE file execution | Low |
-| `commands/capture.rs` | CAPTURE output to file | Low |
-| `commands/show.rs` | SHOW VERSION, SHOW HOST, SHOW SESSION | Low |
-| `commands/login.rs` | LOGIN re-authentication | Medium |
-| `commands/paging.rs` | PAGING configuration | Low |
-| `commands/expand.rs` | EXPAND toggle | Low |
-| `commands/consistency.rs` | CONSISTENCY and SERIAL CONSISTENCY management | Low |
-| `commands/tracing_cmd.rs` | TRACING ON/OFF and trace display | Medium |
-| `commands/help.rs` | HELP command with per-command help text | Low |
-| `commands/clear.rs` | CLEAR/CLS terminal clearing | Low |
-| `driver/mod.rs` | Driver trait definition | Low |
-| `driver/scylla.rs` | scylla crate adapter implementation | High |
+| Module | Responsibility |
+|--------|---------------|
+| `main.rs` | Entry point: parse CLI, bootstrap session, choose run-mode|
+| `config.rs` | Load and merge `~/.cqlshrc`, CLI args, env vars with precedence rules|
+| `session.rs` | Manage Cassandra connection pool, auth, keyspace tracking, consistency state|
+| `repl.rs` | Interactive REPL loop using `rustyline`, prompt management, multi-line input|
+| `runner.rs` | Non-interactive execution (file / `-e`), exit code management|
+| `parser.rs` | Multi-line buffering, semicolon detection, comment stripping, command routing|
+| `formatter.rs` | Tabular, JSON, CSV, expanded output; type-aware formatting for all CQL types|
+| `colorizer.rs` | Syntax highlighting for CQL, color-coded output|
+| `completer.rs` | Context-aware tab-completion with schema introspection cache|
+| `error.rs` | Unified error type with Cassandra error code mapping|
+| `types.rs` | CQL type system mapping and formatting rules|
+| `commands/describe.rs` | Full DESCRIBE command tree (15+ sub-commands)|
+| `commands/copy.rs` | COPY TO/FROM with all options, parallel workers, progress reporting|
+| `commands/source.rs` | SOURCE file execution|
+| `commands/capture.rs` | CAPTURE output to file|
+| `commands/show.rs` | SHOW VERSION, SHOW HOST, SHOW SESSION|
+| `commands/login.rs` | LOGIN re-authentication|
+| `commands/paging.rs` | PAGING configuration|
+| `commands/expand.rs` | EXPAND toggle|
+| `commands/consistency.rs` | CONSISTENCY and SERIAL CONSISTENCY management|
+| `commands/tracing_cmd.rs` | TRACING ON/OFF and trace display|
+| `commands/help.rs` | HELP command with per-command help text|
+| `commands/clear.rs` | CLEAR/CLS terminal clearing|
+| `driver/mod.rs` | Driver trait definition|
+| `driver/scylla.rs` | scylla crate adapter implementation|
 
 ---
 
 ## Phased Implementation Plan
 
-### Phase 1 — Bootstrap MVP (Weeks 1-3)
+### Phase 1 — Bootstrap MVP 
 
 **Goal:** Minimal working shell that can connect and execute queries.
 
@@ -477,7 +477,7 @@ max_trace_wait = 10.0
 
 **Exit Criteria:** Can connect to Cassandra, run CQL queries, see results, exit cleanly. All CLI flags accepted (unimplemented ones produce warnings).
 
-### Phase 2 — Usable Shell (Weeks 4-7)
+### Phase 2 — Usable Shell 
 
 **Goal:** A pleasant interactive experience with proper formatting and core commands.
 
@@ -508,7 +508,7 @@ max_trace_wait = 10.0
 
 **Exit Criteria:** Daily-driver quality shell. Can replace Python cqlsh for interactive use with core commands.
 
-### Phase 3 — Tab Completion & Output (Weeks 8-11)
+### Phase 3 — Tab Completion & Output 
 
 **Goal:** Full tab completion parity and all output formats.
 
@@ -538,7 +538,7 @@ max_trace_wait = 10.0
 
 **Exit Criteria:** Tab completion matches Python cqlsh behavior. All output formats work. Colored output.
 
-### Phase 4 — COPY & Advanced (Weeks 12-16)
+### Phase 4 — COPY & Advanced 
 
 **Goal:** COPY TO/FROM, remaining DESCRIBE, batch mode, full compatibility.
 
@@ -571,7 +571,7 @@ max_trace_wait = 10.0
 
 **Exit Criteria:** 100% feature parity with Python cqlsh. All flags, commands, and options work.
 
-### Phase 5 — Testing & Benchmarking (Weeks 17-20)
+### Phase 5 — Testing & Benchmarking 
 
 **Goal:** Comprehensive test suite and performance benchmarks.
 
@@ -596,7 +596,7 @@ max_trace_wait = 10.0
 
 **Exit Criteria:** >90% test coverage. Benchmarks show improvement over Python cqlsh. CI green on all platforms and DB versions.
 
-### Phase 6 — Polish & Release (Weeks 21-24)
+### Phase 6 — Polish & Release 
 
 | Task | Description | Deliverable | Depends On |
 |------|-------------|-------------|------------|
@@ -788,51 +788,33 @@ Tests cover:
 
 > Full details in [`13-skills-development.md`](13-skills-development.md)
 
-### Phase 0: Prerequisites (Before Development Starts)
+### Approach: Gate + Just-in-Time
 
-| Week | Focus | Activities | Deliverable |
-|------|-------|-----------|-------------|
-| Pre-1 | Rust fundamentals refresh | Ownership, lifetimes, traits, error handling | Coding exercises |
-| Pre-1 | Async Rust | Tokio tutorial, async/await patterns, pinning | Working async examples |
-| Pre-2 | CQL & Cassandra | CQL spec reading, cqlsh usage, data modeling | CQL cheat sheet |
-| Pre-2 | Python cqlsh deep-dive | Read Python source, document all behaviors | Behavior catalog |
+Skills are split into two categories:
 
-### Phase 1: Foundation Skills (During Bootstrap)
+1. **Gate skills (before dev):** Must be validated before development starts. No Phase 1 work begins without these.
+2. **Just-in-time skills (with phase):** Learned as part of the phase work. The phase tasks serve as practice.
 
-| Skill | Learning Method | Validation |
+### Gate: Before Development Starts
+
+| Skill | Why It's a Gate | Validation |
 |-------|----------------|------------|
-| `clap` v4 derive API | Official docs + examples | Build the full CLI parser |
-| `scylla` driver basics | Crate docs + examples | Connect and run queries |
-| INI parsing with `rust-ini` | Crate docs | Parse sample cqlshrc |
-| Error handling with `anyhow`/`thiserror` | Crate docs | Unified error type |
+| Rust (advanced) | Every module depends on this | Coding exercise passes review |
+| Async Rust (Tokio) | Driver, session, COPY all async | Working async Cassandra client |
+| CQL & Cassandra | Can't design anything without this | Behavior catalog of Python cqlsh |
+| clap v4 | Phase 1 starts with CLI parser | CLI matching `cqlsh --help` |
+| CI/CD basics | Tests must run from day one | Green CI workflow |
 
-### Phase 2: Interactive Skills (During Usable Shell)
+### Just-in-Time: With Each Phase
 
-| Skill | Learning Method | Validation |
-|-------|----------------|------------|
-| `rustyline` advanced | Source code reading, examples | Custom completer + highlighter |
-| Terminal manipulation | `crossterm` / ANSI escape codes | Colored output, clearing |
-| `comfy-table` formatting | Crate docs | Format all CQL types in tables |
-| SSL/TLS with `rustls` | Docs + integration test | TLS connection to Cassandra |
-
-### Phase 3: Advanced Skills (During Completion & COPY)
-
-| Skill | Learning Method | Validation |
-|-------|----------------|------------|
-| CQL grammar understanding | CQL spec + Python parser source | Context-aware completer |
-| Concurrent data processing | Tokio channels, `futures::stream` | Parallel COPY workers |
-| CSV edge cases | RFC 4180, Python csv module behavior | Compatibility tests pass |
-| Performance profiling | `flamegraph`, `dhat`, `heaptrack` | Identify and fix bottlenecks |
-
-### Phase 4: Quality Skills (During Testing & Benchmarking)
-
-| Skill | Learning Method | Validation |
-|-------|----------------|------------|
-| `testcontainers-rs` | Crate docs + examples | Integration test suite runs |
-| `criterion` benchmarking | Official guide | Benchmark suite with tracking |
-| `proptest` | Official book | Property tests for parser |
-| `insta` snapshot testing | Crate docs | Output snapshot tests |
-| `cargo-tarpaulin` / `llvm-cov` | Tool docs | Coverage reports in CI |
+| Phase | Skills Acquired Through Phase Work |
+|-------|-----------------------------------|
+| Phase 1 | scylla driver, INI parsing, error handling patterns |
+| Phase 2 | rustyline, comfy-table, crossterm, rustls, system_schema tables |
+| Phase 3 | CQL grammar, schema introspection, serde_json, chrono |
+| Phase 4 | csv crate, Tokio channels, rate limiting, concurrent patterns |
+| Phase 5 | testcontainers-rs, criterion, proptest, insta, coverage tools |
+| Phase 6 | Cross-compilation, cargo-dist, clap_mangen |
 
 ### Skill Development Tracks
 

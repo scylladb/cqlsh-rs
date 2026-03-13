@@ -57,13 +57,6 @@ Implement a statement parser that handles multi-line input buffering, semicolon-
 - [ ] Empty statements are silently skipped
 - [ ] Multiple statements on one line are handled sequentially
 
-### Estimated Effort
-
-- Research: 1 day
-- Implementation: 3 days
-- Testing: 2 days (many edge cases)
-- **Total: 6 days**
-
 ---
 
 ## Skills Required

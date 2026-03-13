@@ -59,13 +59,6 @@ Implement an interactive REPL with line editing, history, multi-line input suppo
 - [ ] Pipe/redirect mode works without editing features
 - [ ] `--tty` forces interactive mode even in pipe
 
-### Estimated Effort
-
-- Research: 2 days
-- Implementation: 3 days
-- Testing: 2 days
-- **Total: 7 days**
-
 ---
 
 ## Skills Required

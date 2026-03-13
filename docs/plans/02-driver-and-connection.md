@@ -61,13 +61,6 @@ Design a driver abstraction layer and implement Cassandra/ScyllaDB connectivity 
 - [ ] Connection timeouts match `--connect-timeout` configuration
 - [ ] Request timeouts match `--request-timeout` configuration
 
-### Estimated Effort
-
-- Research: 3 days
-- Implementation: 5 days
-- Testing: 3 days
-- **Total: 11 days**
-
 ---
 
 ## Skills Required

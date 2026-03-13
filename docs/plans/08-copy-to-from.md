@@ -85,15 +85,7 @@ Implement the COPY TO and COPY FROM commands with 100% option compatibility, par
 - [ ] Token-range export works for parallel data extraction
 - [ ] STDOUT/STDIN modes work for piping
 
-### Estimated Effort
-
-- Research: 3 days
-- Implementation (COPY TO): 5 days
-- Implementation (COPY FROM): 7 days
-- Testing: 4 days
-- **Total: 19 days**
-
-This is the most complex sub-plan. COPY FROM alone is comparable to a standalone tool.
+> Note: This is the most complex sub-plan. COPY FROM alone is comparable to a standalone tool.
 
 ---
 

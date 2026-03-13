@@ -67,13 +67,6 @@ Implement all output formatting modes (tabular, JSON, CSV, expanded) with type-a
 - [ ] Colors match Python cqlsh defaults
 - [ ] Color can be forced on/off with flags
 
-### Estimated Effort
-
-- Research: 2 days
-- Implementation: 5 days
-- Testing: 3 days
-- **Total: 10 days**
-
 ---
 
 ## Skills Required

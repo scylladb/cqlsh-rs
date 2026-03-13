@@ -17,6 +17,13 @@ Design and implement a comprehensive testing strategy that validates 100% compat
 3. **Rust testing ecosystem** — assert_cmd, insta, proptest, testcontainers-rs, trycmd
 4. **CI strategies** — Matrix testing across DB versions and platforms
 5. **Coverage tools** — cargo-tarpaulin vs llvm-cov, grcov
+6. **Reference: [fruch/coodie](https://github.com/fruch/coodie)** — Review test setup, benchmark infrastructure, and historical benchmark tracking. Key patterns to adopt:
+   - **Testcontainers with CI compatibility** — Single container per session, network address translation for CI runners (`LocalhostTranslator` pattern), retry logic for startup reliability
+   - **Comparative benchmark architecture** — Baseline (raw driver) vs project vs competing implementation, with documented overhead ratios
+   - **GitHub Pages + `benchmark-action/github-action-benchmark`** — Automatic historical tracking of benchmark results, alert thresholds (>150% regression), conditional execution (only on main push / "benchmark" label on PRs)
+   - **Benchmark result persistence** — JSON reports as GitHub artifacts (90-day retention) + GitHub Pages for long-term trends
+   - **Self-healing CI** — AI-powered failure diagnosis with automatic PR comments
+   - **Flexible test fixtures** — Session-scoped containers (not per-test), environment-based fixture variants (mock vs real)
 
 ### Research Deliverables
 
@@ -169,16 +176,6 @@ strategy:
 - [ ] Compatibility tests show <1% output divergence from Python cqlsh
 - [ ] Coverage is >90%
 - [ ] CI runs in <15 minutes (with parallelism)
-
-### Estimated Effort
-
-- Research: 2 days
-- Unit test infrastructure: 2 days
-- Integration test harness: 3 days
-- Compatibility test harness: 3 days
-- CI configuration: 2 days
-- Ongoing test writing: Throughout development
-- **Total: 12 days (infrastructure) + ongoing**
 
 ---
 

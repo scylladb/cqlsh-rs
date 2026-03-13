@@ -99,14 +99,6 @@ Tag push (v1.0.0)
 - [ ] Docker image is available
 - [ ] Binary size is <15MB
 
-### Estimated Effort
-
-- Research: 2 days
-- CI setup: 3 days
-- Packaging: 3 days
-- Testing: 2 days
-- **Total: 10 days**
-
 ---
 
 ## Skills Required

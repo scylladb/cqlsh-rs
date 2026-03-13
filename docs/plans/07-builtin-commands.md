@@ -100,13 +100,6 @@ Key system tables:
 - [ ] Commands are case-insensitive
 - [ ] Invalid arguments produce helpful errors
 
-### Estimated Effort
-
-- Research: 3 days
-- Implementation: 8 days (DESCRIBE alone is ~4 days)
-- Testing: 4 days
-- **Total: 15 days**
-
 ---
 
 ## Skills Required

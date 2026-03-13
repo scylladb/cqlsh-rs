@@ -54,13 +54,6 @@ Implement 100% command-line argument compatibility and full `~/.cqlshrc` configu
 - [ ] Environment variables override cqlshrc values
 - [ ] CLI args override everything
 
-### Estimated Effort
-
-- Research: 2 days
-- Implementation: 3 days
-- Testing: 2 days
-- **Total: 7 days**
-
 ---
 
 ## Skills Required

@@ -65,13 +65,6 @@ Implement 100% tab-completion parity with Python cqlsh, including context-aware 
 - [ ] Case-insensitive matching works
 - [ ] No completions are offered in inappropriate contexts
 
-### Estimated Effort
-
-- Research: 3 days
-- Implementation: 5 days
-- Testing: 3 days
-- **Total: 11 days**
-
 ---
 
 ## Skills Required
