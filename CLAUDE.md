@@ -35,6 +35,10 @@ Skills are stored in `.github/skills/` and symlinked to `.claude/skills/` for du
 - `/create-implementation-plan` — Create structured implementation plans
 - `/remember` — Persist lessons learned across sessions
 - `/rust-testing` — Generate idiomatic Rust tests
+- `/rust-clippy` — Run Clippy with strict lints and fix warnings
+- `/rust-error-handling` — Idiomatic error handling with thiserror/anyhow
+- `/rust-code-review` — Comprehensive multi-dimensional code review
+- `/rust-performance` — Performance optimization, profiling, and benchmarking
 
 ## Testing
 
