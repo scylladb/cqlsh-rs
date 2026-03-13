@@ -1,0 +1,78 @@
+# Benchmark CI — tracks performance across merges and on-demand for PRs.
+#
+# Triggers:
+#   - Every push to main (historical tracking)
+#   - PRs when the "benchmark" label is added
+#   - Weekly Monday 06:00 UTC (catch dependency regressions)
+#   - Manual dispatch
+#
+# Results are stored on gh-pages branch for trend visualization at:
+#   https://<owner>.github.io/cqlsh-rs/dev/bench/
+
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [labeled]
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  benchmark:
+    if: >
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'benchmark')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry & build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-bench-
+
+      - name: Run benchmarks
+        run: cargo bench --bench startup -- --output-format bencher | tee output.txt
+
+      - name: Upload criterion artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: target/criterion/
+          retention-days: 90
+
+      - name: Store results & track history
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Only push historical data on main merges (not PRs)
+          auto-push: ${{ github.event_name == 'push' }}
+          # Alert if any benchmark regresses >50% from baseline
+          alert-threshold: '150%'
+          # Post comment on PR when regression detected
+          comment-on-alert: true
+          # Don't fail the workflow — just alert
+          fail-on-alert: false
+          # Historical data location on gh-pages branch
+          benchmark-data-dir-path: 'dev/bench'
