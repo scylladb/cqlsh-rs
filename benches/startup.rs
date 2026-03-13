@@ -150,10 +150,7 @@ fn bench_cli_parsing(c: &mut Criterion) {
     // Execute mode (common non-interactive usage)
     group.bench_function("execute_mode", |b| {
         b.iter(|| {
-            black_box(parse_cli(black_box(&[
-                "-e",
-                "SELECT * FROM system.local",
-            ])));
+            black_box(parse_cli(black_box(&["-e", "SELECT * FROM system.local"])));
         });
     });
 
@@ -263,7 +260,8 @@ fn bench_cqlshrc_parse_scaling(c: &mut Criterion) {
     // Measure how config parsing scales with the number of certfiles entries
     // (the only variable-length section in cqlshrc)
     for num_certfiles in [0, 10, 50, 100] {
-        let mut content = String::from("[connection]\nhostname = 127.0.0.1\nport = 9042\n\n[certfiles]\n");
+        let mut content =
+            String::from("[connection]\nhostname = 127.0.0.1\nport = 9042\n\n[certfiles]\n");
         for i in 0..num_certfiles {
             content.push_str(&format!(
                 "192.168.1.{} = ~/keys/node{}.cer.pem\n",
@@ -416,14 +414,16 @@ fn bench_end_to_end_startup(c: &mut Criterion) {
     let nonexistent = dir.path().join("nonexistent");
     group.bench_function("minimal", |b| {
         b.iter(|| {
-            let cli = parse_cli(&[
-                "--cqlshrc",
-                nonexistent.to_str().unwrap(),
-            ]);
+            let cli = parse_cli(&["--cqlshrc", nonexistent.to_str().unwrap()]);
             let _ = cli.validate();
             let cqlshrc = CqlshrcConfig::load(&nonexistent).unwrap();
             let env = EnvConfig::default();
-            black_box(MergedConfig::build(&cli, &env, cqlshrc, nonexistent.clone()));
+            black_box(MergedConfig::build(
+                &cli,
+                &env,
+                cqlshrc,
+                nonexistent.clone(),
+            ));
         });
     });
 
@@ -471,11 +471,7 @@ fn bench_end_to_end_startup(c: &mut Criterion) {
 // Criterion harness
 // ---------------------------------------------------------------------------
 
-criterion_group!(
-    cli_benches,
-    bench_cli_parsing,
-    bench_cli_validate,
-);
+criterion_group!(cli_benches, bench_cli_parsing, bench_cli_validate,);
 
 criterion_group!(
     config_benches,
