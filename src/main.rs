@@ -5,6 +5,7 @@ use clap::Parser;
 
 use cqlsh_rs::cli::CliArgs;
 use cqlsh_rs::config::load_config;
+use cqlsh_rs::repl;
 use cqlsh_rs::session::CqlSession;
 use cqlsh_rs::shell_completions;
 
@@ -31,7 +32,7 @@ async fn main() -> Result<()> {
     }
 
     // Connect to the cluster
-    let session = match CqlSession::connect(&config).await {
+    let mut session = match CqlSession::connect(&config).await {
         Ok(session) => session,
         Err(e) => {
             eprintln!(
@@ -56,11 +57,8 @@ async fn main() -> Result<()> {
             config.host, config.port
         );
     } else {
-        eprintln!(
-            "Interactive mode not yet implemented. \
-             Connected to {}:{} successfully.",
-            config.host, config.port
-        );
+        // Enter interactive REPL
+        repl::run(&mut session, &config).await?;
     }
 
     Ok(())
