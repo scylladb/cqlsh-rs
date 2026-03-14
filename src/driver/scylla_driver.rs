@@ -135,9 +135,20 @@ impl ScyllaDriver {
             let values: Vec<CqlValue> = row
                 .columns
                 .into_iter()
-                .map(|opt_val| match opt_val {
-                    Some(v) => Self::convert_scylla_value(v),
-                    None => CqlValue::Null,
+                .enumerate()
+                .map(|(col_idx, opt_val)| match opt_val {
+                    Some(v) => {
+                        tracing::debug!(
+                            column = col_idx,
+                            variant = ?std::mem::discriminant(&v),
+                            "converting ScyllaCqlValue: {v:?}"
+                        );
+                        Self::convert_scylla_value(v)
+                    }
+                    None => {
+                        tracing::debug!(column = col_idx, "column value is None (null)");
+                        CqlValue::Null
+                    }
                 })
                 .collect();
             cql_rows.push(CqlRow { values });
@@ -236,7 +247,10 @@ impl ScyllaDriver {
                 CqlValue::Varint(big_int)
             }
             // CqlValue is non-exhaustive; handle future variants gracefully
-            _ => CqlValue::Text(format!("{value:?}")),
+            _ => {
+                tracing::warn!("unhandled ScyllaCqlValue variant: {value:?}");
+                CqlValue::Text(format!("{value:?}"))
+            }
         }
     }
 
@@ -350,11 +364,7 @@ impl CqlDriver for ScyllaDriver {
     async fn execute_unpaged(&self, query: &str) -> Result<CqlResult> {
         let stmt = self.build_query(query);
 
-        let result = self
-            .session
-            .query_unpaged(stmt, ())
-            .await
-            .context("executing CQL query")?;
+        let result = self.session.query_unpaged(stmt, ()).await?;
 
         self.store_trace_id(&result);
         Self::convert_query_result(result)
