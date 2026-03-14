@@ -13,6 +13,7 @@ use rustyline::{Config, EditMode, Editor};
 
 use crate::config::MergedConfig;
 use crate::driver::CqlResult;
+use crate::parser::{self, ParseResult, StatementParser};
 use crate::session::CqlSession;
 
 /// Default history file path: ~/.cassandra/cql_history
@@ -64,50 +65,10 @@ fn resolve_history_path(config: &MergedConfig) -> Option<PathBuf> {
     dirs::home_dir().map(|home| home.join(DEFAULT_HISTORY_DIR).join(DEFAULT_HISTORY_FILE))
 }
 
-/// Determine whether a line buffer represents a complete CQL statement.
-///
-/// A statement is complete when it ends with a semicolon (ignoring trailing
-/// whitespace). This is a simplified check — the full parser (SP4) will
-/// handle comments, string literals containing semicolons, etc.
-fn is_statement_complete(buffer: &str) -> bool {
-    let trimmed = buffer.trim();
-    if trimmed.is_empty() {
-        return false;
-    }
-    trimmed.ends_with(';')
-}
-
-/// Check if a line is a shell command (non-CQL) that doesn't need a semicolon.
-///
-/// Shell commands like HELP, QUIT, EXIT, DESCRIBE, CONSISTENCY, TRACING, etc.
-/// are complete without a trailing semicolon.
-fn is_shell_command(line: &str) -> bool {
-    let upper = line.trim().to_uppercase();
-    let first_word = upper.split_whitespace().next().unwrap_or("");
-    matches!(
-        first_word,
-        "HELP"
-            | "?"
-            | "QUIT"
-            | "EXIT"
-            | "DESCRIBE"
-            | "DESC"
-            | "CONSISTENCY"
-            | "SERIAL"
-            | "TRACING"
-            | "EXPAND"
-            | "PAGING"
-            | "LOGIN"
-            | "SOURCE"
-            | "CAPTURE"
-            | "SHOW"
-            | "CLEAR"
-            | "CLS"
-            | "UNICODE"
-            | "DEBUG"
-            | "COPY"
-    )
-}
+// Statement parsing is now handled by the parser module (SP4).
+// The REPL uses `parser::StatementParser` for incremental, context-aware
+// statement detection that correctly handles strings, comments, and
+// multi-line input.
 
 /// Run the interactive REPL loop.
 ///
@@ -134,10 +95,10 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
     }
 
     let username = config.username.as_deref();
-    let mut input_buffer = String::new();
+    let mut stmt_parser = StatementParser::new();
 
     loop {
-        let prompt = if input_buffer.is_empty() {
+        let prompt = if stmt_parser.is_empty() {
             build_prompt(username, session.current_keyspace())
         } else {
             CONTINUATION_PROMPT.to_string()
@@ -145,47 +106,34 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
 
         match rl.readline(&prompt) {
             Ok(line) => {
-                if input_buffer.is_empty() {
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() {
-                        continue;
+                let trimmed = line.trim();
+
+                // On an empty primary prompt, just show the prompt again
+                if stmt_parser.is_empty() && trimmed.is_empty() {
+                    continue;
+                }
+
+                // Shell commands are complete without semicolons (only on first line)
+                if stmt_parser.is_empty() && parser::is_shell_command(trimmed) {
+                    dispatch_input(session, config, trimmed).await;
+                    continue;
+                }
+
+                // Feed line to the incremental parser
+                match stmt_parser.feed_line(&line) {
+                    ParseResult::Complete(statements) => {
+                        for stmt in statements {
+                            dispatch_input(session, config, &stmt).await;
+                        }
                     }
-
-                    // Shell commands are complete without semicolons
-                    if is_shell_command(trimmed) {
-                        dispatch_input(session, config, trimmed).await;
-                        continue;
-                    }
-
-                    // Check if this single line is a complete statement
-                    if is_statement_complete(trimmed) {
-                        dispatch_input(session, config, trimmed).await;
-                        continue;
-                    }
-
-                    // Start multi-line buffering
-                    input_buffer.push_str(&line);
-                    input_buffer.push('\n');
-                } else {
-                    // Continuing multi-line input
-                    input_buffer.push_str(&line);
-                    input_buffer.push('\n');
-
-                    if is_statement_complete(&input_buffer) {
-                        let statement = input_buffer.trim().to_string();
-                        input_buffer.clear();
-                        dispatch_input(session, config, &statement).await;
+                    ParseResult::Incomplete => {
+                        // Continue accumulating multi-line input
                     }
                 }
             }
             Err(ReadlineError::Interrupted) => {
                 // Ctrl-C: cancel current input buffer, return to prompt
-                if !input_buffer.is_empty() {
-                    input_buffer.clear();
-                    // No message needed, just go back to the primary prompt
-                } else {
-                    // On empty prompt, Ctrl-C does nothing (matches Python cqlsh)
-                }
+                stmt_parser.reset();
             }
             Err(ReadlineError::Eof) => {
                 // Ctrl-D: exit
@@ -488,74 +436,8 @@ mod tests {
         );
     }
 
-    // --- Statement completeness tests ---
-
-    #[test]
-    fn complete_statement_with_semicolon() {
-        assert!(is_statement_complete("SELECT * FROM users;"));
-    }
-
-    #[test]
-    fn incomplete_statement_no_semicolon() {
-        assert!(!is_statement_complete("SELECT * FROM users"));
-    }
-
-    #[test]
-    fn complete_statement_whitespace_after_semicolon() {
-        assert!(is_statement_complete("SELECT * FROM users;  "));
-    }
-
-    #[test]
-    fn empty_input_not_complete() {
-        assert!(!is_statement_complete(""));
-        assert!(!is_statement_complete("   "));
-    }
-
-    #[test]
-    fn multiline_complete() {
-        assert!(is_statement_complete("SELECT *\nFROM users\nWHERE id = 1;"));
-    }
-
-    #[test]
-    fn multiline_incomplete() {
-        assert!(!is_statement_complete("SELECT *\nFROM users\nWHERE"));
-    }
-
-    // --- Shell command detection tests ---
-
-    #[test]
-    fn detects_shell_commands() {
-        assert!(is_shell_command("HELP"));
-        assert!(is_shell_command("?"));
-        assert!(is_shell_command("QUIT"));
-        assert!(is_shell_command("EXIT"));
-        assert!(is_shell_command("DESCRIBE KEYSPACES"));
-        assert!(is_shell_command("DESC TABLE users"));
-        assert!(is_shell_command("CONSISTENCY ONE"));
-        assert!(is_shell_command("TRACING ON"));
-        assert!(is_shell_command("EXPAND ON"));
-        assert!(is_shell_command("PAGING 100"));
-        assert!(is_shell_command("SHOW VERSION"));
-        assert!(is_shell_command("CLEAR"));
-        assert!(is_shell_command("CLS"));
-        assert!(is_shell_command("COPY users TO '/tmp/data.csv'"));
-    }
-
-    #[test]
-    fn not_shell_commands() {
-        assert!(!is_shell_command("SELECT * FROM users"));
-        assert!(!is_shell_command("INSERT INTO users (id) VALUES (1)"));
-        assert!(!is_shell_command("CREATE TABLE test (id int PRIMARY KEY)"));
-        assert!(!is_shell_command("USE my_keyspace"));
-    }
-
-    #[test]
-    fn shell_command_case_insensitive() {
-        assert!(is_shell_command("help"));
-        assert!(is_shell_command("quit"));
-        assert!(is_shell_command("Help"));
-        assert!(is_shell_command("DESCRIBE keyspaces"));
-    }
+    // Statement completeness and shell command detection tests are now
+    // in the parser module (src/parser.rs) where the logic lives.
 
     // --- History path tests ---
 
