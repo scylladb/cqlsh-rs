@@ -47,24 +47,11 @@ Implement a statement parser that handles multi-line input buffering, semicolon-
 | 11 | Whitespace normalization | `parser.rs` | Unit: leading/trailing whitespace |
 | 12 | Multiple statements on one line | `parser.rs` | Unit: `stmt1; stmt2;` |
 
-### Upstream Bug Fixes to Account For
-
-> See [SP16: Upstream PR Review](16-upstream-pr-review.md) for full details.
-
-**scylla-cqlsh PR #150 (SCYLLADB-341): `/*` in string literals misinterpreted as comment.**
-The Python cqlsh used regex-based `strip_comment_blocks()` preprocessing that naively matched `/*` inside string literals. The fix: remove preprocessing, tokenize in order (string literals → comments → other tokens). cqlsh-rs MUST NOT use regex preprocessing on raw CQL input for comment handling. The lexer must be context-aware.
-
-**scylla-cqlsh PR #151 (SCYLLADB-338): O(n²) batch mode parsing.**
-In batch mode, the Python cqlsh re-parsed the entire accumulated buffer on every new line, causing >2hr processing for 1MB+ UDF files. The fix: only invoke the parser when a semicolon terminator is detected. cqlsh-rs MUST use an incremental approach — track string/comment context as lines are added, detect semicolons in O(1) per line, only attempt full parse when a potential terminator is found.
-
 ### Acceptance Criteria
 
 - [ ] Semicolons inside string literals do not terminate statements
 - [ ] Comments are stripped before execution
-- [ ] **Block comments (`/* */`) inside string literals do NOT split or terminate statements** (PR #150)
-- [ ] **`/*` and `*/` characters inside single-quoted, double-quoted, and dollar-quoted strings are treated as literal text** (PR #150)
 - [ ] Multi-line input accumulates correctly
-- [ ] **Batch mode parsing is O(n) not O(n²) — verified by benchmark with 1MB+ input completing in <1s** (PR #151)
 - [ ] Built-in commands are detected case-insensitively
 - [ ] CQL statements are forwarded to the driver
 - [ ] Empty statements are silently skipped

@@ -4,24 +4,7 @@ A ground-up Rust re-implementation of the Python `cqlsh` — the official intera
 
 The goal is **100% command-line and configuration compatibility** with the original Python cqlsh, delivered as a single static binary with zero runtime dependencies.
 
-> **Status:** Early development (Phase 1 — Bootstrap MVP in progress).
-
-## Development Progress
-
-<p align="center">
-  <img src="docs/assets/progress-roadmap.svg" alt="cqlsh-rs Development Roadmap" width="880"/>
-</p>
-
-<details>
-<summary>How to update progress</summary>
-
-Edit `docs/progress.json` with updated task counts and velocity data. The roadmap SVG is auto-regenerated when PRs that modify `docs/progress.json` are merged into main.
-
-You can also regenerate locally:
-```bash
-python3 scripts/generate_progress_svg.py
-```
-</details>
+> **Status:** Early development (Phase 1 — CLI & configuration complete, driver and REPL coming next).
 
 ## Prerequisites
 

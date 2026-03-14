@@ -58,8 +58,7 @@ Design and implement a comprehensive testing strategy that validates 100% compat
 
 | Test Suite | Description | DB Required |
 |-----------|-------------|------------|
-| `test_connect.rs` | Connection, auth, SSL/TLS, timeouts | Yes |
-| `test_ssl.rs` | SSL/TLS integration: server TLS, mutual TLS, cert validation, config precedence, TLS version enforcement (see [SP16](16-upstream-pr-review.md) PR #163) | Yes |
+| `test_connect.rs` | Connection, auth, SSL, timeouts | Yes |
 | `test_queries.rs` | SELECT, INSERT, UPDATE, DELETE, all types | Yes |
 | `test_describe.rs` | All DESCRIBE sub-commands, DDL output | Yes |
 | `test_copy.rs` | COPY TO/FROM with all options | Yes |

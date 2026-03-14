@@ -69,8 +69,6 @@ Implement 100% command-line argument compatibility and full `~/.cqlshrc` configu
 - [x] Shell completions generated for bash, zsh, fish, elvish, PowerShell
 - [ ] TODO: `--help` output template customized to match Python cqlsh layout exactly
 - [ ] TODO: `auth_provider` and `protocol` sections (rarely used, lower priority)
-- [ ] TODO: `--safe-mode` flag — prompt before DROP/TRUNCATE operations (see [SP16: Upstream PR Review](16-upstream-pr-review.md), scylla-cqlsh PR #147)
-- [ ] TODO: `safe_mode` key in `[connection]` cqlshrc section (scylla-cqlsh PR #147)
 
 ---
 

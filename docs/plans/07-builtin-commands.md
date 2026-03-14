@@ -91,18 +91,6 @@ Key system tables:
 - `system_schema.aggregates`
 - `system_schema.triggers`
 
-### Safe Mode (Cross-Cutting Concern)
-
-> See [SP16: Upstream PR Review](16-upstream-pr-review.md), scylla-cqlsh PR #147.
-
-When `--safe-mode` is enabled (via CLI flag or `safe_mode = true` in `[connection]` cqlshrc section), the statement execution pipeline must prompt for confirmation before executing destructive operations:
-
-- **Protected operations:** DROP (KEYSPACE, TABLE, INDEX, MATERIALIZED VIEW, TYPE, FUNCTION, AGGREGATE, USER, ROLE, SERVICE_LEVEL, TRIGGER), TRUNCATE
-- **Prompt format:** `Are you sure you want to [OPERATION] [TARGET]? [N/y]`
-- **Default answer:** No (safe default — pressing Enter cancels)
-- **Non-interactive mode:** Skip prompts (batch/execute mode should not hang)
-- **Implementation:** Detect via parser tokenization (not regex on raw input), integrate as a pre-execution check in the statement pipeline
-
 ### Acceptance Criteria
 
 - [ ] Every command in the matrix works with correct output
@@ -111,8 +99,6 @@ When `--safe-mode` is enabled (via CLI flag or `safe_mode = true` in `[connectio
 - [ ] Error messages match Python cqlsh
 - [ ] Commands are case-insensitive
 - [ ] Invalid arguments produce helpful errors
-- [ ] **Safe mode prompts for all protected operations when enabled** (PR #147)
-- [ ] **Safe mode is skipped in non-interactive mode** (PR #147)
 
 ---
 

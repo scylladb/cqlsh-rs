@@ -96,7 +96,6 @@ Every argument from `cqlsh --help` must be supported:
 | `--serial-consistency-level` | | Initial serial consistency level | P2 |
 | `--no_compact` | | Disable compact storage interpretation | P3 |
 | `--disable-history` | | Disable saving of command history | P3 |
-| `--safe-mode` | | Prompt before DROP/TRUNCATE operations | P3 |
 | `--secure-connect-bundle` | `-b` | Secure connect bundle (Astra DB) | P4 |
 | `[host]` | | Positional: contact point hostname | P1 |
 | `[port]` | | Positional: native transport port | P1 |
@@ -454,27 +453,27 @@ max_trace_wait = 10.0
 
 ## Phased Implementation Plan
 
-### Phase 1 — Bootstrap MVP 
+### Phase 1 — Bootstrap MVP
 
 **Goal:** Minimal working shell that can connect and execute queries.
 
-| Task | Description | Deliverable | Depends On |
-|------|-------------|-------------|------------|
-| 1.1 | Cargo workspace setup, CI (GitHub Actions), linting, formatting | `Cargo.toml`, `.github/workflows/ci.yml` | — |
-| 1.2 | CLI argument parsing (full compatibility — all flags accepted) | `main.rs`, `config.rs` | 1.1 |
-| 1.3 | Environment variable loading | `config.rs` | 1.2 |
-| 1.4 | cqlshrc file parsing (INI format, all sections) | `config.rs` | 1.2 |
-| 1.5 | Configuration merging with correct precedence | `config.rs` | 1.2, 1.3, 1.4 |
-| 1.6 | Cassandra driver abstraction trait | `driver/mod.rs` | 1.1 |
-| 1.7 | scylla crate driver implementation | `driver/scylla.rs` | 1.6 |
-| 1.8 | Session establishment with auth | `session.rs` | 1.5, 1.7 |
-| 1.9 | Basic REPL loop (read-line, no editing) | `repl.rs` | 1.8 |
-| 1.10 | Multi-line statement buffering | `parser.rs` | 1.9 |
-| 1.11 | QUIT / EXIT / Ctrl-D | `repl.rs` | 1.9 |
-| 1.12 | Raw result printing (columns + rows) | `formatter.rs` | 1.8 |
-| 1.13 | Execute mode (`-e`) | `runner.rs` | 1.8 |
-| 1.14 | File mode (`-f`) | `runner.rs` | 1.8, 1.10 |
-| 1.15 | `--version` flag | `main.rs` | 1.2 |
+| Task | Description | Deliverable | Depends On | Status |
+|------|-------------|-------------|------------|--------|
+| 1.1 | Cargo workspace setup, CI (GitHub Actions), linting, formatting | `Cargo.toml`, `.github/workflows/ci.yml` | — | ✅ Done |
+| 1.2 | CLI argument parsing (full compatibility — all flags accepted) | `main.rs`, `cli.rs`, `config.rs` | 1.1 | ✅ Done |
+| 1.3 | Environment variable loading | `config.rs` | 1.2 | ✅ Done |
+| 1.4 | cqlshrc file parsing (INI format, all sections) | `config.rs` | 1.2 | ✅ Done |
+| 1.5 | Configuration merging with correct precedence | `config.rs` | 1.2, 1.3, 1.4 | ✅ Done |
+| 1.6 | Cassandra driver abstraction trait | `driver/mod.rs` | 1.1 | ✅ Done |
+| 1.7 | scylla crate driver implementation | `driver/scylla_driver.rs` | 1.6 | ✅ Done |
+| 1.8 | Session establishment with auth | `session.rs` | 1.5, 1.7 | ✅ Done |
+| 1.9 | Basic REPL loop (read-line, no editing) | `repl.rs` | 1.8 | ⬜ TODO |
+| 1.10 | Multi-line statement buffering | `parser.rs` | 1.9 | ⬜ TODO |
+| 1.11 | QUIT / EXIT / Ctrl-D | `repl.rs` | 1.9 | ⬜ TODO |
+| 1.12 | Raw result printing (columns + rows) | `formatter.rs` | 1.8 | ✅ Done |
+| 1.13 | Execute mode (`-e`) | `runner.rs` | 1.8, 1.12 | ✅ Done |
+| 1.14 | File mode (`-f`) | `runner.rs` | 1.8, 1.12 | ✅ Done |
+| 1.15 | `--version` flag | `main.rs` | 1.2 | ✅ Done |
 
 **Exit Criteria:** Can connect to Cassandra, run CQL queries, see results, exit cleanly. All CLI flags accepted (unimplemented ones produce warnings).
 
@@ -634,8 +633,6 @@ Each area below gets its own dedicated research and execution plan document:
 | SP12 | **Cross-Platform & Release** | [`12-cross-platform-release.md`](12-cross-platform-release.md) | Multi-platform builds, packaging, distribution |
 | SP13 | **Skills Development** | [`13-skills-development.md`](13-skills-development.md) | Team skills assessment, training plans, knowledge prerequisites |
 | SP14 | **Documentation & LLM Skills** | [`14-documentation.md`](14-documentation.md) | Doc generation tooling, CI previews, LLM-oriented docs, skills marketplace publishing |
-| SP15 | **AI CI Failure Summaries** | [`15-ai-ci-failure-summaries.md`](15-ai-ci-failure-summaries.md) | AI-powered CI failure diagnosis and PR comment workflow |
-| SP16 | **Upstream PR Review** | [`16-upstream-pr-review.md`](16-upstream-pr-review.md) | Bug fixes and features from scylladb/scylla-cqlsh PRs to account for |
 
 ---
 
@@ -1006,8 +1003,6 @@ cqlsh-rs/
 | R8 | Cassandra version-specific behavior differences | Medium | Medium | Multi-version CI matrix |
 | R9 | Binary size too large | Low | Low | Feature flags, LTO, strip symbols |
 | R10 | Async runtime overhead for simple operations | Low | Low | Profile early, consider sync fallback for simple paths |
-| R11 | Parser inherits Python cqlsh bugs (comment-in-string, O(n²) batch) | Medium | High | Build context-aware lexer from scratch; see [SP16](16-upstream-pr-review.md) for known bugs |
-| R12 | Upstream scylla-cqlsh adds features (safe mode) before cqlsh-rs ships | Medium | Medium | Track upstream PRs; [SP16](16-upstream-pr-review.md) documents open PRs |
 
 ---
 
