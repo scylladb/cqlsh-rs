@@ -298,7 +298,10 @@ async fn dispatch_input(session: &mut CqlSession, config: &MergedConfig, input: 
             }
         }
         Err(e) => {
-            eprintln!("ServerError: {e}");
+            // Walk the error chain to find the most specific/useful message.
+            // The outermost error is often a generic wrapper like "executing CQL query".
+            let root = e.root_cause();
+            eprintln!("ServerError: {root}");
             if config.debug {
                 eprintln!("Debug: {e:?}");
             }
