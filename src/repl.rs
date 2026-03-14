@@ -218,9 +218,13 @@ async fn dispatch_input(session: &mut CqlSession, config: &MergedConfig, input: 
         std::process::exit(0);
     }
 
-    // Handle HELP
-    if upper == "HELP" || upper == "?" {
-        print_help();
+    // Handle HELP [topic]
+    if upper == "HELP" || upper == "?" || upper.starts_with("HELP ") {
+        if let Some(topic) = upper.strip_prefix("HELP ") {
+            print_help_topic(topic.trim());
+        } else {
+            print_help();
+        }
         return;
     }
 
@@ -307,24 +311,105 @@ fn print_help() {
     println!(
         "\
 Documented shell commands:
-CAPTURE  CLEAR   CONSISTENCY  COPY   DESC      DESCRIBE  EXIT    EXPAND
-HELP     LOGIN   PAGING       QUIT   SERIAL    SHOW      SOURCE  TRACING
-UNICODE
+  CLEAR         Clear the terminal screen
+  CONSISTENCY   Get/set consistency level
+  EXIT / QUIT   Exit the shell
+  HELP          Show this help or help on a topic
+  SERIAL        Get/set serial consistency level
+  SHOW          Show version or host info
+  TRACING       Toggle request tracing
 
-CQL help topics:
-AGGREGATES               ALTER_KEYSPACE           ALTER_TABLE
-ALTER_TYPE               ALTER_USER               APPLY
-BEGIN                    CREATE_AGGREGATE         CREATE_FUNCTION
-CREATE_INDEX             CREATE_KEYSPACE          CREATE_TABLE
-CREATE_TRIGGER           CREATE_TYPE              CREATE_USER
-DELETE                   DROP_AGGREGATE           DROP_FUNCTION
-DROP_INDEX               DROP_KEYSPACE            DROP_TABLE
-DROP_TRIGGER             DROP_TYPE                DROP_USER
-GRANT                    INSERT                   LIST_PERMISSIONS
-LIST_USERS               PERMISSIONS              REVOKE
-SELECT                   TEXT_OUTPUT               TRUNCATE
-TYPES                    UPDATE                   USE"
+Not yet implemented:
+  CAPTURE       Capture output to file
+  COPY          Import/export CSV data
+  DESCRIBE      Schema introspection
+  EXPAND        Toggle expanded output
+  LOGIN         Re-authenticate
+  PAGING        Configure automatic paging
+  SOURCE        Execute CQL file
+  UNICODE       Show Unicode handling info
+  DEBUG         Toggle debug mode
+
+CQL statements (executed via the database):
+  SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, USE, etc."
     );
+}
+
+/// Print help for a specific topic.
+///
+/// This is a stub — full per-topic help text will be added in a later phase.
+/// For now, print a message indicating the topic exists or is unknown.
+fn print_help_topic(topic: &str) {
+    // Shell commands
+    let shell_commands = [
+        "CAPTURE",
+        "CLEAR",
+        "CLS",
+        "CONSISTENCY",
+        "COPY",
+        "DESC",
+        "DESCRIBE",
+        "EXIT",
+        "EXPAND",
+        "HELP",
+        "LOGIN",
+        "PAGING",
+        "QUIT",
+        "SERIAL",
+        "SHOW",
+        "SOURCE",
+        "TRACING",
+        "UNICODE",
+        "DEBUG",
+        "USE",
+    ];
+    // CQL help topics
+    let cql_topics = [
+        "AGGREGATES",
+        "ALTER_KEYSPACE",
+        "ALTER_TABLE",
+        "ALTER_TYPE",
+        "ALTER_USER",
+        "APPLY",
+        "BEGIN",
+        "CREATE_AGGREGATE",
+        "CREATE_FUNCTION",
+        "CREATE_INDEX",
+        "CREATE_KEYSPACE",
+        "CREATE_TABLE",
+        "CREATE_TRIGGER",
+        "CREATE_TYPE",
+        "CREATE_USER",
+        "DELETE",
+        "DROP_AGGREGATE",
+        "DROP_FUNCTION",
+        "DROP_INDEX",
+        "DROP_KEYSPACE",
+        "DROP_TABLE",
+        "DROP_TRIGGER",
+        "DROP_TYPE",
+        "DROP_USER",
+        "GRANT",
+        "INSERT",
+        "LIST_PERMISSIONS",
+        "LIST_USERS",
+        "PERMISSIONS",
+        "REVOKE",
+        "SELECT",
+        "TEXT_OUTPUT",
+        "TRUNCATE",
+        "TYPES",
+        "UPDATE",
+        "USE",
+    ];
+
+    let upper = topic.to_uppercase();
+    if shell_commands.contains(&upper.as_str()) || cql_topics.contains(&upper.as_str()) {
+        println!("Help topic: {upper}");
+        println!("(Detailed help text not yet implemented.)");
+    } else {
+        println!("No help topic matching '{topic}'. Try HELP for a list of topics.");
+    }
 }
 
 /// Print query results in a basic tabular format.
