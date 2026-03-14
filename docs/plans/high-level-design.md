@@ -454,27 +454,27 @@ max_trace_wait = 10.0
 
 ## Phased Implementation Plan
 
-### Phase 1 — Bootstrap MVP 
+### Phase 1 — Bootstrap MVP
 
 **Goal:** Minimal working shell that can connect and execute queries.
 
-| Task | Description | Deliverable | Depends On |
-|------|-------------|-------------|------------|
-| 1.1 | Cargo workspace setup, CI (GitHub Actions), linting, formatting | `Cargo.toml`, `.github/workflows/ci.yml` | — |
-| 1.2 | CLI argument parsing (full compatibility — all flags accepted) | `main.rs`, `config.rs` | 1.1 |
-| 1.3 | Environment variable loading | `config.rs` | 1.2 |
-| 1.4 | cqlshrc file parsing (INI format, all sections) | `config.rs` | 1.2 |
-| 1.5 | Configuration merging with correct precedence | `config.rs` | 1.2, 1.3, 1.4 |
-| 1.6 | Cassandra driver abstraction trait | `driver/mod.rs` | 1.1 |
-| 1.7 | scylla crate driver implementation | `driver/scylla.rs` | 1.6 |
-| 1.8 | Session establishment with auth | `session.rs` | 1.5, 1.7 |
-| 1.9 | Basic REPL loop (read-line, no editing) | `repl.rs` | 1.8 |
-| 1.10 | Multi-line statement buffering | `parser.rs` | 1.9 |
-| 1.11 | QUIT / EXIT / Ctrl-D | `repl.rs` | 1.9 |
-| 1.12 | Raw result printing (columns + rows) | `formatter.rs` | 1.8 |
-| 1.13 | Execute mode (`-e`) | `runner.rs` | 1.8 |
-| 1.14 | File mode (`-f`) | `runner.rs` | 1.8, 1.10 |
-| 1.15 | `--version` flag | `main.rs` | 1.2 |
+| Task | Description | Deliverable | Depends On | Status |
+|------|-------------|-------------|------------|--------|
+| 1.1 | Cargo workspace setup, CI (GitHub Actions), linting, formatting | `Cargo.toml`, `.github/workflows/ci.yml` | — | ✅ Done |
+| 1.2 | CLI argument parsing (full compatibility — all flags accepted) | `main.rs`, `cli.rs`, `config.rs` | 1.1 | ✅ Done |
+| 1.3 | Environment variable loading | `config.rs` | 1.2 | ✅ Done |
+| 1.4 | cqlshrc file parsing (INI format, all sections) | `config.rs` | 1.2 | ✅ Done |
+| 1.5 | Configuration merging with correct precedence | `config.rs` | 1.2, 1.3, 1.4 | ✅ Done |
+| 1.6 | Cassandra driver abstraction trait | `driver/mod.rs` | 1.1 | ✅ Done |
+| 1.7 | scylla crate driver implementation | `driver/scylla_driver.rs` | 1.6 | ✅ Done |
+| 1.8 | Session establishment with auth | `session.rs` | 1.5, 1.7 | ✅ Done |
+| 1.9 | Basic REPL loop (read-line, no editing) | `repl.rs` | 1.8 | ⬜ TODO |
+| 1.10 | Multi-line statement buffering | `parser.rs` | 1.9 | ⬜ TODO |
+| 1.11 | QUIT / EXIT / Ctrl-D | `repl.rs` | 1.9 | ⬜ TODO |
+| 1.12 | Raw result printing (columns + rows) | `formatter.rs` | 1.8 | ✅ Done |
+| 1.13 | Execute mode (`-e`) | `runner.rs` | 1.8, 1.12 | ✅ Done |
+| 1.14 | File mode (`-f`) | `runner.rs` | 1.8, 1.12 | ✅ Done |
+| 1.15 | `--version` flag | `main.rs` | 1.2 | ✅ Done |
 
 **Exit Criteria:** Can connect to Cassandra, run CQL queries, see results, exit cleanly. All CLI flags accepted (unimplemented ones produce warnings).
 
