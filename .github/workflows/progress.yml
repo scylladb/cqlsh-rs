@@ -1,0 +1,45 @@
+name: Update Progress Roadmap
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+    paths:
+      - 'docs/progress.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-roadmap:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate progress SVG
+        run: python3 scripts/generate_progress_svg.py
+
+      - name: Check for changes
+        id: diff
+        run: |
+          git diff --quiet docs/assets/progress-roadmap.svg && echo "changed=false" >> "$GITHUB_OUTPUT" || echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push updated roadmap
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/assets/progress-roadmap.svg
+          git commit -m "docs: update progress roadmap SVG [skip ci]"
+          git push
