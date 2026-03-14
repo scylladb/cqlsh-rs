@@ -89,6 +89,7 @@ jobs:
       - name: Ensure gh-pages branch exists
         run: |
           if ! git ls-remote --exit-code origin gh-pages >/dev/null 2>&1; then
+            CURRENT_REF=$(git rev-parse HEAD)
             echo "Creating gh-pages branch..."
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -96,7 +97,7 @@ jobs:
             git reset --hard
             git commit --allow-empty -m "chore: initialize gh-pages branch"
             git push origin gh-pages
-            git checkout -
+            git checkout "$CURRENT_REF"
           fi
 
       - name: Store results & track history
