@@ -1,5 +1,9 @@
 name: CI Failure Analysis
 
+# Analyzes CI failures and posts a structured PR comment with diagnostics.
+# Uses pure pattern-matching on cargo/clippy/nextest output — no LLM required.
+# Logic lives in .github/scripts/analyze-ci-failures.sh for testability.
+
 on:
   workflow_run:
     workflows: ["CI"]
@@ -15,36 +19,50 @@ jobs:
       contents: read
       pull-requests: write
       actions: read
-      checks: read
-      id-token: write
 
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      # Download test results artifact from the failed run
+      # Download artifacts from the failed CI run
       - name: Download test results
         uses: actions/download-artifact@v4
         with:
           name: test-results
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ci-artifacts/
         continue-on-error: true
 
-      # Download failure history for recurring issue detection
-      - name: Download failure history
-        uses: dawidd6/action-download-artifact@v6
+      - name: Download clippy results
+        uses: actions/download-artifact@v4
         with:
-          workflow: ci-failure-analysis.yml
-          branch: ${{ github.event.workflow_run.head_branch }}
-          name: ci-failure-.*
-          name_is_regexp: true
-          path: failure-history/
-          if_no_artifact_found: warn
+          name: clippy-results
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ci-artifacts/
         continue-on-error: true
 
-      # Get the PR number from the workflow run
+      - name: Download build results
+        uses: actions/download-artifact@v4
+        with:
+          name: build-results
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ci-artifacts/
+        continue-on-error: true
+
+      - name: Download fmt results
+        uses: actions/download-artifact@v4
+        with:
+          name: fmt-results
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ci-artifacts/
+        continue-on-error: true
+
+      # Get the PR number
       - name: Get PR number
         id: pr
         run: |
@@ -53,127 +71,40 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Analyze failures with Claude
-      - name: Analyze CI failure
+      # Get failed job names
+      - name: Get failed jobs
+        id: failed-jobs
+        run: |
+          gh run view ${{ github.event.workflow_run.id }} --json jobs \
+            --jq '.jobs[] | select(.conclusion == "failure") | .name' \
+            > failed-jobs.txt
+          echo "Failed jobs:"
+          cat failed-jobs.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Run the analysis script
+      - name: Analyze failures
         id: analyze
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: claude-haiku-4-5-20251001
-          prompt: |
-            REPO: ${{ github.repository }}
-            PR NUMBER: ${{ steps.pr.outputs.number }}
-            FAILED WORKFLOW RUN: ${{ github.event.workflow_run.id }}
-            HEAD SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          {
+            echo "comment<<COMMENT_EOF"
+            bash .github/scripts/analyze-ci-failures.sh \
+              ci-artifacts \
+              failed-jobs.txt \
+              "${{ github.repository }}" \
+              "${{ github.event.workflow_run.id }}"
+            echo "COMMENT_EOF"
+          } >> "$GITHUB_OUTPUT"
 
-            Analyze the CI failure for this pull request. Do the following:
-
-            1. Read the workflow run logs using:
-               gh run view ${{ github.event.workflow_run.id }} --log-failed
-
-            2. If test-output.log exists in the current directory, read it for structured test failure data.
-
-            3. If failure-history/ directory has files, read them to detect recurring issues.
-
-            4. For each failed job, determine:
-               - The exact error message
-               - The root cause (why it failed)
-               - A suggested fix with specific file:line references
-               - A classification from: compilation_error, test_failure, lint_violation,
-                 infrastructure_flaky, dependency_issue, configuration_error, unknown
-
-            5. Assess flakiness: is this likely a flaky test? Provide confidence 0-1.
-
-            6. Check for recurring patterns across failure history files.
-
-            Return a structured JSON response matching the provided schema.
-          claude_args: |
-            --allowedTools "Bash(gh run view:*),Bash(gh api:*),Bash(cat:*),Bash(ls:*),Read"
-            --model claude-haiku-4-5-20251001
-            --json-schema '{"type":"object","properties":{"summary":{"type":"string","description":"One-line overall summary"},"total_jobs":{"type":"integer"},"failed_jobs":{"type":"integer"},"is_flaky":{"type":"boolean"},"flaky_confidence":{"type":"number"},"failures":{"type":"array","items":{"type":"object","properties":{"job_name":{"type":"string"},"test_name":{"type":"string"},"error_message":{"type":"string"},"root_cause":{"type":"string"},"suggested_fix":{"type":"string"},"file_reference":{"type":"string"},"classification":{"type":"string","enum":["compilation_error","test_failure","lint_violation","infrastructure_flaky","dependency_issue","configuration_error","unknown"]}},"required":["job_name","error_message","root_cause","suggested_fix","classification"]}},"recurring_issues":{"type":"array","items":{"type":"object","properties":{"issue":{"type":"string"},"occurrences":{"type":"integer"},"category":{"type":"string"},"pattern":{"type":"string"},"recommendation":{"type":"string"}},"required":["issue","occurrences","category","recommendation"]}}},"required":["summary","total_jobs","failed_jobs","is_flaky","failures"]}'
-
-      # Format and post PR comment
+      # Post or update PR comment
       - name: Post failure summary comment
         if: steps.pr.outputs.number != ''
         uses: actions/github-script@v7
         with:
           script: |
-            const raw = `${{ steps.analyze.outputs.structured_output }}`;
-            let output;
-            try {
-              output = JSON.parse(raw);
-            } catch (e) {
-              console.error('Failed to parse structured output:', e.message);
-              console.error('Raw output:', raw);
-              return;
-            }
+            const body = `${{ steps.analyze.outputs.comment }}`;
 
-            const runUrl = `https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}`;
-
-            // Classification emoji map
-            const classEmoji = {
-              compilation_error: '🔨',
-              test_failure: '🧪',
-              lint_violation: '📏',
-              infrastructure_flaky: '🔄',
-              dependency_issue: '📦',
-              configuration_error: '⚙️',
-              unknown: '❓'
-            };
-
-            // Group failures by job
-            const byJob = {};
-            for (const f of output.failures) {
-              if (!byJob[f.job_name]) byJob[f.job_name] = [];
-              byJob[f.job_name].push(f);
-            }
-
-            // Build classifications summary
-            const classifications = [...new Set(output.failures.map(f => f.classification))];
-            const classLabels = classifications.map(c =>
-              `${classEmoji[c] || '❓'} ${c.replace(/_/g, ' ')}`
-            ).join(', ');
-
-            let body = `## CI Failure Summary\n\n`;
-            body += `**Status:** ${output.failed_jobs} of ${output.total_jobs} jobs failed`;
-            body += ` | **Classification:** ${classLabels}\n`;
-            body += `**Flaky:** ${output.is_flaky ? 'Yes' : 'No'} (confidence: ${(output.flaky_confidence || 0).toFixed(2)})\n\n`;
-
-            // Failed jobs (collapsed)
-            for (const [job, failures] of Object.entries(byJob)) {
-              const count = failures.length;
-              body += `<details>\n`;
-              body += `<summary>❌ <b>${job}</b> — ${count} issue${count > 1 ? 's' : ''} (<a href="${runUrl}">job log</a>)</summary>\n\n`;
-
-              for (const f of failures) {
-                const title = f.test_name || f.job_name;
-                body += `### \`${title}\`\n`;
-                body += `- **Error:** \`${f.error_message}\`\n`;
-                body += `- **Root cause:** ${f.root_cause}\n`;
-                body += `- **Suggested fix:** ${f.suggested_fix}\n`;
-                if (f.file_reference) body += `- **File:** \`${f.file_reference}\`\n`;
-                body += `- **Category:** ${classEmoji[f.classification] || '❓'} ${f.classification.replace(/_/g, ' ')}\n\n`;
-              }
-
-              body += `</details>\n\n`;
-            }
-
-            // Recurring issues (collapsed)
-            if (output.recurring_issues && output.recurring_issues.length > 0) {
-              body += `<details>\n`;
-              body += `<summary>📊 <b>Recurring Issues</b> (seen across recent runs)</summary>\n\n`;
-              body += `| Issue | Occurrences | Category | Recommendation |\n`;
-              body += `|-------|-------------|----------|----------------|\n`;
-              for (const ri of output.recurring_issues) {
-                body += `| ${ri.issue} | ${ri.occurrences} | ${ri.category} | ${ri.recommendation} |\n`;
-              }
-              body += `\n</details>\n\n`;
-            }
-
-            body += `---\n`;
-            body += `*🤖 Generated by Claude CI Analyzer • [Re-run failed jobs](${runUrl})*\n`;
-
-            // Find existing comment to update (deduplication)
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -202,36 +133,3 @@ jobs:
               });
               console.log('Created new comment');
             }
-
-      # Save failure summary for history tracking
-      - name: Save failure history
-        if: always()
-        run: |
-          if [ -n '${{ steps.analyze.outputs.structured_output }}' ]; then
-            echo '${{ steps.analyze.outputs.structured_output }}' | \
-              jq '. + {"run_number": ${{ github.event.workflow_run.run_number }}, "timestamp": (now | todate), "sha": "${{ github.event.workflow_run.head_sha }}"}' \
-              > failure-summary.json
-          else
-            echo '{"error": "no structured output", "run_number": ${{ github.event.workflow_run.run_number }}}' > failure-summary.json
-          fi
-        continue-on-error: true
-
-      - name: Upload failure history
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-failure-${{ github.event.workflow_run.run_number }}
-          path: failure-summary.json
-          retention-days: 30
-
-      # Auto-retry flaky tests
-      - name: Auto-retry if flaky
-        if: >
-          steps.analyze.outputs.structured_output != '' &&
-          fromJSON(steps.analyze.outputs.structured_output).is_flaky == true &&
-          fromJSON(steps.analyze.outputs.structured_output).flaky_confidence > 0.8
-        run: |
-          echo "Flaky test detected with high confidence — triggering re-run of failed jobs"
-          gh run rerun ${{ github.event.workflow_run.id }} --failed
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
