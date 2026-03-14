@@ -2,7 +2,7 @@
 #
 # Triggers:
 #   - Every push to main (historical tracking + GitHub Pages deploy)
-#   - PRs when the "benchmark" label is added (regression alerts)
+#   - PRs with the "benchmark" label (regression alerts on every push)
 #   - Weekly Monday 06:00 UTC (catch dependency regressions)
 #   - Manual dispatch
 #
@@ -15,7 +15,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [labeled]
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
@@ -32,7 +31,7 @@ jobs:
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'pull_request' && github.event.label.name == 'benchmark')
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'benchmark'))
     runs-on: ubuntu-latest
 
     steps:
@@ -54,6 +53,24 @@ jobs:
 
       - name: Run benchmarks
         run: cargo bench --bench startup -- --output-format bencher | tee output.txt
+
+      - name: Generate benchmark summary
+        run: python3 scripts/format_bench_summary.py < output.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install hyperfine
+        run: sudo apt-get install -y hyperfine
+
+      - name: Install Python cqlsh
+        run: pip install cqlsh
+
+      - name: Build cqlsh-rs release
+        run: cargo build --release
+
+      - name: Startup comparison (Rust vs Python)
+        run: |
+          scripts/bench_comparison.sh
+          echo "## Rust vs Python: Startup" >> "$GITHUB_STEP_SUMMARY"
+          cat startup-comparison.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload criterion HTML report
         uses: actions/upload-artifact@v4
@@ -90,8 +107,9 @@ jobs:
           auto-push: ${{ github.event_name == 'push' }}
           # Alert if any benchmark regresses >50% from baseline
           alert-threshold: '150%'
-          # Post comment on PR when regression detected
+          # Always post benchmark results as a PR comment
           comment-on-alert: true
+          comment-always: true
           # Don't fail the workflow — just alert
           fail-on-alert: false
           # Historical data location on gh-pages branch
