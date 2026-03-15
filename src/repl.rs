@@ -4,7 +4,9 @@
 //! Mirrors the Python cqlsh interactive behavior including multi-line input,
 //! prompt formatting, and Ctrl-C/Ctrl-D handling.
 
-use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::io::{self, BufRead, Write};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use rustyline::error::ReadlineError;
@@ -66,6 +68,37 @@ fn resolve_history_path(config: &MergedConfig) -> Option<PathBuf> {
     dirs::home_dir().map(|home| home.join(DEFAULT_HISTORY_DIR).join(DEFAULT_HISTORY_FILE))
 }
 
+/// Mutable shell state for commands like EXPAND, PAGING, and CAPTURE.
+#[derive(Default)]
+struct ShellState {
+    /// Whether expanded (vertical) output is enabled.
+    expand: bool,
+    /// Paging configuration: None = disabled, Some(n) = page size.
+    page_size: Option<i32>,
+    /// Active CAPTURE file handle (output is tee'd to this file).
+    capture_file: Option<File>,
+    /// Path of the active capture file (for display).
+    capture_path: Option<PathBuf>,
+}
+
+impl ShellState {
+    /// Write output line to both stdout and the capture file (if active).
+    fn outputln(&mut self, text: &str) {
+        println!("{text}");
+        if let Some(ref mut f) = self.capture_file {
+            let _ = writeln!(f, "{text}");
+        }
+    }
+
+    /// Write output (no trailing newline) to both stdout and capture file.
+    fn output(&mut self, text: &str) {
+        print!("{text}");
+        if let Some(ref mut f) = self.capture_file {
+            let _ = write!(f, "{text}");
+        }
+    }
+}
+
 // Statement parsing is now handled by the parser module (SP4).
 // The REPL uses `parser::StatementParser` for incremental, context-aware
 // statement detection that correctly handles strings, comments, and
@@ -97,7 +130,7 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
 
     let username = config.username.as_deref();
     let mut stmt_parser = StatementParser::new();
-    let mut expanded = false;
+    let mut shell = ShellState::default();
 
     loop {
         let prompt = if stmt_parser.is_empty() {
@@ -117,7 +150,7 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
                         &mut stmt_parser,
                         session,
                         config,
-                        &mut expanded,
+                        &mut shell,
                     )
                     .await;
                 }
@@ -153,7 +186,7 @@ async fn process_line(
     stmt_parser: &mut StatementParser,
     session: &mut CqlSession,
     config: &MergedConfig,
-    expanded: &mut bool,
+    shell: &mut ShellState,
 ) {
     let trimmed = line.trim();
 
@@ -164,14 +197,14 @@ async fn process_line(
 
     // Shell commands are complete without semicolons (only on first line)
     if stmt_parser.is_empty() && parser::is_shell_command(trimmed) {
-        dispatch_input(session, config, trimmed, expanded).await;
+        dispatch_input(session, config, shell, trimmed).await;
         return;
     }
 
     // Feed line to the incremental parser
     if let ParseResult::Complete(statements) = stmt_parser.feed_line(line) {
         for stmt in statements {
-            dispatch_input(session, config, &stmt, expanded).await;
+            dispatch_input(session, config, shell, &stmt).await;
         }
     }
 }
@@ -179,12 +212,14 @@ async fn process_line(
 /// Dispatch a complete input line/statement to the session.
 ///
 /// Handles built-in shell commands and CQL statements.
-async fn dispatch_input(
-    session: &mut CqlSession,
-    config: &MergedConfig,
-    input: &str,
-    expanded: &mut bool,
-) {
+/// Uses `Box::pin` to support recursive calls from `execute_source`.
+fn dispatch_input<'a>(
+    session: &'a mut CqlSession,
+    config: &'a MergedConfig,
+    shell: &'a mut ShellState,
+    input: &'a str,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + 'a>> {
+    Box::pin(async move {
     let trimmed = input.trim();
     let upper = trimmed.to_uppercase();
 
@@ -212,13 +247,13 @@ async fn dispatch_input(
     // Handle CONSISTENCY
     if upper == "CONSISTENCY" {
         let cl = session.get_consistency();
-        println!("Current consistency level is {cl}.");
+        shell.outputln(&format!("Current consistency level is {cl}."));
         return;
     }
     if let Some(rest) = upper.strip_prefix("CONSISTENCY ") {
         let level = rest.trim();
         match session.set_consistency_str(level) {
-            Ok(()) => println!("Consistency level set to {level}."),
+            Ok(()) => shell.outputln(&format!("Consistency level set to {level}.")),
             Err(e) => eprintln!("{e}"),
         }
         return;
@@ -227,15 +262,15 @@ async fn dispatch_input(
     // Handle SERIAL CONSISTENCY
     if upper == "SERIAL CONSISTENCY" {
         match session.get_serial_consistency() {
-            Some(scl) => println!("Current serial consistency level is {scl}."),
-            None => println!("Current serial consistency level is SERIAL."),
+            Some(scl) => shell.outputln(&format!("Current serial consistency level is {scl}.")),
+            None => shell.outputln("Current serial consistency level is SERIAL."),
         }
         return;
     }
     if let Some(rest) = upper.strip_prefix("SERIAL CONSISTENCY ") {
         let level = rest.trim();
         match session.set_serial_consistency_str(level) {
-            Ok(()) => println!("Serial consistency level set to {level}."),
+            Ok(()) => shell.outputln(&format!("Serial consistency level set to {level}.")),
             Err(e) => eprintln!("{e}"),
         }
         return;
@@ -244,54 +279,133 @@ async fn dispatch_input(
     // Handle TRACING
     if upper == "TRACING" || upper == "TRACING OFF" {
         session.set_tracing(false);
-        println!("Disabled tracing.");
+        shell.outputln("Disabled tracing.");
         return;
     }
     if upper == "TRACING ON" {
         session.set_tracing(true);
-        println!("Now tracing requests.");
+        shell.outputln("Now tracing requests.");
         return;
     }
 
     // Handle EXPAND
-    if upper == "EXPAND" || upper == "EXPAND OFF" {
-        *expanded = false;
-        println!("Disabled EXPAND.");
+    if upper == "EXPAND" {
+        if shell.expand {
+            shell.outputln("Expanded output is currently enabled. Use EXPAND OFF to disable.");
+        } else {
+            shell.outputln("Expanded output is currently disabled. Use EXPAND ON to enable.");
+        }
         return;
     }
     if upper == "EXPAND ON" {
-        *expanded = true;
-        println!("Now printing expanded output.");
+        shell.expand = true;
+        shell.outputln("Now printing expanded output.");
+        return;
+    }
+    if upper == "EXPAND OFF" {
+        shell.expand = false;
+        shell.outputln("Disabled expanded output.");
+        return;
+    }
+
+    // Handle PAGING
+    if upper == "PAGING" {
+        match shell.page_size {
+            Some(size) => shell.outputln(&format!("Page size: {size}")),
+            None => shell.outputln("Paging is currently disabled."),
+        }
+        return;
+    }
+    if upper == "PAGING ON" {
+        shell.page_size = Some(100);
+        shell.outputln("Page size: 100");
+        return;
+    }
+    if upper == "PAGING OFF" {
+        shell.page_size = None;
+        shell.outputln("Disabled paging.");
+        return;
+    }
+    if let Some(rest) = upper.strip_prefix("PAGING ") {
+        let size_str = rest.trim();
+        match size_str.parse::<i32>() {
+            Ok(size) if size > 0 => {
+                shell.page_size = Some(size);
+                shell.outputln(&format!("Page size: {size}"));
+            }
+            _ => eprintln!("Invalid page size: {}", rest.trim()),
+        }
+        return;
+    }
+
+    // Handle SOURCE
+    if upper.starts_with("SOURCE ") {
+        let path = trimmed["SOURCE ".len()..].trim();
+        let path = strip_quotes(path);
+        if config.no_file_io {
+            eprintln!("File I/O is disabled (--no-file-io).");
+        } else {
+            execute_source(session, config, shell, path).await;
+        }
+        return;
+    }
+    if upper == "SOURCE" {
+        eprintln!("SOURCE requires a file path argument.");
+        return;
+    }
+
+    // Handle CAPTURE
+    if upper == "CAPTURE" {
+        match &shell.capture_path {
+            Some(path) => shell.outputln(&format!("Currently capturing to '{}'.", path.display())),
+            None => shell.outputln("Not currently capturing."),
+        }
+        return;
+    }
+    if upper == "CAPTURE OFF" {
+        if shell.capture_file.is_some() {
+            let path = shell.capture_path.take().unwrap();
+            shell.capture_file = None;
+            shell.outputln(&format!("Stopped capture. Output saved to '{}'.", path.display()));
+        } else {
+            shell.outputln("Not currently capturing.");
+        }
+        return;
+    }
+    if upper.strip_prefix("CAPTURE ").is_some() {
+        let path = trimmed["CAPTURE ".len()..].trim();
+        let path = strip_quotes(path);
+        if config.no_file_io {
+            eprintln!("File I/O is disabled (--no-file-io).");
+        } else {
+            let expanded = expand_tilde(path);
+            match File::create(&expanded) {
+                Ok(file) => {
+                    shell.outputln(&format!("Now capturing query output to '{}'.", expanded.display()));
+                    shell.capture_file = Some(file);
+                    shell.capture_path = Some(expanded);
+                }
+                Err(e) => eprintln!("Unable to open '{}' for writing: {e}", expanded.display()),
+            }
+        }
         return;
     }
 
     // Handle SHOW VERSION
     if upper == "SHOW VERSION" {
-        println!("[cqlsh {}]", env!("CARGO_PKG_VERSION"));
+        shell.outputln(&format!("[cqlsh {}]", env!("CARGO_PKG_VERSION")));
         return;
     }
 
     // Handle SHOW HOST
     if upper == "SHOW HOST" {
-        println!("Connected to: {}", session.connection_display);
-        return;
-    }
-
-    // Handle SOURCE
-    if upper.starts_with("SOURCE ") || upper == "SOURCE" {
-        if upper == "SOURCE" {
-            eprintln!("SOURCE requires a filename argument.");
-            return;
-        }
-        let arg = trimmed["SOURCE ".len()..].trim();
-        let path = arg.trim_matches('\'').trim_matches('"');
-        execute_source(session, config, expanded, Path::new(path)).await;
+        shell.outputln(&format!("Connected to: {}", session.connection_display));
         return;
     }
 
     // Handle DESCRIBE / DESC
     if upper.starts_with("DESCRIBE ") || upper.starts_with("DESC ") || upper == "DESCRIBE" || upper == "DESC" {
-        execute_describe(session, &upper, session.current_keyspace().map(String::from)).await;
+        execute_describe(session, shell, &upper, session.current_keyspace().map(String::from)).await;
         return;
     }
 
@@ -299,7 +413,7 @@ async fn dispatch_input(
     match session.execute(trimmed).await {
         Ok(result) => {
             if !result.rows.is_empty() {
-                print_results(&result, *expanded);
+                print_results(shell, &result);
             }
         }
         Err(e) => {
@@ -309,117 +423,7 @@ async fn dispatch_input(
             }
         }
     }
-}
-
-/// Execute a SOURCE command: read a CQL file and dispatch each statement.
-///
-/// Shell commands in the file (SHOW, CONSISTENCY, etc.) are routed through
-/// `dispatch_input` just like interactive input — they are not sent to the DB.
-fn execute_source<'a>(
-    session: &'a mut CqlSession,
-    config: &'a MergedConfig,
-    expanded: &'a mut bool,
-    path: &'a Path,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + 'a>> {
-    Box::pin(async move {
-        let content = match std::fs::read_to_string(path) {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!("Unable to open '{}' for reading: {e}", path.display());
-                return;
-            }
-        };
-
-        // Use the incremental parser line-by-line so shell commands in the file
-        // are detected on their own lines (just like the interactive REPL).
-        let mut stmt_parser = StatementParser::new();
-        for line in content.lines() {
-            let trimmed = line.trim();
-
-            // Shell commands on their own line — dispatch directly
-            if stmt_parser.is_empty() && !trimmed.is_empty() && parser::is_shell_command(trimmed) {
-                dispatch_input(session, config, trimmed, expanded).await;
-                continue;
-            }
-
-            if let ParseResult::Complete(stmts) = stmt_parser.feed_line(line) {
-                for stmt in stmts {
-                    dispatch_input(session, config, &stmt, expanded).await;
-                }
-            }
-        }
     })
-}
-
-/// Execute a DESCRIBE / DESC command.
-///
-/// Supported forms:
-/// - `DESCRIBE TABLES` / `DESC TABLES` — list tables (all keyspaces if none selected)
-/// - `DESCRIBE KEYSPACES` / `DESC KEYSPACES` — list all keyspaces
-async fn execute_describe(
-    session: &CqlSession,
-    upper_input: &str,
-    current_keyspace: Option<String>,
-) {
-    let args = if let Some(rest) = upper_input.strip_prefix("DESCRIBE") {
-        rest.trim()
-    } else if let Some(rest) = upper_input.strip_prefix("DESC") {
-        rest.trim()
-    } else {
-        ""
-    };
-
-    match args {
-        "TABLES" | "COLUMNFAMILIES" => {
-            if let Some(ks) = &current_keyspace {
-                // Single keyspace
-                match session.get_tables(ks).await {
-                    Ok(tables) => {
-                        let names: Vec<&str> = tables.iter().map(|t| t.name.as_str()).collect();
-                        println!("\n{}\n", names.join("\n"));
-                    }
-                    Err(e) => eprintln!("Error: {e}"),
-                }
-            } else {
-                // All keyspaces — Python cqlsh format
-                match session.get_keyspaces().await {
-                    Ok(keyspaces) => {
-                        println!();
-                        for ks in &keyspaces {
-                            match session.get_tables(&ks.name).await {
-                                Ok(tables) => {
-                                    println!("Keyspace {}", ks.name);
-                                    println!("{}", "-".repeat(ks.name.len() + 9));
-                                    if tables.is_empty() {
-                                        println!();
-                                    } else {
-                                        let names: Vec<&str> =
-                                            tables.iter().map(|t| t.name.as_str()).collect();
-                                        println!("{}\n", names.join("\n"));
-                                    }
-                                }
-                                Err(e) => eprintln!("Error listing tables for {}: {e}", ks.name),
-                            }
-                        }
-                    }
-                    Err(e) => eprintln!("Error: {e}"),
-                }
-            }
-        }
-        "KEYSPACES" => match session.get_keyspaces().await {
-            Ok(keyspaces) => {
-                let names: Vec<&str> = keyspaces.iter().map(|k| k.name.as_str()).collect();
-                println!("\n{}\n", names.join("\n"));
-            }
-            Err(e) => eprintln!("Error: {e}"),
-        },
-        "" => {
-            eprintln!("DESCRIBE requires a subcommand. Try: DESCRIBE TABLES, DESCRIBE KEYSPACES");
-        }
-        _ => {
-            eprintln!("DESCRIBE {args} is not yet implemented.");
-        }
-    }
 }
 
 /// Print a basic help message matching Python cqlsh style.
@@ -427,22 +431,22 @@ fn print_help() {
     println!(
         "\
 Documented shell commands:
+  CAPTURE       Capture output to file
   CLEAR         Clear the terminal screen
   CONSISTENCY   Get/set consistency level
   DESCRIBE      Schema introspection (TABLES, KEYSPACES)
   EXIT / QUIT   Exit the shell
   EXPAND        Toggle expanded (vertical) output
   HELP          Show this help or help on a topic
+  PAGING        Configure automatic paging
   SERIAL        Get/set serial consistency level
   SHOW          Show version or host info
-  SOURCE        Execute a CQL file
+  SOURCE        Execute CQL from a file
   TRACING       Toggle request tracing
 
 Not yet implemented:
-  CAPTURE       Capture output to file
   COPY          Import/export CSV data
   LOGIN         Re-authenticate
-  PAGING        Configure automatic paging
   UNICODE       Show Unicode handling info
   DEBUG         Toggle debug mode
 
@@ -525,6 +529,150 @@ fn print_help_topic(topic: &str) {
         println!("(Detailed help text not yet implemented.)");
     } else {
         println!("No help topic matching '{topic}'. Try HELP for a list of topics.");
+    }
+}
+
+/// Strip surrounding single or double quotes from a string.
+fn strip_quotes(s: &str) -> &str {
+    if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    }
+}
+
+/// Expand `~` at the start of a path to the user's home directory.
+fn expand_tilde(path: &str) -> PathBuf {
+    if let Some(rest) = path.strip_prefix("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(rest);
+        }
+    } else if path == "~" {
+        if let Some(home) = dirs::home_dir() {
+            return home;
+        }
+    }
+    PathBuf::from(path)
+}
+
+/// Execute a SOURCE file: read CQL statements and execute them sequentially.
+///
+/// Shell commands in the file (SHOW, CONSISTENCY, etc.) are routed through
+/// `dispatch_input` just like interactive input — they are not sent to the DB.
+fn execute_source<'a>(
+    session: &'a mut CqlSession,
+    config: &'a MergedConfig,
+    shell: &'a mut ShellState,
+    path: &'a str,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + 'a>> {
+    Box::pin(async move {
+    let expanded = expand_tilde(path);
+    let file = match File::open(&expanded) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Could not open '{}': {e}", expanded.display());
+            return;
+        }
+    };
+
+    let reader = io::BufReader::new(file);
+    let mut parser = StatementParser::new();
+
+    for line_result in reader.lines() {
+        let line = match line_result {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("Error reading '{}': {e}", expanded.display());
+                return;
+            }
+        };
+
+        // Check if it's a shell command on a fresh line
+        let trimmed = line.trim();
+        if parser.is_empty() && !trimmed.is_empty() && parser::is_shell_command(trimmed) {
+            dispatch_input(session, config, shell, trimmed).await;
+            continue;
+        }
+
+        match parser.feed_line(&line) {
+            ParseResult::Complete(statements) => {
+                for stmt in statements {
+                    dispatch_input(session, config, shell, &stmt).await;
+                }
+            }
+            ParseResult::Incomplete => {}
+        }
+    }
+    })
+}
+
+/// Execute a DESCRIBE / DESC command.
+///
+/// Supported forms:
+/// - `DESCRIBE TABLES` / `DESC TABLES` — list tables (all keyspaces if none selected)
+/// - `DESCRIBE KEYSPACES` / `DESC KEYSPACES` — list all keyspaces
+async fn execute_describe(
+    session: &CqlSession,
+    shell: &mut ShellState,
+    upper_input: &str,
+    current_keyspace: Option<String>,
+) {
+    let args = if let Some(rest) = upper_input.strip_prefix("DESCRIBE") {
+        rest.trim()
+    } else if let Some(rest) = upper_input.strip_prefix("DESC") {
+        rest.trim()
+    } else {
+        ""
+    };
+
+    match args {
+        "TABLES" | "COLUMNFAMILIES" => {
+            if let Some(ks) = &current_keyspace {
+                match session.get_tables(ks).await {
+                    Ok(tables) => {
+                        let names: Vec<&str> = tables.iter().map(|t| t.name.as_str()).collect();
+                        shell.outputln(&format!("\n{}\n", names.join("\n")));
+                    }
+                    Err(e) => eprintln!("Error: {e}"),
+                }
+            } else {
+                match session.get_keyspaces().await {
+                    Ok(keyspaces) => {
+                        shell.outputln("");
+                        for ks in &keyspaces {
+                            match session.get_tables(&ks.name).await {
+                                Ok(tables) => {
+                                    shell.outputln(&format!("Keyspace {}", ks.name));
+                                    shell.outputln(&"-".repeat(ks.name.len() + 9));
+                                    if tables.is_empty() {
+                                        shell.outputln("");
+                                    } else {
+                                        let names: Vec<&str> =
+                                            tables.iter().map(|t| t.name.as_str()).collect();
+                                        shell.outputln(&format!("{}\n", names.join("\n")));
+                                    }
+                                }
+                                Err(e) => eprintln!("Error listing tables for {}: {e}", ks.name),
+                            }
+                        }
+                    }
+                    Err(e) => eprintln!("Error: {e}"),
+                }
+            }
+        }
+        "KEYSPACES" => match session.get_keyspaces().await {
+            Ok(keyspaces) => {
+                let names: Vec<&str> = keyspaces.iter().map(|k| k.name.as_str()).collect();
+                shell.outputln(&format!("\n{}\n", names.join("\n")));
+            }
+            Err(e) => eprintln!("Error: {e}"),
+        },
+        "" => {
+            eprintln!("DESCRIBE requires a subcommand. Try: DESCRIBE TABLES, DESCRIBE KEYSPACES");
+        }
+        _ => {
+            eprintln!("DESCRIBE {args} is not yet implemented.");
+        }
     }
 }
 
@@ -672,11 +820,12 @@ fn format_expanded(result: &CqlResult) -> String {
 }
 
 /// Print query results (delegates to tabular or expanded based on mode).
-fn print_results(result: &CqlResult, expanded: bool) {
-    if expanded {
-        print!("{}", format_expanded(result));
+/// Output is tee'd to the capture file if active.
+fn print_results(shell: &mut ShellState, result: &CqlResult) {
+    if shell.expand {
+        shell.output(&format_expanded(result));
     } else {
-        print!("{}", format_tabular(result));
+        shell.output(&format_tabular(result));
     }
 }
 
@@ -711,6 +860,49 @@ mod tests {
 
     // Statement completeness and shell command detection tests are now
     // in the parser module (src/parser.rs) where the logic lives.
+
+    // --- Helper function tests ---
+
+    #[test]
+    fn strip_quotes_double() {
+        assert_eq!(strip_quotes("\"hello\""), "hello");
+    }
+
+    #[test]
+    fn strip_quotes_single() {
+        assert_eq!(strip_quotes("'hello'"), "hello");
+    }
+
+    #[test]
+    fn strip_quotes_none() {
+        assert_eq!(strip_quotes("hello"), "hello");
+    }
+
+    #[test]
+    fn strip_quotes_mismatched() {
+        assert_eq!(strip_quotes("\"hello'"), "\"hello'");
+    }
+
+    #[test]
+    fn expand_tilde_plain_path() {
+        assert_eq!(expand_tilde("/tmp/file.cql"), PathBuf::from("/tmp/file.cql"));
+    }
+
+    #[test]
+    fn expand_tilde_home() {
+        if let Some(home) = dirs::home_dir() {
+            assert_eq!(expand_tilde("~/test.cql"), home.join("test.cql"));
+        }
+    }
+
+    #[test]
+    fn shell_state_default() {
+        let state = ShellState::default();
+        assert!(!state.expand);
+        assert!(state.page_size.is_none());
+        assert!(state.capture_file.is_none());
+        assert!(state.capture_path.is_none());
+    }
 
     // --- History path tests ---
 
@@ -815,17 +1007,13 @@ mod tests {
             ],
         );
         let output = format_tabular(&result);
-        // Header should be present with pipe separators
         assert!(output.contains("id"));
         assert!(output.contains("num"));
         assert!(output.contains("val"));
         assert!(output.contains(" | "));
-        // Separator should use dashes and +
         assert!(output.contains("---+"));
-        // No box-drawing characters
         assert!(!output.contains("||||"));
         assert!(!output.contains("+++"));
-        // Row count
         assert!(output.contains("(2 rows)"));
     }
 
@@ -841,8 +1029,6 @@ mod tests {
             ]],
         );
         let output = format_tabular(&result);
-        // "x" column should be widened to fit "12345" (5 chars)
-        // Header "x" should be right-aligned in the wider column
         assert!(output.contains("12345"));
         assert!(output.contains("(1 row)"));
     }
@@ -857,7 +1043,6 @@ mod tests {
         );
         let output = format_tabular(&result);
         for line in output.lines() {
-            // No trailing | or - chars (BUG-2 symptom)
             let trimmed = line.trim_end();
             if !trimmed.is_empty()
                 && !trimmed.starts_with('(')
@@ -928,14 +1113,10 @@ mod tests {
             ]],
         );
         let output = format_expanded(&result);
-        // "id" should be padded to match "longname" width (8 chars)
-        // So we should see "       id | 1" (right-aligned to 8)
         for line in output.lines() {
             if line.contains("| 1") && line.contains("id") {
-                // The "id" part should be right-aligned in 8-char field
                 let parts: Vec<&str> = line.splitn(2, '|').collect();
                 let name_part = parts[0].trim_start();
-                // "id" should have leading spaces for alignment
                 assert!(
                     name_part.starts_with("id"),
                     "Name should be right-aligned: {line:?}"
@@ -953,7 +1134,6 @@ mod tests {
             vec![vec![CqlValue::Int(1)]],
         );
         let output = format_expanded(&result);
-        // Separator must contain a + between dash segments
         let has_plus_sep = output.lines().any(|l| {
             l.contains('+') && l.chars().all(|c| c == '-' || c == '+')
         });
@@ -984,12 +1164,9 @@ mod tests {
     }
 
     // --- BUG-4: SOURCE file parsing tests ---
-    // (SOURCE dispatches through the same parser, so we test parse_batch
-    //  shell command handling here)
 
     #[test]
     fn parse_batch_includes_shell_commands() {
-        // Shell commands without semicolons in batch mode
         let input = "SELECT 1;\nSHOW VERSION\n";
         let stmts = parser::parse_batch(input);
         assert_eq!(stmts.len(), 2);
@@ -999,7 +1176,6 @@ mod tests {
 
     #[test]
     fn parse_batch_shell_command_with_semicolon() {
-        // Shell commands with semicolons should also be captured
         let input = "SHOW VERSION;\nSELECT 1;\n";
         let stmts = parser::parse_batch(input);
         assert_eq!(stmts.len(), 2);
@@ -1009,9 +1185,6 @@ mod tests {
 
     #[test]
     fn source_file_line_by_line_detects_shell_commands() {
-        // execute_source processes line-by-line with shell command detection,
-        // not through parse_batch. Verify the line-by-line approach works:
-        // each line is checked for shell commands independently.
         let lines = vec![
             "CONSISTENCY QUORUM",
             "SELECT * FROM t;",
@@ -1040,40 +1213,29 @@ mod tests {
 
     #[test]
     fn multiline_paste_splits_into_lines() {
-        // Simulate what happens when pasted text contains newlines:
-        // The REPL splits by \n and processes each line independently.
         let pasted = "SHOW VERSION\nSELECT 1;\nSHOW HOST";
         let lines: Vec<&str> = pasted.split('\n').collect();
         assert_eq!(lines.len(), 3);
         assert_eq!(lines[0], "SHOW VERSION");
         assert_eq!(lines[1], "SELECT 1;");
         assert_eq!(lines[2], "SHOW HOST");
-        // First and third are shell commands
         assert!(parser::is_shell_command(lines[0].trim()));
         assert!(parser::is_shell_command(lines[2].trim()));
     }
 
     #[test]
     fn multiline_paste_shell_command_not_concatenated() {
-        // The bug was: pasting "CAPTURE foo\nSELECT 1;\nCAPTURE OFF"
-        // resulted in the filename being "foo\nSELECT 1;\nCAPTURE OFF"
-        // After fix, each line is separate.
         let pasted = "CAPTURE '/tmp/test.txt'\nSELECT 1;\nCAPTURE OFF";
         let lines: Vec<&str> = pasted.split('\n').collect();
         assert_eq!(lines.len(), 3);
-        // CAPTURE line should only contain the filename, not the rest
         assert_eq!(lines[0], "CAPTURE '/tmp/test.txt'");
         assert!(parser::is_shell_command(lines[0].trim()));
     }
 
     // --- BUG-1: DESCRIBE output tests ---
-    // (execute_describe requires async + session, so we test the formatting
-    //  logic via the describe output helper)
 
     #[test]
     fn describe_tables_format_all_keyspaces() {
-        // Verify the expected output format for DESCRIBE TABLES
-        // when listing all keyspaces
         let keyspaces = vec![
             ("demo_ks", vec!["demo_t", "other_t"]),
             ("system", vec!["local", "peers"]),
@@ -1096,7 +1258,6 @@ mod tests {
 
     #[test]
     fn describe_separator_matches_header_width() {
-        // "Keyspace demo_ks" is 16 chars, separator should be 16 dashes
         let ks_name = "demo_ks";
         let header = format!("Keyspace {ks_name}");
         let separator = "-".repeat(ks_name.len() + 9);
