@@ -6,12 +6,13 @@
 //!
 //! Key design decisions (from SP4 and SP16 upstream fixes):
 //! - Context-aware tokenization: NO regex preprocessing for comments (PR #150)
-//! - Incremental parsing: O(1) per line, only full-parse on terminator (PR #151)
+//! - Truly incremental parsing: O(n) total work via scan_offset tracking (PR #151)
 
 /// Lexer context states for tracking position within CQL input.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum LexState {
     /// Normal CQL code (not in string or comment).
+    #[default]
     Normal,
     /// Inside a single-quoted string literal (`'...'`).
     SingleQuote,
@@ -27,21 +28,26 @@ enum LexState {
 
 /// Incremental statement parser.
 ///
-/// Tracks lexer state across lines so that multi-line input can be processed
-/// in O(1) per line. Only produces complete statements when a semicolon
-/// terminator is found outside of strings and comments.
-#[derive(Debug)]
+/// Tracks lexer state across `feed_line` calls so that each call only scans
+/// the newly appended bytes. Total work is O(n) over the lifetime of the parser,
+/// not O(n²). See PR #151 for why this matters.
+#[derive(Debug, Default)]
 pub struct StatementParser {
     /// Accumulated input buffer.
     buffer: String,
-    /// Current lexer state at the end of the buffer.
+    /// Byte offset in `buffer` where the next scan should resume.
+    scan_offset: usize,
+    /// Byte offset of the start of the current (in-progress) statement.
+    stmt_start: usize,
+    /// Current lexer state at `scan_offset`.
     state: LexState,
-    /// Depth of nested block comments (CQL doesn't nest, but we track for robustness).
+    /// Depth of nested block comments.
     block_comment_depth: usize,
 }
 
 /// The result of feeding a line to the parser.
 #[derive(Debug, PartialEq, Eq)]
+#[must_use]
 pub enum ParseResult {
     /// No complete statement yet; continue accumulating.
     Incomplete,
@@ -51,6 +57,7 @@ pub enum ParseResult {
 
 /// Classification of a parsed input line.
 #[derive(Debug, PartialEq, Eq)]
+#[must_use]
 pub enum InputKind {
     /// A built-in shell command (HELP, QUIT, DESCRIBE, etc.).
     ShellCommand(String),
@@ -87,266 +94,275 @@ const SHELL_COMMANDS: &[&str] = &[
 
 impl StatementParser {
     /// Create a new empty parser.
+    #[must_use]
     pub fn new() -> Self {
-        Self {
-            buffer: String::new(),
-            state: LexState::Normal,
-            block_comment_depth: 0,
-        }
+        Self::default()
     }
 
     /// Reset the parser, discarding any accumulated input.
     pub fn reset(&mut self) {
         self.buffer.clear();
+        self.scan_offset = 0;
+        self.stmt_start = 0;
         self.state = LexState::Normal;
         self.block_comment_depth = 0;
     }
 
     /// Returns true if the parser has no accumulated input.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.buffer.is_empty()
     }
 
+    /// Returns the remaining unparsed content in the buffer.
+    #[must_use]
+    pub fn remaining(&self) -> &str {
+        &self.buffer[self.stmt_start..]
+    }
+
     /// Feed a line of input and return any complete statements.
     ///
-    /// This is the incremental entry point. Each call processes the line
-    /// character-by-character, updating the lexer state. When a semicolon
-    /// is encountered in Normal state, the accumulated text up to that point
-    /// is extracted as a complete statement.
+    /// This is the incremental entry point. Each call scans only the newly
+    /// appended bytes, preserving lexer state from the previous call.
+    /// Total work across all `feed_line` calls is O(n).
     pub fn feed_line(&mut self, line: &str) -> ParseResult {
         if !self.buffer.is_empty() {
             self.buffer.push('\n');
         }
         self.buffer.push_str(line);
 
-        // Scan the newly added content for statement terminators.
-        // We must re-scan from a known state boundary.
-        self.extract_statements()
+        self.scan_for_statements()
     }
 
-    /// Scan the entire buffer for complete statements.
+    /// Scan from `scan_offset` forward for statement terminators.
     ///
-    /// Returns any complete statements found, leaving the remainder in the buffer.
-    fn extract_statements(&mut self) -> ParseResult {
+    /// Only scans newly appended bytes — does NOT re-scan from the start.
+    /// State (`self.state`, `self.block_comment_depth`) is preserved across calls.
+    fn scan_for_statements(&mut self) -> ParseResult {
         let mut statements = Vec::new();
-        let input = self.buffer.clone();
-        let chars: Vec<char> = input.chars().collect();
-        let len = chars.len();
 
-        // Reset state for full scan from buffer start.
-        self.state = LexState::Normal;
-        self.block_comment_depth = 0;
-
-        let mut stmt_start = 0;
-        let mut i = 0;
+        // We work on byte offsets using char_indices over the unscanned portion.
+        // But we need to handle multi-byte chars correctly, so iterate chars.
+        let buf = self.buffer.as_bytes();
+        let len = buf.len();
+        let mut i = self.scan_offset;
 
         while i < len {
+            let (ch, char_len) = decode_char_at(&self.buffer, i);
+
             match self.state {
                 LexState::Normal => {
-                    if chars[i] == '\'' {
+                    if ch == '\'' {
                         self.state = LexState::SingleQuote;
-                        i += 1;
-                    } else if chars[i] == '"' {
+                        i += char_len;
+                    } else if ch == '"' {
                         self.state = LexState::DoubleQuote;
-                        i += 1;
-                    } else if i + 1 < len && chars[i] == '$' && chars[i + 1] == '$' {
+                        i += char_len;
+                    } else if ch == '$' && i + 1 < len && self.buffer.as_bytes()[i + 1] == b'$' {
                         self.state = LexState::DollarQuote;
                         i += 2;
-                    } else if i + 1 < len && chars[i] == '-' && chars[i + 1] == '-' {
+                    } else if ch == '-' && i + 1 < len && self.buffer.as_bytes()[i + 1] == b'-' {
                         self.state = LexState::LineComment;
                         i += 2;
-                    } else if i + 1 < len && chars[i] == '/' && chars[i + 1] == '*' {
+                    } else if ch == '/' && i + 1 < len && self.buffer.as_bytes()[i + 1] == b'*' {
                         self.state = LexState::BlockComment;
                         self.block_comment_depth = 1;
                         i += 2;
-                    } else if chars[i] == ';' {
+                    } else if ch == ';' {
                         // Statement terminator found in Normal state.
-                        let raw = &input[byte_offset(&chars, stmt_start)..byte_offset(&chars, i)];
+                        let raw = &self.buffer[self.stmt_start..i];
                         let stripped = strip_comments(raw);
                         let trimmed = stripped.trim();
                         if !trimmed.is_empty() {
                             statements.push(trimmed.to_string());
                         }
-                        stmt_start = i + 1;
+                        self.stmt_start = i + 1; // skip the ';'
                         i += 1;
                     } else {
-                        i += 1;
+                        i += char_len;
                     }
                 }
                 LexState::SingleQuote => {
-                    if chars[i] == '\'' {
+                    if ch == '\'' {
                         // Check for escaped quote ('')
-                        if i + 1 < len && chars[i + 1] == '\'' {
+                        if i + 1 < len && self.buffer.as_bytes()[i + 1] == b'\'' {
                             i += 2; // skip escaped quote
                         } else {
                             self.state = LexState::Normal;
                             i += 1;
                         }
                     } else {
-                        i += 1;
+                        i += char_len;
                     }
                 }
                 LexState::DoubleQuote => {
-                    if chars[i] == '"' {
+                    if ch == '"' {
                         // Check for escaped quote ("")
-                        if i + 1 < len && chars[i + 1] == '"' {
+                        if i + 1 < len && self.buffer.as_bytes()[i + 1] == b'"' {
                             i += 2;
                         } else {
                             self.state = LexState::Normal;
                             i += 1;
                         }
                     } else {
-                        i += 1;
+                        i += char_len;
                     }
                 }
                 LexState::DollarQuote => {
-                    if i + 1 < len && chars[i] == '$' && chars[i + 1] == '$' {
+                    if ch == '$' && i + 1 < len && self.buffer.as_bytes()[i + 1] == b'$' {
                         self.state = LexState::Normal;
                         i += 2;
                     } else {
-                        i += 1;
+                        i += char_len;
                     }
                 }
                 LexState::LineComment => {
-                    if chars[i] == '\n' {
+                    if ch == '\n' {
                         self.state = LexState::Normal;
                     }
-                    i += 1;
+                    i += char_len;
                 }
                 LexState::BlockComment => {
-                    if i + 1 < len && chars[i] == '*' && chars[i + 1] == '/' {
+                    if ch == '*' && i + 1 < len && self.buffer.as_bytes()[i + 1] == b'/' {
                         self.block_comment_depth -= 1;
                         if self.block_comment_depth == 0 {
                             self.state = LexState::Normal;
                         }
                         i += 2;
-                    } else if i + 1 < len && chars[i] == '/' && chars[i + 1] == '*' {
-                        // Nested block comment
+                    } else if ch == '/' && i + 1 < len && self.buffer.as_bytes()[i + 1] == b'*' {
                         self.block_comment_depth += 1;
                         i += 2;
                     } else {
-                        i += 1;
+                        i += char_len;
                     }
                 }
             }
         }
 
-        // Keep remaining text in the buffer for next feed_line call.
-        let remaining_start = byte_offset(&chars, stmt_start);
-        self.buffer = input[remaining_start..].to_string();
+        self.scan_offset = i;
 
-        if statements.is_empty() {
-            ParseResult::Incomplete
-        } else {
+        if !statements.is_empty() {
+            // Compact the buffer: remove consumed statements, keep the remainder.
+            self.buffer = self.buffer[self.stmt_start..].to_string();
+            self.scan_offset -= self.stmt_start;
+            self.stmt_start = 0;
             ParseResult::Complete(statements)
+        } else {
+            ParseResult::Incomplete
         }
     }
 }
 
-impl Default for StatementParser {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Compute the byte offset for a character index in a char slice.
-fn byte_offset(chars: &[char], char_idx: usize) -> usize {
-    chars[..char_idx].iter().map(|c| c.len_utf8()).sum()
+/// Decode the char at byte offset `i` in `s`, returning the char and its UTF-8 byte length.
+fn decode_char_at(s: &str, i: usize) -> (char, usize) {
+    // Safety: `i` must be at a char boundary, which our state machine guarantees
+    // because we always advance by `char_len`.
+    let ch = s[i..].chars().next().unwrap_or('\0');
+    (ch, ch.len_utf8())
 }
 
 /// Strip comments from a CQL fragment (used on extracted statements).
 ///
 /// This function uses context-aware scanning to avoid stripping comment-like
-/// sequences inside string literals (PR #150 fix).
+/// sequences inside string literals (PR #150 fix). Handles nested block comments.
 fn strip_comments(input: &str) -> String {
-    let chars: Vec<char> = input.chars().collect();
-    let len = chars.len();
     let mut result = String::with_capacity(input.len());
     let mut state = LexState::Normal;
+    let mut block_depth: usize = 0;
+    let bytes = input.as_bytes();
+    let len = bytes.len();
     let mut i = 0;
 
     while i < len {
+        let (ch, char_len) = decode_char_at(input, i);
+
         match state {
             LexState::Normal => {
-                if chars[i] == '\'' {
+                if ch == '\'' {
                     state = LexState::SingleQuote;
-                    result.push(chars[i]);
-                    i += 1;
-                } else if chars[i] == '"' {
+                    result.push(ch);
+                    i += char_len;
+                } else if ch == '"' {
                     state = LexState::DoubleQuote;
-                    result.push(chars[i]);
-                    i += 1;
-                } else if i + 1 < len && chars[i] == '$' && chars[i + 1] == '$' {
+                    result.push(ch);
+                    i += char_len;
+                } else if ch == '$' && i + 1 < len && bytes[i + 1] == b'$' {
                     state = LexState::DollarQuote;
-                    result.push('$');
-                    result.push('$');
+                    result.push_str("$$");
                     i += 2;
-                } else if i + 1 < len && chars[i] == '-' && chars[i + 1] == '-' {
+                } else if ch == '-' && i + 1 < len && bytes[i + 1] == b'-' {
                     // Line comment: skip to end of line
                     state = LexState::LineComment;
                     i += 2;
-                } else if i + 1 < len && chars[i] == '/' && chars[i + 1] == '*' {
+                } else if ch == '/' && i + 1 < len && bytes[i + 1] == b'*' {
                     // Block comment: skip content
                     state = LexState::BlockComment;
+                    block_depth = 1;
                     i += 2;
                 } else {
-                    result.push(chars[i]);
-                    i += 1;
+                    result.push(ch);
+                    i += char_len;
                 }
             }
             LexState::SingleQuote => {
-                result.push(chars[i]);
-                if chars[i] == '\'' {
-                    if i + 1 < len && chars[i + 1] == '\'' {
-                        result.push(chars[i + 1]);
+                result.push(ch);
+                if ch == '\'' {
+                    if i + 1 < len && bytes[i + 1] == b'\'' {
+                        result.push('\'');
                         i += 2;
                     } else {
                         state = LexState::Normal;
                         i += 1;
                     }
                 } else {
-                    i += 1;
+                    i += char_len;
                 }
             }
             LexState::DoubleQuote => {
-                result.push(chars[i]);
-                if chars[i] == '"' {
-                    if i + 1 < len && chars[i + 1] == '"' {
-                        result.push(chars[i + 1]);
+                result.push(ch);
+                if ch == '"' {
+                    if i + 1 < len && bytes[i + 1] == b'"' {
+                        result.push('"');
                         i += 2;
                     } else {
                         state = LexState::Normal;
                         i += 1;
                     }
                 } else {
-                    i += 1;
+                    i += char_len;
                 }
             }
             LexState::DollarQuote => {
-                result.push(chars[i]);
-                if i + 1 < len && chars[i] == '$' && chars[i + 1] == '$' {
+                result.push(ch);
+                if ch == '$' && i + 1 < len && bytes[i + 1] == b'$' {
                     result.push('$');
                     state = LexState::Normal;
                     i += 2;
                 } else {
-                    i += 1;
+                    i += char_len;
                 }
             }
             LexState::LineComment => {
-                if chars[i] == '\n' {
+                if ch == '\n' {
                     result.push('\n');
                     state = LexState::Normal;
                 }
-                i += 1;
+                i += char_len;
             }
             LexState::BlockComment => {
-                if i + 1 < len && chars[i] == '*' && chars[i + 1] == '/' {
-                    // Replace block comment with a space to avoid token merging
-                    result.push(' ');
-                    state = LexState::Normal;
+                if ch == '*' && i + 1 < len && bytes[i + 1] == b'/' {
+                    block_depth -= 1;
+                    if block_depth == 0 {
+                        // Replace entire block comment with a space to avoid token merging
+                        result.push(' ');
+                        state = LexState::Normal;
+                    }
+                    i += 2;
+                } else if ch == '/' && i + 1 < len && bytes[i + 1] == b'*' {
+                    block_depth += 1;
                     i += 2;
                 } else {
-                    i += 1;
+                    i += char_len;
                 }
             }
         }
@@ -362,15 +378,7 @@ pub fn classify_input(input: &str) -> InputKind {
         return InputKind::Empty;
     }
 
-    // Strip trailing semicolon for command detection
-    let without_semi = trimmed.strip_suffix(';').unwrap_or(trimmed).trim();
-    let first_word = without_semi
-        .split_whitespace()
-        .next()
-        .unwrap_or("")
-        .to_uppercase();
-
-    if SHELL_COMMANDS.contains(&first_word.as_str()) {
+    if is_shell_command(trimmed) {
         InputKind::ShellCommand(trimmed.to_string())
     } else {
         InputKind::CqlStatement(trimmed.to_string())
@@ -381,9 +389,12 @@ pub fn classify_input(input: &str) -> InputKind {
 ///
 /// Used by the REPL to decide whether to wait for a semicolon
 /// or dispatch immediately.
+#[must_use]
 pub fn is_shell_command(line: &str) -> bool {
     let trimmed = line.trim();
-    let first_word = trimmed
+    // Strip trailing semicolon for command detection
+    let without_semi = trimmed.strip_suffix(';').unwrap_or(trimmed).trim();
+    let first_word = without_semi
         .split_whitespace()
         .next()
         .unwrap_or("")
@@ -397,6 +408,7 @@ pub fn is_shell_command(line: &str) -> bool {
 ///
 /// Returns a vector of complete, comment-stripped statements.
 /// This is O(n) in the input size (not O(n²) per PR #151).
+#[must_use]
 pub fn parse_batch(input: &str) -> Vec<String> {
     let mut parser = StatementParser::new();
     let mut all_statements = Vec::new();
@@ -409,9 +421,9 @@ pub fn parse_batch(input: &str) -> Vec<String> {
 
     // Handle any remaining content without a trailing semicolon.
     // Shell commands don't need semicolons; CQL statements do.
-    let remaining = parser.buffer.trim().to_string();
+    let remaining = parser.remaining().trim();
     if !remaining.is_empty() {
-        let stripped = strip_comments(&remaining);
+        let stripped = strip_comments(remaining);
         let trimmed = stripped.trim();
         if !trimmed.is_empty() && is_shell_command(trimmed) {
             all_statements.push(trimmed.to_string());
@@ -529,6 +541,16 @@ mod tests {
         assert!(matches!(result, ParseResult::Complete(_)));
     }
 
+    #[test]
+    fn empty_dollar_quote() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line("SELECT $$$$;");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["SELECT $$$$".to_string()])
+        );
+    }
+
     // --- Line comment stripping ---
 
     #[test]
@@ -549,6 +571,14 @@ mod tests {
             p.feed_line("SELECT * FROM t -- comment with ;"),
             ParseResult::Incomplete
         );
+    }
+
+    #[test]
+    fn line_comment_then_statement_across_lines() {
+        let mut p = StatementParser::new();
+        assert_eq!(p.feed_line("-- header comment"), ParseResult::Incomplete);
+        let result = p.feed_line("SELECT 1;");
+        assert_eq!(result, ParseResult::Complete(vec!["SELECT 1".to_string()]));
     }
 
     // --- Block comment stripping (PR #150) ---
@@ -605,6 +635,35 @@ mod tests {
             result,
             ParseResult::Complete(vec!["SELECT $$/* not a comment */$$".to_string()])
         );
+    }
+
+    #[test]
+    fn block_comment_across_feed_lines() {
+        let mut p = StatementParser::new();
+        assert_eq!(p.feed_line("SELECT /* start"), ParseResult::Incomplete);
+        assert_eq!(p.feed_line("still comment"), ParseResult::Incomplete);
+        let result = p.feed_line("end */ 1;");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["SELECT   1".to_string()])
+        );
+    }
+
+    #[test]
+    fn nested_block_comments() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line("SELECT /* outer /* inner */ still comment */ 1;");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["SELECT   1".to_string()])
+        );
+    }
+
+    #[test]
+    fn nested_block_comments_stripped() {
+        let input = "SELECT /* outer /* inner */ still */ 1";
+        let result = strip_comments(input);
+        assert_eq!(result, "SELECT   1");
     }
 
     // --- Multi-line statement buffering ---
@@ -686,6 +745,12 @@ mod tests {
     }
 
     #[test]
+    fn shell_command_with_semicolon() {
+        assert!(is_shell_command("USE my_ks;"));
+        assert!(is_shell_command("HELP;"));
+    }
+
+    #[test]
     fn cql_not_shell_command() {
         assert!(!is_shell_command("SELECT * FROM users"));
         assert!(!is_shell_command("INSERT INTO t (id) VALUES (1)"));
@@ -703,6 +768,14 @@ mod tests {
         assert_eq!(
             classify_input("USE my_ks"),
             InputKind::ShellCommand("USE my_ks".to_string())
+        );
+    }
+
+    #[test]
+    fn classify_shell_command_with_semicolon() {
+        assert_eq!(
+            classify_input("USE my_ks;"),
+            InputKind::ShellCommand("USE my_ks;".to_string())
         );
     }
 
@@ -786,6 +859,13 @@ mod tests {
         assert_eq!(stmts, vec!["SELECT 1"]);
     }
 
+    #[test]
+    fn parse_batch_only_comments() {
+        let input = "-- just a comment\n/* block */\n";
+        let stmts = parse_batch(input);
+        assert!(stmts.is_empty());
+    }
+
     // --- Comment stripping edge cases ---
 
     #[test]
@@ -826,6 +906,63 @@ mod tests {
         assert_eq!(result, ParseResult::Complete(vec!["SELECT 1".to_string()]));
     }
 
+    // --- Parser reuse after Complete ---
+
+    #[test]
+    fn reuse_after_complete() {
+        let mut p = StatementParser::new();
+        let r1 = p.feed_line("SELECT 1;");
+        assert_eq!(r1, ParseResult::Complete(vec!["SELECT 1".to_string()]));
+
+        // Parser should work for subsequent statements
+        let r2 = p.feed_line("SELECT 2;");
+        assert_eq!(r2, ParseResult::Complete(vec!["SELECT 2".to_string()]));
+    }
+
+    #[test]
+    fn reuse_after_complete_multiline() {
+        let mut p = StatementParser::new();
+        assert_eq!(
+            p.feed_line("SELECT 1;"),
+            ParseResult::Complete(vec!["SELECT 1".to_string()])
+        );
+
+        // Now a multi-line statement
+        assert_eq!(p.feed_line("SELECT *"), ParseResult::Incomplete);
+        let result = p.feed_line("FROM t;");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["SELECT *\nFROM t".to_string()])
+        );
+    }
+
+    // --- Unterminated constructs ---
+
+    #[test]
+    fn unterminated_string_blocks_semicolon() {
+        let stmts = parse_batch("SELECT 'unterminated;");
+        assert!(stmts.is_empty());
+    }
+
+    #[test]
+    fn unterminated_block_comment_blocks_semicolon() {
+        let stmts = parse_batch("SELECT /* never closed;");
+        assert!(stmts.is_empty());
+    }
+
+    // --- Backslash in strings ---
+
+    #[test]
+    fn backslash_in_string_is_literal() {
+        // CQL does NOT use backslash escaping (uses '' instead)
+        let mut p = StatementParser::new();
+        let result = p.feed_line("SELECT '\\';");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["SELECT '\\'".to_string()])
+        );
+    }
+
     // --- Unicode handling ---
 
     #[test]
@@ -847,6 +984,32 @@ mod tests {
         assert_eq!(
             result,
             ParseResult::Complete(vec!["SELECT \"naïve;col\" FROM t".to_string()])
+        );
+    }
+
+    // --- Incremental scan correctness ---
+
+    #[test]
+    fn incremental_scan_preserves_state_across_lines() {
+        // Verify that the parser doesn't re-scan from the start each time.
+        // This is a correctness test: if state weren't preserved,
+        // the second line's `'` would start a new string context.
+        let mut p = StatementParser::new();
+        assert_eq!(
+            p.feed_line("INSERT INTO t VALUES ('multi"),
+            ParseResult::Incomplete
+        );
+        assert_eq!(
+            p.feed_line("line string with ; inside"),
+            ParseResult::Incomplete
+        );
+        let result = p.feed_line("end of string');");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec![
+                "INSERT INTO t VALUES ('multi\nline string with ; inside\nend of string')"
+                    .to_string()
+            ])
         );
     }
 }
