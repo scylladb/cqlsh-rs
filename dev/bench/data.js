@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773605508681,
+  "lastUpdate": 1773610425238,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -647,6 +647,168 @@ window.BENCHMARK_DATA = {
             "name": "end_to_end_startup/full",
             "value": 98039,
             "range": "± 1087",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noreply@anthropic.com",
+            "name": "Claude",
+            "username": "claude"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "d83e720ce15250ec46033eadffa740115ae753b5",
+          "message": "fix(parser): address review findings — O(n) incremental scanning and missing tests\n\nRewrites the parser to fix all P0/P1 issues identified in code review:\n\nP0: O(n²) re-scanning → truly incremental via scan_offset tracking.\n  - State (LexState, block_comment_depth) is preserved across feed_line\n    calls instead of being reset and re-scanned from position 0.\n  - Total work is now O(n) over the parser's lifetime.\n\nP1: Eliminated buffer.clone() and Vec<char> allocations.\n  - Uses byte-offset scanning with decode_char_at() instead of\n    collecting into Vec<char> (4x memory inflation for ASCII).\n  - No buffer clone; scans in-place and compacts only on Complete.\n\nP1: strip_comments now handles nested block comments.\n  - Consistent with the main lexer's block_comment_depth tracking.\n\nAPI improvements:\n  - #[must_use] on ParseResult, InputKind, new(), is_empty(), is_shell_command\n  - #[default] on LexState::Normal, derive Default for StatementParser\n  - Added remaining() accessor (replaces direct buffer field access)\n  - classify_input delegates to is_shell_command (removes duplication)\n  - is_shell_command now handles trailing semicolons\n\nNew tests (14 added, 52 total):\n  - nested_block_comments, nested_block_comments_stripped\n  - block_comment_across_feed_lines\n  - line_comment_then_statement_across_lines\n  - reuse_after_complete, reuse_after_complete_multiline\n  - unterminated_string_blocks_semicolon\n  - unterminated_block_comment_blocks_semicolon\n  - backslash_in_string_is_literal\n  - empty_dollar_quote\n  - classify_shell_command_with_semicolon\n  - shell_command_with_semicolon\n  - parse_batch_only_comments\n  - incremental_scan_preserves_state_across_lines\n\nhttps://claude.ai/code/session_01Y7qFwwx57pSsc9FnZYvgnZ",
+          "timestamp": "2026-03-15T23:27:32+02:00",
+          "tree_id": "fc58e1bbdb21218aac80c5d0cbb7ebfb45964a27",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/d83e720ce15250ec46033eadffa740115ae753b5"
+        },
+        "date": 1773610424974,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 16817,
+            "range": "± 576",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/host_only",
+            "value": 18714,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/host_and_port",
+            "value": 20033,
+            "range": "± 169",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/execute_mode",
+            "value": 19224,
+            "range": "± 365",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/file_mode",
+            "value": 19641,
+            "range": "± 51",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/full_connection",
+            "value": 37928,
+            "range": "± 338",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_validate/valid_minimal",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2887,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 6077,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 44332,
+            "range": "± 426",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/0",
+            "value": 5447,
+            "range": "± 75",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/10",
+            "value": 12555,
+            "range": "± 105",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/50",
+            "value": 51932,
+            "range": "± 328",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/100",
+            "value": 96660,
+            "range": "± 1399",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/all_defaults",
+            "value": 534,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/cli_overrides_only",
+            "value": 581,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1110,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/nonexistent_file",
+            "value": 1320,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/minimal_file",
+            "value": 14670,
+            "range": "± 68",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/full_file",
+            "value": 52534,
+            "range": "± 358",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end_to_end_startup/minimal",
+            "value": 21671,
+            "range": "± 104",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 98712,
+            "range": "± 612",
             "unit": "ns/iter"
           }
         ]
