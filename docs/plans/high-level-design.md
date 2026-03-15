@@ -468,9 +468,9 @@ max_trace_wait = 10.0
 | 1.6 | Cassandra driver abstraction trait | `driver/mod.rs` | 1.1 | ✅ Done |
 | 1.7 | scylla crate driver implementation | `driver/scylla_driver.rs` | 1.6 | ✅ Done |
 | 1.8 | Session establishment with auth | `session.rs` | 1.5, 1.7 | ✅ Done |
-| 1.9 | Basic REPL loop (read-line, no editing) | `repl.rs` | 1.8 | ⬜ TODO |
-| 1.10 | Multi-line statement buffering | `parser.rs` | 1.9 | ⬜ TODO |
-| 1.11 | QUIT / EXIT / Ctrl-D | `repl.rs` | 1.9 | ⬜ TODO |
+| 1.9 | Basic REPL loop (read-line, no editing) | `repl.rs` | 1.8 | ✅ Done |
+| 1.10 | Multi-line statement buffering | `parser.rs` | 1.9 | ✅ Done |
+| 1.11 | QUIT / EXIT / Ctrl-D | `repl.rs` | 1.9 | ✅ Done |
 | 1.12 | Raw result printing (columns + rows) | `formatter.rs` | 1.8 | ✅ Done |
 | 1.13 | Execute mode (`-e`) | `runner.rs` | 1.8, 1.12 | ✅ Done |
 | 1.14 | File mode (`-f`) | `runner.rs` | 1.8, 1.12 | ✅ Done |
