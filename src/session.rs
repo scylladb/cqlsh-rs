@@ -105,6 +105,14 @@ impl CqlSession {
         self.driver.execute_unpaged(query).await
     }
 
+    /// Execute a raw CQL query without USE interception.
+    ///
+    /// Used by DESCRIBE and other internal commands that need to query
+    /// system tables directly.
+    pub async fn execute_query(&self, query: &str) -> Result<CqlResult> {
+        self.driver.execute_unpaged(query).await
+    }
+
     /// Execute a CQL statement with paging.
     pub async fn execute_paged(&self, query: &str, page_size: i32) -> Result<CqlResult> {
         self.driver.execute_paged(query, page_size).await

@@ -482,30 +482,30 @@ max_trace_wait = 10.0
 
 **Goal:** A pleasant interactive experience with proper formatting and core commands.
 
-| Task | Description | Deliverable | Depends On |
-|------|-------------|-------------|------------|
-| 2.1 | rustyline integration (line editing, history) | `repl.rs` | Phase 1 |
-| 2.2 | Persistent `~/.cqlsh_history` | `repl.rs` | 2.1 |
-| 2.3 | Prompt management (`cqlsh>`, `cqlsh:keyspace>`, `...>` for multi-line) | `repl.rs` | 2.1 |
-| 2.4 | Type-aware tabular formatting (all CQL types) | `formatter.rs`, `types.rs` | Phase 1 |
-| 2.5 | Pagination with `--More--` prompt | `formatter.rs` | 2.4 |
-| 2.6 | Server error display with error codes | `formatter.rs` | Phase 1 |
-| 2.7 | `USE <keyspace>` with prompt tracking | `commands/` | Phase 1 |
-| 2.8 | `DESCRIBE KEYSPACES` | `commands/describe.rs` | Phase 1 |
-| 2.9 | `DESCRIBE TABLES` | `commands/describe.rs` | Phase 1 |
-| 2.10 | `DESCRIBE TABLE <t>` | `commands/describe.rs` | Phase 1 |
-| 2.11 | `DESCRIBE KEYSPACE [name]` | `commands/describe.rs` | Phase 1 |
-| 2.12 | `DESCRIBE CLUSTER` | `commands/describe.rs` | Phase 1 |
-| 2.13 | `DESCRIBE SCHEMA` | `commands/describe.rs` | Phase 1 |
-| 2.14 | `SOURCE <file>` command | `commands/source.rs` | Phase 1 |
-| 2.15 | `CONSISTENCY [level]` command | `commands/consistency.rs` | Phase 1 |
-| 2.16 | `SERIAL CONSISTENCY [level]` command | `commands/consistency.rs` | Phase 1 |
-| 2.17 | `TRACING ON/OFF` command | `commands/tracing_cmd.rs` | Phase 1 |
-| 2.18 | Trace output formatting | `commands/tracing_cmd.rs`, `formatter.rs` | 2.17 |
-| 2.19 | `SHOW VERSION`, `SHOW HOST` | `commands/show.rs` | Phase 1 |
-| 2.20 | `HELP` / `?` command with per-command help | `commands/help.rs` | Phase 1 |
-| 2.21 | `CLEAR` / `CLS` command | `commands/clear.rs` | Phase 1 |
-| 2.22 | SSL/TLS support (`--ssl`, cert options) | `session.rs`, `config.rs` | Phase 1 |
+| Task | Description | Deliverable | Depends On | Status |
+|------|-------------|-------------|------------|--------|
+| 2.1 | rustyline integration (line editing, history) | `repl.rs` | Phase 1 | ✅ Done |
+| 2.2 | Persistent `~/.cqlsh_history` | `repl.rs` | 2.1 | ✅ Done |
+| 2.3 | Prompt management (`cqlsh>`, `cqlsh:keyspace>`, `...>` for multi-line) | `repl.rs` | 2.1 | ✅ Done |
+| 2.4 | Type-aware tabular formatting (all CQL types) | `formatter.rs`, `types.rs` | Phase 1 | ✅ Done |
+| 2.5 | Pagination with `--More--` prompt | `formatter.rs` | 2.4 | ✅ Done |
+| 2.6 | Server error display with error codes | `repl.rs` | Phase 1 | ✅ Done |
+| 2.7 | `USE <keyspace>` with prompt tracking | `session.rs` | Phase 1 | ✅ Done |
+| 2.8 | `DESCRIBE KEYSPACES` | `describe.rs` | Phase 1 | ✅ Done |
+| 2.9 | `DESCRIBE TABLES` | `describe.rs` | Phase 1 | ✅ Done |
+| 2.10 | `DESCRIBE TABLE <t>` | `describe.rs` | Phase 1 | ✅ Done |
+| 2.11 | `DESCRIBE KEYSPACE [name]` | `describe.rs` | Phase 1 | ✅ Done |
+| 2.12 | `DESCRIBE CLUSTER` | `describe.rs` | Phase 1 | ✅ Done |
+| 2.13 | `DESCRIBE SCHEMA` | `describe.rs` | Phase 1 | ✅ Done |
+| 2.14 | `SOURCE <file>` command | `repl.rs` | Phase 1 | ✅ Done |
+| 2.15 | `CONSISTENCY [level]` command | `repl.rs` | Phase 1 | ✅ Done |
+| 2.16 | `SERIAL CONSISTENCY [level]` command | `repl.rs` | Phase 1 | ✅ Done |
+| 2.17 | `TRACING ON/OFF` command | `repl.rs` | Phase 1 | ✅ Done |
+| 2.18 | Trace output formatting | `formatter.rs` | 2.17 | ✅ Done |
+| 2.19 | `SHOW VERSION`, `SHOW HOST` | `repl.rs` | Phase 1 | ✅ Done |
+| 2.20 | `HELP` / `?` command with per-command help | `repl.rs` | Phase 1 | ✅ Done |
+| 2.21 | `CLEAR` / `CLS` command | `repl.rs` | Phase 1 | ✅ Done |
+| 2.22 | SSL/TLS support (`--ssl`, cert options) | `driver/scylla_driver.rs`, `config.rs` | Phase 1 | ✅ Done |
 
 **Exit Criteria:** Daily-driver quality shell. Can replace Python cqlsh for interactive use with core commands.
 

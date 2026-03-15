@@ -32,6 +32,9 @@ tracing-subscriber = "0.3"
 futures = "0.3"
 async-trait = "0.1"
 rustyline = { version = "15", features = ["derive"] }
+comfy-table = "7"
+crossterm = "0.28"
+terminal_size = "0.4"
 
 [lib]
 name = "cqlsh_rs"

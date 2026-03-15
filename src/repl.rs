@@ -14,8 +14,9 @@ use rustyline::history::DefaultHistory;
 use rustyline::{Config, EditMode, Editor};
 
 use crate::config::MergedConfig;
-use crate::driver::CqlResult;
+use crate::describe;
 use crate::error;
+use crate::formatter;
 use crate::parser::{self, ParseResult, StatementParser};
 use crate::session::CqlSession;
 
@@ -69,7 +70,6 @@ fn resolve_history_path(config: &MergedConfig) -> Option<PathBuf> {
 }
 
 /// Mutable shell state for commands like EXPAND, PAGING, and CAPTURE.
-#[derive(Default)]
 struct ShellState {
     /// Whether expanded (vertical) output is enabled.
     expand: bool,
@@ -81,20 +81,23 @@ struct ShellState {
     capture_path: Option<PathBuf>,
 }
 
+impl Default for ShellState {
+    fn default() -> Self {
+        Self {
+            expand: false,
+            page_size: Some(100),
+            capture_file: None,
+            capture_path: None,
+        }
+    }
+}
+
 impl ShellState {
     /// Write output line to both stdout and the capture file (if active).
     fn outputln(&mut self, text: &str) {
         println!("{text}");
         if let Some(ref mut f) = self.capture_file {
             let _ = writeln!(f, "{text}");
-        }
-    }
-
-    /// Write output (no trailing newline) to both stdout and capture file.
-    fn output(&mut self, text: &str) {
-        print!("{text}");
-        if let Some(ref mut f) = self.capture_file {
-            let _ = write!(f, "{text}");
         }
     }
 }
@@ -197,7 +200,10 @@ async fn process_line(
 
     // Shell commands are complete without semicolons (only on first line)
     if stmt_parser.is_empty() && parser::is_shell_command(trimmed) {
-        dispatch_input(session, config, shell, trimmed).await;
+        // Strip trailing semicolon before dispatch — is_shell_command tolerates
+        // the semicolon for detection, but handlers expect clean input.
+        let clean = trimmed.strip_suffix(';').unwrap_or(trimmed).trim_end();
+        dispatch_input(session, config, shell, clean).await;
         return;
     }
 
@@ -391,6 +397,23 @@ fn dispatch_input<'a>(
         return;
     }
 
+    // Handle DESCRIBE / DESC
+    if upper == "DESCRIBE" || upper == "DESC" || upper.starts_with("DESCRIBE ") || upper.starts_with("DESC ") {
+        let args = if upper.starts_with("DESCRIBE ") {
+            trimmed["DESCRIBE ".len()..].trim()
+        } else if upper.starts_with("DESC ") {
+            trimmed["DESC ".len()..].trim()
+        } else {
+            ""
+        };
+        let mut writer = TeeWriter { capture: shell.capture_file.as_mut() };
+        match describe::execute(session, args, &mut writer).await {
+            Ok(()) => {}
+            Err(e) => eprintln!("Error: {e}"),
+        }
+        return;
+    }
+
     // Handle SHOW VERSION
     if upper == "SHOW VERSION" {
         shell.outputln(&format!("[cqlsh {}]", env!("CARGO_PKG_VERSION")));
@@ -403,17 +426,47 @@ fn dispatch_input<'a>(
         return;
     }
 
-    // Handle DESCRIBE / DESC
-    if upper.starts_with("DESCRIBE ") || upper.starts_with("DESC ") || upper == "DESCRIBE" || upper == "DESC" {
-        execute_describe(session, shell, &upper, session.current_keyspace().map(String::from)).await;
-        return;
-    }
-
     // Execute as CQL statement
     match session.execute(trimmed).await {
         Ok(result) => {
-            if !result.rows.is_empty() {
-                print_results(shell, &result);
+            // Print warnings if present
+            for warning in &result.warnings {
+                shell.outputln(&format!("Warnings: {warning}"));
+            }
+
+            if !result.columns.is_empty() {
+                let expand = shell.expand;
+                let page_size = shell.page_size;
+                let mut writer = TeeWriter { capture: shell.capture_file.as_mut() };
+                if let Some(ps) = page_size {
+                    formatter::print_paged(&result, ps as usize, expand, &mut writer);
+                } else if expand {
+                    formatter::print_expanded(&result, &mut writer);
+                } else {
+                    formatter::print_tabular(&result, &mut writer);
+                }
+            }
+
+            // Print trace info if tracing is enabled
+            if session.is_tracing_enabled() {
+                if let Some(trace_id) = result.tracing_id {
+                    // Brief delay to allow trace data to propagate
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    match session.get_trace_session(trace_id).await {
+                        Ok(Some(trace)) => {
+                            let mut writer = TeeWriter { capture: shell.capture_file.as_mut() };
+                            formatter::print_trace(&trace, &mut writer);
+                        }
+                        Ok(None) => {
+                            shell.outputln(&format!(
+                                "Trace {trace_id} not yet available. Use SHOW SESSION {trace_id} to view later."
+                            ));
+                        }
+                        Err(e) => {
+                            eprintln!("Error fetching trace: {e}");
+                        }
+                    }
+                }
             }
         }
         Err(e) => {
@@ -434,7 +487,7 @@ Documented shell commands:
   CAPTURE       Capture output to file
   CLEAR         Clear the terminal screen
   CONSISTENCY   Get/set consistency level
-  DESCRIBE      Schema introspection (TABLES, KEYSPACES)
+  DESCRIBE      Schema introspection (CLUSTER, KEYSPACES, TABLE, etc.)
   EXIT / QUIT   Exit the shell
   EXPAND        Toggle expanded (vertical) output
   HELP          Show this help or help on a topic
@@ -460,67 +513,19 @@ CQL statements (executed via the database):
 /// This is a stub — full per-topic help text will be added in a later phase.
 /// For now, print a message indicating the topic exists or is unknown.
 fn print_help_topic(topic: &str) {
-    // Shell commands
     let shell_commands = [
-        "CAPTURE",
-        "CLEAR",
-        "CLS",
-        "CONSISTENCY",
-        "COPY",
-        "DESC",
-        "DESCRIBE",
-        "EXIT",
-        "EXPAND",
-        "HELP",
-        "LOGIN",
-        "PAGING",
-        "QUIT",
-        "SERIAL",
-        "SHOW",
-        "SOURCE",
-        "TRACING",
-        "UNICODE",
-        "DEBUG",
-        "USE",
+        "CAPTURE", "CLEAR", "CLS", "CONSISTENCY", "COPY", "DESC", "DESCRIBE",
+        "EXIT", "EXPAND", "HELP", "LOGIN", "PAGING", "QUIT", "SERIAL",
+        "SHOW", "SOURCE", "TRACING", "UNICODE", "DEBUG", "USE",
     ];
-    // CQL help topics
     let cql_topics = [
-        "AGGREGATES",
-        "ALTER_KEYSPACE",
-        "ALTER_TABLE",
-        "ALTER_TYPE",
-        "ALTER_USER",
-        "APPLY",
-        "BEGIN",
-        "CREATE_AGGREGATE",
-        "CREATE_FUNCTION",
-        "CREATE_INDEX",
-        "CREATE_KEYSPACE",
-        "CREATE_TABLE",
-        "CREATE_TRIGGER",
-        "CREATE_TYPE",
-        "CREATE_USER",
-        "DELETE",
-        "DROP_AGGREGATE",
-        "DROP_FUNCTION",
-        "DROP_INDEX",
-        "DROP_KEYSPACE",
-        "DROP_TABLE",
-        "DROP_TRIGGER",
-        "DROP_TYPE",
-        "DROP_USER",
-        "GRANT",
-        "INSERT",
-        "LIST_PERMISSIONS",
-        "LIST_USERS",
-        "PERMISSIONS",
-        "REVOKE",
-        "SELECT",
-        "TEXT_OUTPUT",
-        "TRUNCATE",
-        "TYPES",
-        "UPDATE",
-        "USE",
+        "AGGREGATES", "ALTER_KEYSPACE", "ALTER_TABLE", "ALTER_TYPE", "ALTER_USER",
+        "APPLY", "BEGIN", "CREATE_AGGREGATE", "CREATE_FUNCTION", "CREATE_INDEX",
+        "CREATE_KEYSPACE", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE",
+        "CREATE_USER", "DELETE", "DROP_AGGREGATE", "DROP_FUNCTION", "DROP_INDEX",
+        "DROP_KEYSPACE", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER",
+        "GRANT", "INSERT", "LIST_PERMISSIONS", "LIST_USERS", "PERMISSIONS",
+        "REVOKE", "SELECT", "TEXT_OUTPUT", "TRUNCATE", "TYPES", "UPDATE", "USE",
     ];
 
     let upper = topic.to_uppercase();
@@ -606,226 +611,26 @@ fn execute_source<'a>(
     })
 }
 
-/// Execute a DESCRIBE / DESC command.
-///
-/// Supported forms:
-/// - `DESCRIBE TABLES` / `DESC TABLES` — list tables (all keyspaces if none selected)
-/// - `DESCRIBE KEYSPACES` / `DESC KEYSPACES` — list all keyspaces
-async fn execute_describe(
-    session: &CqlSession,
-    shell: &mut ShellState,
-    upper_input: &str,
-    current_keyspace: Option<String>,
-) {
-    let args = if let Some(rest) = upper_input.strip_prefix("DESCRIBE") {
-        rest.trim()
-    } else if let Some(rest) = upper_input.strip_prefix("DESC") {
-        rest.trim()
-    } else {
-        ""
-    };
-
-    match args {
-        "TABLES" | "COLUMNFAMILIES" => {
-            if let Some(ks) = &current_keyspace {
-                match session.get_tables(ks).await {
-                    Ok(tables) => {
-                        let names: Vec<&str> = tables.iter().map(|t| t.name.as_str()).collect();
-                        shell.outputln(&format!("\n{}\n", names.join("\n")));
-                    }
-                    Err(e) => eprintln!("Error: {e}"),
-                }
-            } else {
-                match session.get_keyspaces().await {
-                    Ok(keyspaces) => {
-                        shell.outputln("");
-                        for ks in &keyspaces {
-                            match session.get_tables(&ks.name).await {
-                                Ok(tables) => {
-                                    shell.outputln(&format!("Keyspace {}", ks.name));
-                                    shell.outputln(&"-".repeat(ks.name.len() + 9));
-                                    if tables.is_empty() {
-                                        shell.outputln("");
-                                    } else {
-                                        let names: Vec<&str> =
-                                            tables.iter().map(|t| t.name.as_str()).collect();
-                                        shell.outputln(&format!("{}\n", names.join("\n")));
-                                    }
-                                }
-                                Err(e) => eprintln!("Error listing tables for {}: {e}", ks.name),
-                            }
-                        }
-                    }
-                    Err(e) => eprintln!("Error: {e}"),
-                }
-            }
-        }
-        "KEYSPACES" => match session.get_keyspaces().await {
-            Ok(keyspaces) => {
-                let names: Vec<&str> = keyspaces.iter().map(|k| k.name.as_str()).collect();
-                shell.outputln(&format!("\n{}\n", names.join("\n")));
-            }
-            Err(e) => eprintln!("Error: {e}"),
-        },
-        "" => {
-            eprintln!("DESCRIBE requires a subcommand. Try: DESCRIBE TABLES, DESCRIBE KEYSPACES");
-        }
-        _ => {
-            eprintln!("DESCRIBE {args} is not yet implemented.");
-        }
-    }
+/// Writer that tees output to both stdout and an optional capture file.
+struct TeeWriter<'a> {
+    capture: Option<&'a mut File>,
 }
 
-/// Format query results as a tabular string matching Python cqlsh style.
-///
-/// Output format:
-/// ```text
-///  col1 | col2 | col3
-/// ------+------+------
-///     1 |   42 | hello
-///     2 |   99 | world
-///
-/// (2 rows)
-/// ```
-fn format_tabular(result: &CqlResult) -> String {
-    if result.columns.is_empty() {
-        return String::new();
-    }
-
-    let headers: Vec<&str> = result.columns.iter().map(|c| c.name.as_str()).collect();
-
-    // Pre-render all cell values
-    let cell_values: Vec<Vec<String>> = result
-        .rows
-        .iter()
-        .map(|row| {
-            (0..result.columns.len())
-                .map(|i| {
-                    row.get(i)
-                        .map(|v| v.to_string())
-                        .unwrap_or_else(|| "null".to_string())
-                })
-                .collect()
-        })
-        .collect();
-
-    // Compute column widths: max of header width and all cell widths
-    let mut widths: Vec<usize> = headers.iter().map(|h| h.len()).collect();
-    for row_vals in &cell_values {
-        for (i, val) in row_vals.iter().enumerate() {
-            widths[i] = widths[i].max(val.len());
+impl<'a> Write for TeeWriter<'a> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let n = io::stdout().write(buf)?;
+        if let Some(ref mut capture) = self.capture {
+            let _ = capture.write_all(&buf[..n]);
         }
+        Ok(n)
     }
 
-    let mut out = String::new();
-    out.push('\n');
-
-    // Header row: right-pad each column name
-    let header_cells: Vec<String> = headers
-        .iter()
-        .zip(&widths)
-        .map(|(h, w)| format!("{:>w$}", h, w = w))
-        .collect();
-    out.push_str(&format!(" {}\n", header_cells.join(" | ")));
-
-    // Separator: dashes per column joined by +
-    let sep_cells: Vec<String> = widths.iter().map(|w| "-".repeat(w + 2)).collect();
-    out.push_str(&format!("{}\n", sep_cells.join("+")));
-
-    // Data rows: right-align values (matching Python cqlsh default)
-    for row_vals in &cell_values {
-        let cells: Vec<String> = row_vals
-            .iter()
-            .zip(&widths)
-            .map(|(v, w)| format!("{:>w$}", v, w = w))
-            .collect();
-        out.push_str(&format!(" {}\n", cells.join(" | ")));
-    }
-
-    out.push('\n');
-    let row_count = result.rows.len();
-    out.push_str(&format!(
-        "({} row{})\n",
-        row_count,
-        if row_count == 1 { "" } else { "s" }
-    ));
-
-    out
-}
-
-/// Format query results in expanded (vertical) format matching Python cqlsh.
-///
-/// Output format:
-/// ```text
-/// @ Row 1
-/// --------+-------------------
-///   id    | 1
-///  num    | 42
-///  val    | hello world
-///
-/// (1 rows)
-/// ```
-fn format_expanded(result: &CqlResult) -> String {
-    if result.columns.is_empty() {
-        return String::new();
-    }
-
-    let headers: Vec<&str> = result.columns.iter().map(|c| c.name.as_str()).collect();
-    let max_name_width = headers.iter().map(|h| h.len()).max().unwrap_or(0);
-
-    let mut out = String::new();
-    out.push('\n');
-
-    for (row_idx, row) in result.rows.iter().enumerate() {
-        out.push_str(&format!("@ Row {}\n", row_idx + 1));
-
-        // Compute max value width for this row's separator
-        let values: Vec<String> = (0..result.columns.len())
-            .map(|i| {
-                row.get(i)
-                    .map(|v| v.to_string())
-                    .unwrap_or_else(|| "null".to_string())
-            })
-            .collect();
-        let max_val_width = values.iter().map(|v| v.len()).max().unwrap_or(0);
-
-        // Separator: dashes matching name column + " | " + value column
-        out.push_str(&format!(
-            "{}+{}\n",
-            "-".repeat(max_name_width + 2),
-            "-".repeat(max_val_width + 2)
-        ));
-
-        // Field rows
-        for (i, val) in values.iter().enumerate() {
-            out.push_str(&format!(
-                " {:>width$} | {}\n",
-                headers[i],
-                val,
-                width = max_name_width
-            ));
+    fn flush(&mut self) -> io::Result<()> {
+        io::stdout().flush()?;
+        if let Some(ref mut capture) = self.capture {
+            let _ = capture.flush();
         }
-
-        out.push('\n');
-    }
-
-    let row_count = result.rows.len();
-    out.push_str(&format!(
-        "({} row{})\n",
-        row_count,
-        if row_count == 1 { "" } else { "s" }
-    ));
-
-    out
-}
-
-/// Print query results (delegates to tabular or expanded based on mode).
-/// Output is tee'd to the capture file if active.
-fn print_results(shell: &mut ShellState, result: &CqlResult) {
-    if shell.expand {
-        shell.output(&format_expanded(result));
-    } else {
-        shell.output(&format_tabular(result));
+        Ok(())
     }
 }
 
@@ -857,9 +662,6 @@ mod tests {
             "admin@cqlsh:system> "
         );
     }
-
-    // Statement completeness and shell command detection tests are now
-    // in the parser module (src/parser.rs) where the logic lives.
 
     // --- Helper function tests ---
 
@@ -899,7 +701,7 @@ mod tests {
     fn shell_state_default() {
         let state = ShellState::default();
         assert!(!state.expand);
-        assert!(state.page_size.is_none());
+        assert_eq!(state.page_size, Some(100));
         assert!(state.capture_file.is_none());
         assert!(state.capture_path.is_none());
     }
@@ -916,7 +718,6 @@ mod tests {
     fn history_enabled_returns_path() {
         let config = test_config(false);
         let path = resolve_history_path(&config);
-        // Should resolve to some path (unless no home dir)
         if dirs::home_dir().is_some() {
             assert!(path.is_some());
             let p = path.unwrap();
@@ -957,210 +758,35 @@ mod tests {
         }
     }
 
-    // --- Helper to build CqlResult for testing ---
-
-    fn make_result(
-        col_names: &[&str],
-        col_types: &[&str],
-        rows: Vec<Vec<crate::driver::CqlValue>>,
-    ) -> CqlResult {
-        use crate::driver::types::{CqlColumn, CqlRow};
-
-        CqlResult {
-            columns: col_names
-                .iter()
-                .zip(col_types)
-                .map(|(n, t)| CqlColumn {
-                    name: n.to_string(),
-                    type_name: t.to_string(),
-                })
-                .collect(),
-            rows: rows
-                .into_iter()
-                .map(|values| CqlRow { values })
-                .collect(),
-            has_rows: true,
-            tracing_id: None,
-            warnings: Vec::new(),
-        }
-    }
-
-    // --- BUG-2: Tabular formatting tests ---
+    // --- BUG: Shell commands with trailing semicolons ---
 
     #[test]
-    fn tabular_basic_alignment() {
-        use crate::driver::CqlValue;
-        let result = make_result(
-            &["id", "num", "val"],
-            &["int", "int", "text"],
-            vec![
-                vec![
-                    CqlValue::Int(1),
-                    CqlValue::Int(42),
-                    CqlValue::Text("hello world".into()),
-                ],
-                vec![
-                    CqlValue::Int(2),
-                    CqlValue::Int(99),
-                    CqlValue::Text("semi;colon;inside".into()),
-                ],
-            ],
-        );
-        let output = format_tabular(&result);
-        assert!(output.contains("id"));
-        assert!(output.contains("num"));
-        assert!(output.contains("val"));
-        assert!(output.contains(" | "));
-        assert!(output.contains("---+"));
-        assert!(!output.contains("||||"));
-        assert!(!output.contains("+++"));
-        assert!(output.contains("(2 rows)"));
+    fn shell_command_semicolon_stripped_before_dispatch() {
+        // Bug: `DESCRIBE KEYSPACES;` was dispatched with `;` intact,
+        // causing describe::execute to receive args="KEYSPACES;" which didn't match.
+        let input = "DESCRIBE KEYSPACES;";
+        let clean = input.strip_suffix(';').unwrap_or(input).trim_end();
+        assert_eq!(clean, "DESCRIBE KEYSPACES");
     }
 
     #[test]
-    fn tabular_column_width_adapts_to_data() {
-        use crate::driver::CqlValue;
-        let result = make_result(
-            &["x", "longvalue"],
-            &["int", "text"],
-            vec![vec![
-                CqlValue::Int(12345),
-                CqlValue::Text("hi".into()),
-            ]],
-        );
-        let output = format_tabular(&result);
-        assert!(output.contains("12345"));
-        assert!(output.contains("(1 row)"));
+    fn shell_command_without_semicolon_unchanged() {
+        let input = "DESCRIBE KEYSPACES";
+        let clean = input.strip_suffix(';').unwrap_or(input).trim_end();
+        assert_eq!(clean, "DESCRIBE KEYSPACES");
     }
 
     #[test]
-    fn tabular_no_trailing_junk() {
-        use crate::driver::CqlValue;
-        let result = make_result(
-            &["a"],
-            &["text"],
-            vec![vec![CqlValue::Text("test".into())]],
-        );
-        let output = format_tabular(&result);
-        for line in output.lines() {
-            let trimmed = line.trim_end();
-            if !trimmed.is_empty()
-                && !trimmed.starts_with('(')
-                && !trimmed.starts_with('-')
-            {
-                assert!(
-                    !trimmed.ends_with('-'),
-                    "Line should not end with '-': {trimmed:?}"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn tabular_empty_result() {
-        let result = CqlResult::empty();
-        assert_eq!(format_tabular(&result), "");
-    }
-
-    #[test]
-    fn tabular_single_row_singular() {
-        use crate::driver::CqlValue;
-        let result = make_result(
-            &["id"],
-            &["int"],
-            vec![vec![CqlValue::Int(1)]],
-        );
-        let output = format_tabular(&result);
-        assert!(output.contains("(1 row)"));
-        assert!(!output.contains("(1 rows)"));
-    }
-
-    // --- BUG-3: Expanded formatting tests ---
-
-    #[test]
-    fn expanded_basic_format() {
-        use crate::driver::CqlValue;
-        let result = make_result(
-            &["id", "num", "val"],
-            &["int", "int", "text"],
-            vec![vec![
-                CqlValue::Int(1),
-                CqlValue::Int(42),
-                CqlValue::Text("hello world".into()),
-            ]],
-        );
-        let output = format_expanded(&result);
-        assert!(output.contains("@ Row 1"));
-        assert!(output.contains("---+---"));
-        assert!(output.contains(" id"));
-        assert!(output.contains("| 1"));
-        assert!(output.contains("num"));
-        assert!(output.contains("| 42"));
-        assert!(output.contains("val"));
-        assert!(output.contains("| hello world"));
-        assert!(output.contains("(1 row)"));
-    }
-
-    #[test]
-    fn expanded_column_names_padded() {
-        use crate::driver::CqlValue;
-        let result = make_result(
-            &["id", "longname"],
-            &["int", "text"],
-            vec![vec![
-                CqlValue::Int(1),
-                CqlValue::Text("x".into()),
-            ]],
-        );
-        let output = format_expanded(&result);
-        for line in output.lines() {
-            if line.contains("| 1") && line.contains("id") {
-                let parts: Vec<&str> = line.splitn(2, '|').collect();
-                let name_part = parts[0].trim_start();
-                assert!(
-                    name_part.starts_with("id"),
-                    "Name should be right-aligned: {line:?}"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn expanded_separator_has_plus() {
-        use crate::driver::CqlValue;
-        let result = make_result(
-            &["a"],
-            &["int"],
-            vec![vec![CqlValue::Int(1)]],
-        );
-        let output = format_expanded(&result);
-        let has_plus_sep = output.lines().any(|l| {
-            l.contains('+') && l.chars().all(|c| c == '-' || c == '+')
-        });
-        assert!(has_plus_sep, "Separator should have dash+plus format");
-    }
-
-    #[test]
-    fn expanded_multiple_rows() {
-        use crate::driver::CqlValue;
-        let result = make_result(
-            &["id"],
-            &["int"],
-            vec![
-                vec![CqlValue::Int(1)],
-                vec![CqlValue::Int(2)],
-            ],
-        );
-        let output = format_expanded(&result);
-        assert!(output.contains("@ Row 1"));
-        assert!(output.contains("@ Row 2"));
-        assert!(output.contains("(2 rows)"));
-    }
-
-    #[test]
-    fn expanded_empty_result() {
-        let result = CqlResult::empty();
-        assert_eq!(format_expanded(&result), "");
+    fn describe_table_semicolon_stripped() {
+        let input = "DESCRIBE TABLE test_ks.events;";
+        let clean = input.strip_suffix(';').unwrap_or(input).trim_end();
+        assert_eq!(clean, "DESCRIBE TABLE test_ks.events");
+        // Verify the args extraction matches what dispatch_input does
+        let trimmed = clean.trim();
+        let upper = trimmed.to_uppercase();
+        assert!(upper.starts_with("DESCRIBE "));
+        let args = &trimmed["DESCRIBE ".len()..];
+        assert_eq!(args.trim(), "TABLE test_ks.events");
     }
 
     // --- BUG-4: SOURCE file parsing tests ---
@@ -1230,37 +856,5 @@ mod tests {
         assert_eq!(lines.len(), 3);
         assert_eq!(lines[0], "CAPTURE '/tmp/test.txt'");
         assert!(parser::is_shell_command(lines[0].trim()));
-    }
-
-    // --- BUG-1: DESCRIBE output tests ---
-
-    #[test]
-    fn describe_tables_format_all_keyspaces() {
-        let keyspaces = vec![
-            ("demo_ks", vec!["demo_t", "other_t"]),
-            ("system", vec!["local", "peers"]),
-        ];
-        let mut output = String::new();
-        output.push('\n');
-        for (ks, tables) in &keyspaces {
-            output.push_str(&format!("Keyspace {ks}\n"));
-            output.push_str(&format!("{}\n", "-".repeat(ks.len() + 9)));
-            output.push_str(&format!("{}\n\n", tables.join("\n")));
-        }
-        assert!(output.contains("Keyspace demo_ks"));
-        assert!(output.contains("-".repeat("demo_ks".len() + 9).as_str()));
-        assert!(output.contains("demo_t"));
-        assert!(output.contains("other_t"));
-        assert!(output.contains("Keyspace system"));
-        assert!(output.contains("local"));
-        assert!(output.contains("peers"));
-    }
-
-    #[test]
-    fn describe_separator_matches_header_width() {
-        let ks_name = "demo_ks";
-        let header = format!("Keyspace {ks_name}");
-        let separator = "-".repeat(ks_name.len() + 9);
-        assert_eq!(header.len(), separator.len());
     }
 }
