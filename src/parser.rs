@@ -241,14 +241,32 @@ impl StatementParser {
 
         self.scan_offset = i;
 
-        if !statements.is_empty() {
-            // Compact the buffer: remove consumed statements, keep the remainder.
+        // Always compact the buffer when stmt_start has advanced past consumed
+        // content (e.g., empty statements like `;;` that were skipped).
+        if self.stmt_start > 0 {
             self.buffer = self.buffer[self.stmt_start..].to_string();
             self.scan_offset -= self.stmt_start;
             self.stmt_start = 0;
-            ParseResult::Complete(statements)
-        } else {
+        }
+
+        // If the remaining buffer is only whitespace and/or comments (no
+        // meaningful CQL tokens), clear it so the REPL returns to the primary
+        // prompt. This handles trailing line comments after semicolons
+        // (e.g., `SELECT 1; -- comment`) and bare `;;`.
+        if !self.buffer.is_empty() {
+            let stripped = strip_comments(&self.buffer);
+            if stripped.trim().is_empty() {
+                self.buffer.clear();
+                self.scan_offset = 0;
+                self.state = LexState::Normal;
+                self.block_comment_depth = 0;
+            }
+        }
+
+        if statements.is_empty() {
             ParseResult::Incomplete
+        } else {
+            ParseResult::Complete(statements)
         }
     }
 }
@@ -1011,5 +1029,63 @@ mod tests {
                     .to_string()
             ])
         );
+    }
+
+    // --- BUG-7: Inline comment after semicolon ---
+
+    #[test]
+    fn inline_comment_after_semicolon_clears_buffer() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line("SELECT 1; -- inline comment");
+        assert_eq!(result, ParseResult::Complete(vec!["SELECT 1".to_string()]));
+        // Parser should be empty — no continuation prompt
+        assert!(p.is_empty());
+    }
+
+    #[test]
+    fn inline_comment_after_semicolon_next_statement_works() {
+        let mut p = StatementParser::new();
+        let r1 = p.feed_line("SELECT 1; -- comment");
+        assert_eq!(r1, ParseResult::Complete(vec!["SELECT 1".to_string()]));
+        assert!(p.is_empty());
+
+        // Next statement should work normally
+        let r2 = p.feed_line("SELECT 2;");
+        assert_eq!(r2, ParseResult::Complete(vec!["SELECT 2".to_string()]));
+    }
+
+    // --- BUG-8: Bare ;; enters continuation ---
+
+    #[test]
+    fn bare_semicolons_clear_buffer() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line(";;");
+        assert_eq!(result, ParseResult::Incomplete);
+        // Parser should be empty — no continuation prompt
+        assert!(p.is_empty());
+    }
+
+    #[test]
+    fn bare_semicolons_then_statement() {
+        let mut p = StatementParser::new();
+        assert_eq!(p.feed_line(";;"), ParseResult::Incomplete);
+        assert!(p.is_empty());
+
+        let result = p.feed_line("SELECT 1;");
+        assert_eq!(result, ParseResult::Complete(vec!["SELECT 1".to_string()]));
+    }
+
+    #[test]
+    fn only_whitespace_and_comments_clears_buffer() {
+        let mut p = StatementParser::new();
+        assert_eq!(p.feed_line("-- just a comment"), ParseResult::Incomplete);
+        assert!(p.is_empty());
+    }
+
+    #[test]
+    fn block_comment_only_clears_buffer() {
+        let mut p = StatementParser::new();
+        assert_eq!(p.feed_line("/* block comment */"), ParseResult::Incomplete);
+        assert!(p.is_empty());
     }
 }
