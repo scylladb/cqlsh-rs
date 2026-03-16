@@ -666,6 +666,22 @@ impl CqlDriver for ScyllaDriver {
             .and_then(cql_value_to_string))
     }
 
+    async fn get_scylla_version(&self) -> Result<Option<String>> {
+        // ScyllaDB exposes its version in system.local.scylla_version
+        // This column doesn't exist in Apache Cassandra, so errors are expected.
+        let result = self
+            .execute_unpaged("SELECT scylla_version FROM system.local")
+            .await;
+        match result {
+            Ok(r) => Ok(r
+                .rows
+                .first()
+                .and_then(|row| row.get(0))
+                .and_then(cql_value_to_string)),
+            Err(_) => Ok(None), // Column doesn't exist → not ScyllaDB
+        }
+    }
+
     async fn is_connected(&self) -> bool {
         self.execute_unpaged("SELECT key FROM system.local LIMIT 1")
             .await

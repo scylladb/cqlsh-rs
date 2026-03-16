@@ -219,6 +219,9 @@ pub trait CqlDriver: Send + Sync {
     /// Get the release version of the connected node.
     async fn get_release_version(&self) -> Result<Option<String>>;
 
+    /// Get the ScyllaDB version (None if not ScyllaDB).
+    async fn get_scylla_version(&self) -> Result<Option<String>>;
+
     /// Check if the connection is still alive.
     async fn is_connected(&self) -> bool;
 }

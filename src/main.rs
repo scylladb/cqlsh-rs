@@ -65,19 +65,28 @@ async fn main() -> Result<()> {
 }
 
 /// Print the cqlsh connection banner matching Python cqlsh output.
+///
+/// Detects ScyllaDB vs Apache Cassandra and shows the appropriate version.
 fn print_banner(session: &CqlSession) {
     let cluster_name = session.cluster_name.as_deref().unwrap_or("Unknown Cluster");
     let cql_version = session.cql_version.as_deref().unwrap_or("unknown");
-    let release_version = session.release_version.as_deref().unwrap_or("unknown");
 
     println!(
         "Connected to {} at {}.",
         cluster_name, session.connection_display
     );
+
+    let server_info = if let Some(scylla_ver) = &session.scylla_version {
+        format!("Scylla {scylla_ver}")
+    } else {
+        let release = session.release_version.as_deref().unwrap_or("unknown");
+        format!("Cassandra {release}")
+    };
+
     println!(
-        "[cqlsh {} | Cassandra {} | CQL spec {}]",
+        "[cqlsh {} | {} | CQL spec {}]",
         env!("CARGO_PKG_VERSION"),
-        release_version,
+        server_info,
         cql_version
     );
     println!("Use HELP for help.");

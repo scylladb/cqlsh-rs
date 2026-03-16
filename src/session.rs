@@ -25,6 +25,8 @@ pub struct CqlSession {
     pub cql_version: Option<String>,
     /// Release version of the connected node.
     pub release_version: Option<String>,
+    /// ScyllaDB version (None if connected to Apache Cassandra).
+    pub scylla_version: Option<String>,
 }
 
 impl CqlSession {
@@ -63,6 +65,7 @@ impl CqlSession {
         let cluster_name = driver.get_cluster_name().await.ok().flatten();
         let cql_version = driver.get_cql_version().await.ok().flatten();
         let release_version = driver.get_release_version().await.ok().flatten();
+        let scylla_version = driver.get_scylla_version().await.ok().flatten();
 
         // Set initial consistency from config
         if let Some(cl_str) = &config.consistency_level {
@@ -85,6 +88,7 @@ impl CqlSession {
             cluster_name,
             cql_version,
             release_version,
+            scylla_version,
         })
     }
 
