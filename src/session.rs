@@ -8,8 +8,9 @@ use anyhow::{bail, Result};
 
 use crate::config::MergedConfig;
 use crate::driver::{
-    ConnectionConfig, Consistency, CqlDriver, CqlResult, KeyspaceMetadata, PreparedId,
-    ScyllaDriver, SslConfig, TableMetadata, TracingSession,
+    AggregateMetadata, ConnectionConfig, Consistency, CqlDriver, CqlResult, FunctionMetadata,
+    KeyspaceMetadata, PreparedId, ScyllaDriver, SslConfig, TableMetadata, TracingSession,
+    UdtMetadata,
 };
 
 /// High-level CQL session managing driver state and user preferences.
@@ -213,6 +214,21 @@ impl CqlSession {
         table: &str,
     ) -> Result<Option<TableMetadata>> {
         self.driver.get_table_metadata(keyspace, table).await
+    }
+
+    /// Get metadata for all user-defined types in a keyspace.
+    pub async fn get_udts(&self, keyspace: &str) -> Result<Vec<UdtMetadata>> {
+        self.driver.get_udts(keyspace).await
+    }
+
+    /// Get metadata for all user-defined functions in a keyspace.
+    pub async fn get_functions(&self, keyspace: &str) -> Result<Vec<FunctionMetadata>> {
+        self.driver.get_functions(keyspace).await
+    }
+
+    /// Get metadata for all user-defined aggregates in a keyspace.
+    pub async fn get_aggregates(&self, keyspace: &str) -> Result<Vec<AggregateMetadata>> {
+        self.driver.get_aggregates(keyspace).await
     }
 
     /// Check if the connection is still alive.
