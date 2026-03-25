@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774475978281,
+  "lastUpdate": 1774476321268,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -1457,6 +1457,168 @@ window.BENCHMARK_DATA = {
             "name": "end_to_end_startup/full",
             "value": 93031,
             "range": "± 401",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "noreply@anthropic.com",
+            "name": "Claude",
+            "username": "claude"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "c4b474f33d9eb3e39a1e2904323ad78072ec882f",
+          "message": "docs(plans): add SP17 — embedded AI assistant help plan\n\nAdd comprehensive plan for embedding Qwen2.5-Coder-0.5B into cqlsh-rs\nfor offline CQL error diagnostics via --ai-help flag. Covers model\nselection, inference engine (llama-cpp-2), distribution/caching strategy,\nprompt engineering, UX, resource management, and phased implementation.\n\nhttps://claude.ai/code/session_016AR2GzCPyLuko2smjcishH",
+          "timestamp": "2026-03-15T01:32:16+02:00",
+          "tree_id": "96fd860a5ec5e96ee1eb69e6098b26c1975d6c55",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/c4b474f33d9eb3e39a1e2904323ad78072ec882f"
+        },
+        "date": 1774476320740,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 16980,
+            "range": "± 82",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/host_only",
+            "value": 18783,
+            "range": "± 226",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/host_and_port",
+            "value": 20318,
+            "range": "± 65",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/execute_mode",
+            "value": 18893,
+            "range": "± 83",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/file_mode",
+            "value": 19157,
+            "range": "± 79",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/full_connection",
+            "value": 37913,
+            "range": "± 238",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_validate/valid_minimal",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2873,
+            "range": "± 54",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 6103,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 43926,
+            "range": "± 208",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/0",
+            "value": 5319,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/10",
+            "value": 12343,
+            "range": "± 106",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/50",
+            "value": 51234,
+            "range": "± 352",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/100",
+            "value": 93478,
+            "range": "± 1711",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/all_defaults",
+            "value": 532,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/cli_overrides_only",
+            "value": 586,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1121,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/nonexistent_file",
+            "value": 1340,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/minimal_file",
+            "value": 14604,
+            "range": "± 99",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/full_file",
+            "value": 52234,
+            "range": "± 530",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end_to_end_startup/minimal",
+            "value": 21991,
+            "range": "± 286",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 98411,
+            "range": "± 762",
             "unit": "ns/iter"
           }
         ]
