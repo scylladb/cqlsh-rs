@@ -590,7 +590,7 @@ fn dispatch_input<'a>(
                 if let Some(ref shared_ks) = shell.shared_keyspace {
                     let ks = session.current_keyspace().map(String::from);
                     let shared = Arc::clone(shared_ks);
-                    *shared.blocking_write() = ks;
+                    *shared.write().await = ks;
                 }
             }
 
