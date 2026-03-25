@@ -1,10 +1,16 @@
 //! cqlsh-rs — A Rust re-implementation of the Apache Cassandra cqlsh shell.
 
+use std::io::{self, BufRead, IsTerminal, Write};
+
 use anyhow::Result;
 use clap::Parser;
 
 use cqlsh_rs::cli::CliArgs;
-use cqlsh_rs::config::load_config;
+use cqlsh_rs::colorizer::CqlColorizer;
+use cqlsh_rs::config::{load_config, ColorMode, MergedConfig};
+use cqlsh_rs::error;
+use cqlsh_rs::formatter;
+use cqlsh_rs::parser::{self, ParseResult, StatementParser};
 use cqlsh_rs::repl;
 use cqlsh_rs::session::CqlSession;
 use cqlsh_rs::shell_completions;
@@ -51,17 +57,260 @@ async fn main() -> Result<()> {
     print_banner(&session);
 
     if config.execute.is_some() || config.file.is_some() {
-        eprintln!(
-            "Non-interactive mode not yet implemented. \
-             Connected to {}:{} successfully.",
-            config.host, config.port
-        );
+        // Non-interactive execution mode (-e or -f)
+        let exit_code = execute_noninteractive(&mut session, &config).await;
+        std::process::exit(exit_code);
     } else {
         // Enter interactive REPL
         repl::run(&mut session, &config).await?;
     }
 
     Ok(())
+}
+
+/// Execute statements in non-interactive mode (-e or -f).
+///
+/// Returns exit code: 0 on success, 1 on any CQL error.
+async fn execute_noninteractive(session: &mut CqlSession, config: &MergedConfig) -> i32 {
+    // Resolve color mode: Auto → check if stdout is a terminal
+    let color_enabled = match config.color {
+        ColorMode::On => true,
+        ColorMode::Off => false,
+        ColorMode::Auto => io::stdout().is_terminal(),
+    };
+    let colorizer = CqlColorizer::new(color_enabled);
+
+    if let Some(ref cql_string) = config.execute {
+        execute_cql_string(session, config, &colorizer, cql_string).await
+    } else if let Some(ref file_path) = config.file {
+        execute_cql_file(session, config, &colorizer, file_path).await
+    } else {
+        0
+    }
+}
+
+/// Execute a CQL string from the `-e` flag (semicolon-separated statements).
+async fn execute_cql_string(
+    session: &mut CqlSession,
+    config: &MergedConfig,
+    colorizer: &CqlColorizer,
+    cql_string: &str,
+) -> i32 {
+    let statements = parser::parse_batch(cql_string);
+    let mut had_error = false;
+
+    for stmt in statements {
+        if !execute_single_statement(session, config, colorizer, &stmt).await {
+            had_error = true;
+        }
+    }
+
+    if had_error { 1 } else { 0 }
+}
+
+/// Execute CQL statements from a file (`-f` flag).
+async fn execute_cql_file(
+    session: &mut CqlSession,
+    config: &MergedConfig,
+    colorizer: &CqlColorizer,
+    file_path: &str,
+) -> i32 {
+    let file = match std::fs::File::open(file_path) {
+        Ok(f) => f,
+        Err(e) => {
+            eprintln!("Could not open '{}': {e}", file_path);
+            return 1;
+        }
+    };
+
+    let reader = io::BufReader::new(file);
+    let mut stmt_parser = StatementParser::new();
+    let mut had_error = false;
+
+    for line_result in reader.lines() {
+        let line = match line_result {
+            Ok(l) => l,
+            Err(e) => {
+                eprintln!("Error reading '{}': {e}", file_path);
+                return 1;
+            }
+        };
+
+        // Check for shell commands on a fresh line
+        let trimmed = line.trim();
+        if stmt_parser.is_empty() && !trimmed.is_empty() && parser::is_shell_command(trimmed) {
+            let clean = trimmed.strip_suffix(';').unwrap_or(trimmed).trim_end();
+            if !execute_single_statement(session, config, colorizer, clean).await {
+                had_error = true;
+            }
+            continue;
+        }
+
+        if let ParseResult::Complete(statements) = stmt_parser.feed_line(&line) {
+            for stmt in statements {
+                if !execute_single_statement(session, config, colorizer, &stmt).await {
+                    had_error = true;
+                }
+            }
+        }
+    }
+
+    if had_error { 1 } else { 0 }
+}
+
+/// Execute a single CQL statement in non-interactive mode.
+///
+/// Returns `true` on success, `false` on error.
+async fn execute_single_statement(
+    session: &mut CqlSession,
+    config: &MergedConfig,
+    colorizer: &CqlColorizer,
+    input: &str,
+) -> bool {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return true;
+    }
+
+    let upper = trimmed.to_uppercase();
+
+    // Handle shell commands that make sense in non-interactive mode
+    if upper == "CONSISTENCY" {
+        let cl = session.get_consistency();
+        println!("Current consistency level is {cl}.");
+        return true;
+    }
+    if let Some(rest) = upper.strip_prefix("CONSISTENCY ") {
+        let level = rest.trim();
+        match session.set_consistency_str(level) {
+            Ok(()) => println!("Consistency level set to {level}."),
+            Err(e) => {
+                eprintln!("{e}");
+                return false;
+            }
+        }
+        return true;
+    }
+    if upper == "SERIAL CONSISTENCY" {
+        match session.get_serial_consistency() {
+            Some(scl) => println!("Current serial consistency level is {scl}."),
+            None => println!("Current serial consistency level is SERIAL."),
+        }
+        return true;
+    }
+    if let Some(rest) = upper.strip_prefix("SERIAL CONSISTENCY ") {
+        let level = rest.trim();
+        match session.set_serial_consistency_str(level) {
+            Ok(()) => println!("Serial consistency level set to {level}."),
+            Err(e) => {
+                eprintln!("{e}");
+                return false;
+            }
+        }
+        return true;
+    }
+    if upper == "TRACING OFF" || upper == "TRACING" {
+        session.set_tracing(false);
+        println!("Disabled tracing.");
+        return true;
+    }
+    if upper == "TRACING ON" {
+        session.set_tracing(true);
+        println!("Now tracing requests.");
+        return true;
+    }
+    if upper == "SHOW VERSION" {
+        println!("[cqlsh {}]", env!("CARGO_PKG_VERSION"));
+        return true;
+    }
+    if upper == "SHOW HOST" {
+        println!("Connected to: {}", session.connection_display);
+        return true;
+    }
+
+    // Handle DESCRIBE / DESC
+    if upper == "DESCRIBE" || upper == "DESC" || upper.starts_with("DESCRIBE ") || upper.starts_with("DESC ") {
+        let args = if upper.starts_with("DESCRIBE ") {
+            trimmed["DESCRIBE ".len()..].trim()
+        } else if upper.starts_with("DESC ") {
+            trimmed["DESC ".len()..].trim()
+        } else {
+            ""
+        };
+        let mut buf = Vec::new();
+        match cqlsh_rs::describe::execute(session, args, &mut buf).await {
+            Ok(()) => {
+                let _ = io::stdout().write_all(&buf);
+            }
+            Err(e) => {
+                eprintln!("Error: {e}");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Skip commands that don't make sense in non-interactive mode
+    if upper == "QUIT" || upper == "EXIT" || upper == "CLEAR" || upper == "CLS"
+        || upper == "HELP" || upper == "?" || upper.starts_with("HELP ")
+        || upper == "EXPAND" || upper == "EXPAND ON" || upper == "EXPAND OFF"
+        || upper == "PAGING" || upper == "PAGING ON" || upper == "PAGING OFF"
+        || upper.starts_with("PAGING ")
+        || upper == "CAPTURE" || upper == "CAPTURE OFF" || upper.starts_with("CAPTURE ")
+        || upper == "LOGIN" || upper.starts_with("LOGIN ")
+    {
+        // Silently ignore interactive-only commands
+        return true;
+    }
+
+    // Execute as CQL statement
+    match session.execute(trimmed).await {
+        Ok(result) => {
+            // Print warnings to stderr
+            for warning in &result.warnings {
+                let msg = format!("Warnings: {warning}");
+                eprintln!("{}", colorizer.colorize_warning(&msg));
+            }
+
+            // Print results directly to stdout (no pager)
+            if !result.columns.is_empty() {
+                let mut buf = Vec::new();
+                formatter::print_tabular(&result, colorizer, &mut buf);
+                let _ = io::stdout().write_all(&buf);
+            }
+
+            // Print trace info if tracing is enabled
+            if session.is_tracing_enabled() {
+                if let Some(trace_id) = result.tracing_id {
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    match session.get_trace_session(trace_id).await {
+                        Ok(Some(trace)) => {
+                            let mut buf = Vec::new();
+                            formatter::print_trace(&trace, colorizer, &mut buf);
+                            let _ = io::stdout().write_all(&buf);
+                        }
+                        Ok(None) => {
+                            eprintln!(
+                                "Trace {trace_id} not yet available. Use SHOW SESSION {trace_id} to view later."
+                            );
+                        }
+                        Err(e) => {
+                            eprintln!("Error fetching trace: {e}");
+                        }
+                    }
+                }
+            }
+
+            true
+        }
+        Err(e) => {
+            eprintln!("{}", error::format_error_colored(&e, colorizer));
+            if config.debug {
+                eprintln!("Debug: {e:?}");
+            }
+            false
+        }
+    }
 }
 
 /// Print the cqlsh connection banner matching Python cqlsh output.
