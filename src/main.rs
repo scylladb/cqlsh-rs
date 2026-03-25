@@ -35,6 +35,16 @@ async fn main() -> Result<()> {
     if cli.debug {
         eprintln!("Debug: resolved host={}, port={}", config.host, config.port);
         eprintln!("Debug: cqlshrc path={}", config.cqlshrc_path.display());
+        eprintln!("Debug: encoding={}", config.encoding);
+        if let Some(ref v) = config.cqlversion {
+            eprintln!("Debug: cqlversion={v}");
+        }
+        if let Some(v) = config.protocol_version {
+            eprintln!("Debug: protocol_version={v}");
+        }
+        if config.tty {
+            eprintln!("Debug: --tty flag set, forcing TTY mode");
+        }
     }
 
     // Connect to the cluster

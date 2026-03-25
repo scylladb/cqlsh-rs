@@ -160,10 +160,12 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
     }
 
     // Resolve color mode: Auto → check if stdout is a terminal
+    // --tty flag forces TTY behavior even when piped
+    let is_tty = config.tty || std::io::stdout().is_terminal();
     let color_enabled = match config.color {
         crate::config::ColorMode::On => true,
         crate::config::ColorMode::Off => false,
-        crate::config::ColorMode::Auto => std::io::stdout().is_terminal(),
+        crate::config::ColorMode::Auto => is_tty,
     };
 
     let completer = CqlCompleter::new(
@@ -189,7 +191,6 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
 
     let username = config.username.as_deref();
     let mut stmt_parser = StatementParser::new();
-    let is_tty = std::io::stdout().is_terminal();
     let colorizer = CqlColorizer::new(color_enabled);
     let mut shell = ShellState {
         expand: false,
