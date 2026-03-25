@@ -64,7 +64,12 @@ Use these project-specific scopes:
 | `types` | CQL type system |
 | `auth` | Authentication and SSL/TLS |
 | `plan` | Design documents and plans |
+| `progress` | Progress tracking (`docs/progress.json`) |
 | `skills` | AI assistant skills |
+
+### Progress Tracking Reminder
+
+When committing feature or plan changes, also update `docs/progress.json` to reflect completed tasks. Include the progress update in the plan commit or as a separate `docs(progress):` commit.
 
 ### Rules
 

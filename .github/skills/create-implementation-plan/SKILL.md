@@ -139,3 +139,4 @@ Plans in this project are living documents:
 - Prune after research: remove speculative options that were not chosen
 - Document reasoning: explain why alternatives were rejected
 - Plans serve as source of truth alongside the codebase
+- When tasks are completed, update `docs/progress.json` to reflect the new state (see `/development-process` Step 5b)

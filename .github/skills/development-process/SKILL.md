@@ -167,9 +167,11 @@ cargo test -- --nocapture
 | `driver/*` | >80% |
 | `repl.rs` | >70% |
 
-## Step 5: Update Plans
+## Step 5: Update Plans and Progress Tracking
 
-After implementation, update the sub-plan document:
+After implementation, update both the sub-plan documents **and** the progress tracker.
+
+### 5a: Update Sub-Plan Document
 
 1. Mark completed steps with ✅
 2. Update acceptance criteria checkboxes
@@ -189,6 +191,23 @@ or
 ```markdown
 > **Status: DONE** — Completed [date], PR #XX
 ```
+
+### 5b: Update Progress Tracker (`docs/progress.json`)
+
+**This step is mandatory.** Every time tasks are completed, update `docs/progress.json`:
+
+1. Read the current `docs/progress.json`
+2. Update the relevant phase's `completed_tasks` count to match reality
+3. Update the phase `status`:
+   - `"not_started"` → `"in_progress"` when first task in a phase begins
+   - `"in_progress"` → `"completed"` when all tasks in the phase are done
+4. Set `started_date` when a phase transitions to `"in_progress"`
+5. Set `completed_date` when a phase transitions to `"completed"`
+6. Add an entry to `velocity.tasks_completed_log` with today's date, tasks done count, phase number, and PR reference
+7. Update `last_updated` to today's date
+8. Update `velocity.merged_prs` count
+
+Cross-check the phase task counts against `docs/plans/high-level-design.md` to ensure they match. The high-level design's task tables with ✅ markers are the source of truth for what is complete.
 
 ## Step 6: Update Documentation
 

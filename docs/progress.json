@@ -1,14 +1,17 @@
 {
   "project": "cqlsh-rs",
-  "last_updated": "2026-03-13",
+  "last_updated": "2026-03-25",
   "velocity": {
     "started_date": "2026-03-01",
-    "merged_prs": 8,
+    "merged_prs": 24,
     "tasks_completed_log": [
       { "date": "2026-03-03", "tasks_done": 2, "phase": 1, "pr": "#1" },
       { "date": "2026-03-07", "tasks_done": 1, "phase": 1, "pr": "#3" },
       { "date": "2026-03-10", "tasks_done": 1, "phase": 1, "pr": "#5" },
-      { "date": "2026-03-13", "tasks_done": 1, "phase": 1, "pr": "#8" }
+      { "date": "2026-03-13", "tasks_done": 1, "phase": 1, "pr": "#8" },
+      { "date": "2026-03-15", "tasks_done": 10, "phase": 1, "pr": "#11" },
+      { "date": "2026-03-18", "tasks_done": 22, "phase": 2, "pr": "#17" },
+      { "date": "2026-03-22", "tasks_done": 21, "phase": 3, "pr": "#24" }
     ]
   },
   "phases": [
@@ -17,30 +20,30 @@
       "name": "Bootstrap MVP",
       "description": "CLI, config, driver, basic REPL",
       "total_tasks": 15,
-      "completed_tasks": 5,
-      "status": "in_progress",
+      "completed_tasks": 15,
+      "status": "completed",
       "started_date": "2026-03-01",
-      "completed_date": null
+      "completed_date": "2026-03-15"
     },
     {
       "id": 2,
       "name": "Usable Shell",
       "description": "Line editing, formatting, core commands",
       "total_tasks": 22,
-      "completed_tasks": 0,
-      "status": "not_started",
-      "started_date": null,
-      "completed_date": null
+      "completed_tasks": 22,
+      "status": "completed",
+      "started_date": "2026-03-15",
+      "completed_date": "2026-03-18"
     },
     {
       "id": 3,
       "name": "Tab Completion & Output",
       "description": "Completion engine, output formats, color",
       "total_tasks": 21,
-      "completed_tasks": 0,
-      "status": "not_started",
-      "started_date": null,
-      "completed_date": null
+      "completed_tasks": 21,
+      "status": "completed",
+      "started_date": "2026-03-18",
+      "completed_date": "2026-03-22"
     },
     {
       "id": 4,

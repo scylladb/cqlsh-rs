@@ -22,6 +22,13 @@ cqlsh-rs is a ground-up Rust re-implementation of the Python `cqlsh` — the off
 - 100% compatibility with Python cqlsh is the primary constraint
 - Every feature must reference the compatibility matrix in the high-level design
 
+## Progress Tracking
+
+- **Always update `docs/progress.json`** when completing tasks or phases
+- Cross-check task counts against `docs/plans/high-level-design.md` (source of truth)
+- The `/development-process` skill Step 5b has detailed instructions for updating progress
+- A GitHub Action (`.github/workflows/progress.yml`) auto-generates the SVG roadmap when `progress.json` changes on main
+
 ## Commit Messages
 
 Use Conventional Commits format. See `/conventional-commit` skill for details.
