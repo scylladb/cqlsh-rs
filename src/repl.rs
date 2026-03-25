@@ -82,6 +82,8 @@ struct ShellState {
     paging_enabled: bool,
     /// Whether stdout is a TTY (controls pager auto-disable).
     is_tty: bool,
+    /// Whether debug mode is enabled (toggled via DEBUG command).
+    debug: bool,
     /// Active CAPTURE file handle (output is tee'd to this file).
     capture_file: Option<File>,
     /// Path of the active capture file (for display).
@@ -193,6 +195,7 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
         expand: false,
         paging_enabled: true,
         is_tty,
+        debug: config.debug,
         capture_file: None,
         capture_path: None,
         schema_cache: Some(Arc::clone(&schema_cache)),
@@ -458,9 +461,70 @@ fn dispatch_input<'a>(
         return;
     }
 
-    // Handle LOGIN (stub — implementation deferred to Phase 4)
-    if upper == "LOGIN" || upper.starts_with("LOGIN ") {
-        eprintln!("LOGIN command is not yet implemented. Use --username and --password flags.");
+    // Handle DEBUG
+    if upper == "DEBUG" {
+        if shell.debug {
+            shell.outputln("Debug output is currently enabled. Use DEBUG OFF to disable.");
+        } else {
+            shell.outputln("Debug output is currently disabled. Use DEBUG ON to enable.");
+        }
+        return;
+    }
+    if upper == "DEBUG ON" {
+        shell.debug = true;
+        shell.outputln("Now printing debug output.");
+        return;
+    }
+    if upper == "DEBUG OFF" {
+        shell.debug = false;
+        shell.outputln("Disabled debug output.");
+        return;
+    }
+
+    // Handle UNICODE
+    if upper == "UNICODE" {
+        shell.outputln(&format!(
+            "Encoding: {}\nDefault encoding: utf-8",
+            config.encoding
+        ));
+        return;
+    }
+
+    // Handle LOGIN
+    if upper == "LOGIN" {
+        eprintln!("Usage: LOGIN <username> [<password>]");
+        return;
+    }
+    if upper.starts_with("LOGIN ") {
+        let args = trimmed["LOGIN ".len()..].trim();
+        let parts: Vec<&str> = args.splitn(2, char::is_whitespace).collect();
+        let new_user = parts[0].to_string();
+        let new_pass = if parts.len() > 1 {
+            Some(parts[1].to_string())
+        } else {
+            // Prompt for password
+            eprint!("Password: ");
+            let _ = io::stderr().flush();
+            let mut pass = String::new();
+            if io::stdin().read_line(&mut pass).is_ok() {
+                Some(pass.trim().to_string())
+            } else {
+                None
+            }
+        };
+        // Reconnect with new credentials
+        let mut new_config = config.clone();
+        new_config.username = Some(new_user);
+        new_config.password = new_pass;
+        match crate::session::CqlSession::connect(&new_config).await {
+            Ok(new_session) => {
+                *session = new_session;
+                shell.outputln("Login successful.");
+            }
+            Err(e) => {
+                eprintln!("Login failed: {e}");
+            }
+        }
         return;
     }
 
@@ -604,21 +668,21 @@ Documented shell commands:
   CAPTURE       Capture output to file
   CLEAR         Clear the terminal screen
   CONSISTENCY   Get/set consistency level
+  DEBUG         Toggle debug mode
   DESCRIBE      Schema introspection (CLUSTER, KEYSPACES, TABLE, etc.)
   EXIT / QUIT   Exit the shell
   EXPAND        Toggle expanded (vertical) output
   HELP          Show this help or help on a topic
+  LOGIN         Re-authenticate with new credentials
   PAGING        Configure automatic paging
   SERIAL        Get/set serial consistency level
   SHOW          Show version, host, or session trace info
   SOURCE        Execute CQL from a file
   TRACING       Toggle request tracing
+  UNICODE       Show Unicode character handling info
 
 Not yet implemented:
   COPY          Import/export CSV data
-  LOGIN         Re-authenticate
-  UNICODE       Show Unicode handling info
-  DEBUG         Toggle debug mode
 
 CQL statements (executed via the database):
   SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, USE, etc."
@@ -797,6 +861,7 @@ mod tests {
             expand: false,
             paging_enabled: true,
             is_tty: false,
+            debug: false,
             capture_file: None,
             capture_path: None,
             schema_cache: None,
