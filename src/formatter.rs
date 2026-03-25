@@ -6,9 +6,10 @@
 
 use std::io::{self, Read, Write};
 
-use comfy_table::{Attribute, Cell, CellAlignment, ContentArrangement, Table};
+use comfy_table::{Cell, CellAlignment, ContentArrangement, Table};
 use terminal_size::{terminal_size, Width};
 
+use crate::colorizer::CqlColorizer;
 use crate::driver::CqlResult;
 
 fn terminal_width() -> Option<u16> {
@@ -19,7 +20,8 @@ fn terminal_width() -> Option<u16> {
 ///
 /// Uses comfy-table for proper column alignment and Unicode box-drawing.
 /// Matches Python cqlsh output style with column headers and row counts.
-pub fn print_tabular(result: &CqlResult, writer: &mut dyn Write) {
+/// When a colorizer is provided, values and headers are colored.
+pub fn print_tabular(result: &CqlResult, colorizer: &CqlColorizer, writer: &mut dyn Write) {
     if result.columns.is_empty() {
         return;
     }
@@ -38,22 +40,22 @@ pub fn print_tabular(result: &CqlResult, writer: &mut dyn Write) {
     // Disable borders to match Python cqlsh's simple pipe-separated output
     table.load_preset(CQLSH_PRESET);
 
-    // Add header row
+    // Add header row (magenta bold when colored, plain bold otherwise)
     let headers: Vec<Cell> = result
         .columns
         .iter()
-        .map(|c| Cell::new(&c.name).add_attribute(Attribute::Bold))
+        .map(|c| Cell::new(colorizer.colorize_header(&c.name)))
         .collect();
     table.set_header(headers);
 
-    // Add data rows with type-aware alignment
+    // Add data rows with type-aware alignment and coloring
     for row in &result.rows {
         let cells: Vec<Cell> = row
             .values
             .iter()
             .enumerate()
             .map(|(i, val)| {
-                let display = val.to_string();
+                let display = colorizer.colorize_value(val);
                 let mut cell = Cell::new(display);
                 // Right-align numeric types to match Python cqlsh
                 if is_numeric_type(&result.columns[i].type_name) {
@@ -83,7 +85,7 @@ pub fn print_tabular(result: &CqlResult, writer: &mut dyn Write) {
 ///
 /// Each row is printed as a block with `@ Row N` header, followed by
 /// column_name | value pairs. Matches Python cqlsh `EXPAND ON` behavior.
-pub fn print_expanded(result: &CqlResult, writer: &mut dyn Write) {
+pub fn print_expanded(result: &CqlResult, colorizer: &CqlColorizer, writer: &mut dyn Write) {
     if result.columns.is_empty() {
         return;
     }
@@ -108,12 +110,12 @@ pub fn print_expanded(result: &CqlResult, writer: &mut dyn Write) {
         for (col_idx, col) in result.columns.iter().enumerate() {
             let value = row
                 .get(col_idx)
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "null".to_string());
+                .map(|v| colorizer.colorize_value(v))
+                .unwrap_or_else(|| colorizer.colorize_value(&crate::driver::types::CqlValue::Null));
             writeln!(
                 writer,
                 " {:>width$} | {}",
-                col.name,
+                colorizer.colorize_header(&col.name),
                 value,
                 width = max_col_width
             )
@@ -137,41 +139,26 @@ pub fn print_expanded(result: &CqlResult, writer: &mut dyn Write) {
 ///
 /// Shows a `---MORE---` prompt between pages. The user can press any key
 /// to continue, or 'q' to stop.
-pub fn print_paged(result: &CqlResult, page_size: usize, expand: bool, writer: &mut dyn Write) {
+pub fn print_paged(result: &CqlResult, page_size: usize, expand: bool, colorizer: &CqlColorizer, writer: &mut dyn Write) {
     if result.columns.is_empty() {
         return;
     }
 
     if expand {
         // For expanded output, page by row count
-        print_expanded_paged(result, page_size, writer);
+        print_expanded_paged(result, page_size, colorizer, writer);
     } else {
-        print_tabular_paged(result, page_size, writer);
+        print_tabular_paged(result, page_size, colorizer, writer);
     }
 }
 
 /// Print tabular output with pagination.
-fn print_tabular_paged(result: &CqlResult, page_size: usize, writer: &mut dyn Write) {
+fn print_tabular_paged(result: &CqlResult, page_size: usize, colorizer: &CqlColorizer, writer: &mut dyn Write) {
     let total_rows = result.rows.len();
     if total_rows <= page_size {
-        print_tabular(result, writer);
+        print_tabular(result, colorizer, writer);
         return;
     }
-
-    // Print header once
-    let mut table = Table::new();
-    table.set_content_arrangement(ContentArrangement::Dynamic);
-    if let Some(w) = terminal_width() {
-        table.set_width(w);
-    }
-    table.load_preset(CQLSH_PRESET);
-
-    let headers: Vec<Cell> = result
-        .columns
-        .iter()
-        .map(|c| Cell::new(&c.name).add_attribute(Attribute::Bold))
-        .collect();
-    table.set_header(headers);
 
     // Build the full table to get the header, then print rows page by page
     for (chunk_idx, chunk) in result.rows.chunks(page_size).enumerate() {
@@ -190,7 +177,7 @@ fn print_tabular_paged(result: &CqlResult, page_size: usize, writer: &mut dyn Wr
             let headers: Vec<Cell> = result
                 .columns
                 .iter()
-                .map(|c| Cell::new(&c.name).add_attribute(Attribute::Bold))
+                .map(|c| Cell::new(colorizer.colorize_header(&c.name)))
                 .collect();
             page_table.set_header(headers);
             writeln!(writer).ok();
@@ -202,7 +189,7 @@ fn print_tabular_paged(result: &CqlResult, page_size: usize, writer: &mut dyn Wr
                 .iter()
                 .enumerate()
                 .map(|(i, val)| {
-                    let display = val.to_string();
+                    let display = colorizer.colorize_value(val);
                     let mut cell = Cell::new(display);
                     if is_numeric_type(&result.columns[i].type_name) {
                         cell = cell.set_alignment(CellAlignment::Right);
@@ -229,10 +216,10 @@ fn print_tabular_paged(result: &CqlResult, page_size: usize, writer: &mut dyn Wr
 }
 
 /// Print expanded output with pagination.
-fn print_expanded_paged(result: &CqlResult, page_size: usize, writer: &mut dyn Write) {
+fn print_expanded_paged(result: &CqlResult, page_size: usize, colorizer: &CqlColorizer, writer: &mut dyn Write) {
     let total_rows = result.rows.len();
     if total_rows <= page_size {
-        print_expanded(result, writer);
+        print_expanded(result, colorizer, writer);
         return;
     }
 
@@ -255,12 +242,12 @@ fn print_expanded_paged(result: &CqlResult, page_size: usize, writer: &mut dyn W
         for (col_idx, col) in result.columns.iter().enumerate() {
             let value = row
                 .get(col_idx)
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "null".to_string());
+                .map(|v| colorizer.colorize_value(v))
+                .unwrap_or_else(|| colorizer.colorize_value(&crate::driver::types::CqlValue::Null));
             writeln!(
                 writer,
                 " {:>width$} | {}",
-                col.name,
+                colorizer.colorize_header(&col.name),
                 value,
                 width = max_col_width
             )
@@ -306,9 +293,15 @@ fn show_more_prompt() -> bool {
 /// Format tracing session output matching Python cqlsh style.
 ///
 /// Displays session metadata and a table of trace events sorted by elapsed time.
-pub fn print_trace(trace: &crate::driver::TracingSession, writer: &mut dyn Write) {
+pub fn print_trace(trace: &crate::driver::TracingSession, colorizer: &CqlColorizer, writer: &mut dyn Write) {
     writeln!(writer).ok();
-    writeln!(writer, "Tracing session: {}", trace.trace_id).ok();
+    writeln!(
+        writer,
+        "{} {}",
+        colorizer.colorize_trace_label("Tracing session:"),
+        trace.trace_id
+    )
+    .ok();
     writeln!(writer).ok();
 
     if let Some(ref request) = trace.request {
@@ -334,11 +327,11 @@ pub fn print_trace(trace: &crate::driver::TracingSession, writer: &mut dyn Write
         }
         table.load_preset(CQLSH_PRESET);
         table.set_header(vec![
-            Cell::new("activity").add_attribute(Attribute::Bold),
-            Cell::new("timestamp").add_attribute(Attribute::Bold),
-            Cell::new("source").add_attribute(Attribute::Bold),
-            Cell::new("source_elapsed").add_attribute(Attribute::Bold),
-            Cell::new("thread").add_attribute(Attribute::Bold),
+            Cell::new(colorizer.colorize_header("activity")),
+            Cell::new(colorizer.colorize_header("timestamp")),
+            Cell::new(colorizer.colorize_header("source")),
+            Cell::new(colorizer.colorize_header("source_elapsed")),
+            Cell::new(colorizer.colorize_header("thread")),
         ]);
 
         for event in &trace.events {
@@ -408,6 +401,10 @@ mod tests {
     use super::*;
     use crate::driver::types::{CqlColumn, CqlResult, CqlRow, CqlValue};
 
+    fn no_color() -> CqlColorizer {
+        CqlColorizer::new(false)
+    }
+
     fn sample_result() -> CqlResult {
         CqlResult {
             columns: vec![
@@ -438,7 +435,7 @@ mod tests {
     fn tabular_output_contains_headers_and_rows() {
         let result = sample_result();
         let mut buf = Vec::new();
-        print_tabular(&result, &mut buf);
+        print_tabular(&result, &no_color(), &mut buf);
         let output = String::from_utf8(buf).unwrap();
         assert!(output.contains("name"));
         assert!(output.contains("age"));
@@ -451,7 +448,7 @@ mod tests {
     fn expanded_output_shows_row_headers() {
         let result = sample_result();
         let mut buf = Vec::new();
-        print_expanded(&result, &mut buf);
+        print_expanded(&result, &no_color(), &mut buf);
         let output = String::from_utf8(buf).unwrap();
         assert!(output.contains("@ Row 1"));
         assert!(output.contains("@ Row 2"));
@@ -463,7 +460,7 @@ mod tests {
     fn tabular_empty_result_produces_no_output() {
         let result = CqlResult::empty();
         let mut buf = Vec::new();
-        print_tabular(&result, &mut buf);
+        print_tabular(&result, &no_color(), &mut buf);
         assert!(buf.is_empty());
     }
 
@@ -482,7 +479,7 @@ mod tests {
             warnings: vec![],
         };
         let mut buf = Vec::new();
-        print_tabular(&result, &mut buf);
+        print_tabular(&result, &no_color(), &mut buf);
         let output = String::from_utf8(buf).unwrap();
         assert!(output.contains("(1 row)"));
         assert!(!output.contains("(1 rows)"));
@@ -504,7 +501,7 @@ mod tests {
     fn tabular_row_separators_not_pipes() {
         let result = sample_result();
         let mut buf = Vec::new();
-        print_tabular(&result, &mut buf);
+        print_tabular(&result, &no_color(), &mut buf);
         let output = String::from_utf8(buf).unwrap();
         // Bug: row separators were `||||` instead of proper formatting.
         // The header separator should use `-` and `+`, not `|`.
@@ -517,7 +514,7 @@ mod tests {
     fn tabular_columns_separated_by_pipes() {
         let result = sample_result();
         let mut buf = Vec::new();
-        print_tabular(&result, &mut buf);
+        print_tabular(&result, &no_color(), &mut buf);
         let output = String::from_utf8(buf).unwrap();
         // Data rows should have `|` as column separator
         assert!(output.contains("| "), "columns should be separated by pipes");
@@ -546,7 +543,7 @@ mod tests {
         };
 
         let mut buf = Vec::new();
-        print_trace(&trace, &mut buf);
+        print_trace(&trace, &no_color(), &mut buf);
         let output = String::from_utf8(buf).unwrap();
         assert!(output.contains("Tracing session:"));
         assert!(output.contains("SELECT * FROM test"));

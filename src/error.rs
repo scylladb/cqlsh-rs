@@ -93,6 +93,12 @@ pub fn format_error(error: &anyhow::Error) -> String {
     format!("{}: {}", classified.category, classified.message)
 }
 
+/// Format a classified error with optional color (red bold when enabled).
+pub fn format_error_colored(error: &anyhow::Error, colorizer: &crate::colorizer::CqlColorizer) -> String {
+    let plain = format_error(error);
+    colorizer.colorize_error(&plain)
+}
+
 fn categorize_db_error(db_error: &DbError) -> ErrorCategory {
     match db_error {
         DbError::SyntaxError => ErrorCategory::SyntaxException,

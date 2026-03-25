@@ -65,6 +65,7 @@ const DESCRIBE_SUB_COMMANDS: &[&str] = &[
 ];
 
 /// CQL data types for CREATE TABLE column definitions.
+#[allow(dead_code)] // Will be used when CqlType completion context is implemented
 const CQL_TYPES: &[&str] = &[
     "ascii", "bigint", "blob", "boolean", "counter", "date", "decimal",
     "double", "duration", "float", "frozen", "inet", "int", "list", "map",
@@ -89,8 +90,6 @@ enum CompletionContext {
     DescribeTarget,
     /// After SOURCE or CAPTURE — complete with file paths.
     FilePath,
-    /// In a CREATE TABLE column type position — complete with CQL types.
-    CqlType,
     /// After USE — complete with keyspace names.
     KeyspaceName,
 }
@@ -209,8 +208,10 @@ impl CqlCompleter {
                     // Check for WHERE clause
                     if upper_tokens.iter().skip(i + 2).any(|t| t == "WHERE" || t == "SET") {
                         let table = tokens[i + 1].to_string();
-                        let ks = self.rt_handle.block_on(async {
-                            self.current_keyspace.read().await.clone()
+                        let ks = tokio::task::block_in_place(|| {
+                            self.rt_handle.block_on(async {
+                                self.current_keyspace.read().await.clone()
+                            })
                         });
                         return CompletionContext::ColumnName {
                             keyspace: ks,
@@ -253,19 +254,22 @@ impl CqlCompleter {
             CompletionContext::DescribeTarget => {
                 filter_candidates(DESCRIBE_SUB_COMMANDS, &prefix_upper, true)
             }
-            CompletionContext::CqlType => {
-                filter_candidates(CQL_TYPES, &prefix.to_lowercase(), false)
-            }
             CompletionContext::KeyspaceName => {
-                let cache = self.rt_handle.block_on(self.cache.read());
+                let cache = tokio::task::block_in_place(|| {
+                    self.rt_handle.block_on(self.cache.read())
+                });
                 let names = cache.keyspace_names();
                 filter_candidates(&names, prefix, false)
             }
             CompletionContext::TableName { keyspace } => {
-                let cache = self.rt_handle.block_on(self.cache.read());
+                let cache = tokio::task::block_in_place(|| {
+                    self.rt_handle.block_on(self.cache.read())
+                });
                 let ks = keyspace.clone().or_else(|| {
-                    self.rt_handle.block_on(async {
-                        self.current_keyspace.read().await.clone()
+                    tokio::task::block_in_place(|| {
+                        self.rt_handle.block_on(async {
+                            self.current_keyspace.read().await.clone()
+                        })
                     })
                 });
                 match ks {
@@ -281,10 +285,14 @@ impl CqlCompleter {
                 }
             }
             CompletionContext::ColumnName { keyspace, table } => {
-                let cache = self.rt_handle.block_on(self.cache.read());
+                let cache = tokio::task::block_in_place(|| {
+                    self.rt_handle.block_on(self.cache.read())
+                });
                 let ks = keyspace.clone().or_else(|| {
-                    self.rt_handle.block_on(async {
-                        self.current_keyspace.read().await.clone()
+                    tokio::task::block_in_place(|| {
+                        self.rt_handle.block_on(async {
+                            self.current_keyspace.read().await.clone()
+                        })
                     })
                 });
                 match ks {
@@ -391,22 +399,26 @@ impl Completer for CqlCompleter {
         pos: usize,
         _ctx: &Context<'_>,
     ) -> rustyline::Result<(usize, Vec<Pair>)> {
-        // Refresh cache if stale
-        let needs_refresh = self.rt_handle.block_on(async {
-            self.cache.read().await.is_stale()
+        // block_in_place: complete() is called from within the Tokio runtime (sync rustyline trait)
+        let needs_refresh = tokio::task::block_in_place(|| {
+            self.rt_handle.block_on(async {
+                self.cache.read().await.is_stale()
+            })
         });
         if needs_refresh {
             // Best-effort refresh — don't block on errors
-            let _ = self.rt_handle.block_on(async {
-                // Try to get write lock without blocking other completions
-                if let Ok(mut cache) = self.cache.try_write() {
-                    // Re-check staleness after acquiring lock
-                    if cache.is_stale() {
-                        // We can't refresh without a session reference here.
-                        // The REPL pre-refreshes the cache; this is a fallback mark.
-                        cache.invalidate();
+            tokio::task::block_in_place(|| {
+                self.rt_handle.block_on(async {
+                    // Try to get write lock without blocking other completions
+                    if let Ok(mut cache) = self.cache.try_write() {
+                        // Re-check staleness after acquiring lock
+                        if cache.is_stale() {
+                            // We can't refresh without a session reference here.
+                            // The REPL pre-refreshes the cache; this is a fallback mark.
+                            cache.invalidate();
+                        }
                     }
-                }
+                })
             });
         }
 

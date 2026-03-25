@@ -15,6 +15,7 @@ use rustyline::history::DefaultHistory;
 use rustyline::{CompletionType, Config, EditMode, Editor};
 use tokio::sync::RwLock;
 
+use crate::colorizer::CqlColorizer;
 use crate::completer::CqlCompleter;
 use crate::config::MergedConfig;
 use crate::describe;
@@ -87,19 +88,8 @@ struct ShellState {
     schema_cache: Option<Arc<RwLock<SchemaCache>>>,
     /// Shared current keyspace for tab completion.
     shared_keyspace: Option<Arc<RwLock<Option<String>>>>,
-}
-
-impl Default for ShellState {
-    fn default() -> Self {
-        Self {
-            expand: false,
-            page_size: Some(100),
-            capture_file: None,
-            capture_path: None,
-            schema_cache: None,
-            shared_keyspace: None,
-        }
-    }
+    /// Output colorizer for result values, headers, and errors.
+    colorizer: CqlColorizer,
 }
 
 impl ShellState {
@@ -173,10 +163,15 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
 
     let username = config.username.as_deref();
     let mut stmt_parser = StatementParser::new();
+    let colorizer = CqlColorizer::new(color_enabled);
     let mut shell = ShellState {
+        expand: false,
+        page_size: Some(100),
+        capture_file: None,
+        capture_path: None,
         schema_cache: Some(Arc::clone(&schema_cache)),
         shared_keyspace: Some(Arc::clone(&current_keyspace)),
-        ..ShellState::default()
+        colorizer,
     };
 
     loop {
@@ -483,8 +478,9 @@ fn dispatch_input<'a>(
             Ok(trace_id) => {
                 match session.get_trace_session(trace_id).await {
                     Ok(Some(trace)) => {
+                        let colorizer = &shell.colorizer;
                         let mut writer = TeeWriter { capture: shell.capture_file.as_mut() };
-                        formatter::print_trace(&trace, &mut writer);
+                        formatter::print_trace(&trace, colorizer, &mut writer);
                     }
                     Ok(None) => eprintln!("Trace session {trace_id} not found."),
                     Err(e) => eprintln!("Error fetching trace: {e}"),
@@ -521,21 +517,23 @@ fn dispatch_input<'a>(
                 }
             }
 
-            // Print warnings if present
+            // Print warnings if present (red bold when colored)
             for warning in &result.warnings {
-                shell.outputln(&format!("Warnings: {warning}"));
+                let msg = format!("Warnings: {warning}");
+                eprintln!("{}", shell.colorizer.colorize_warning(&msg));
             }
 
             if !result.columns.is_empty() {
                 let expand = shell.expand;
                 let page_size = shell.page_size;
+                let colorizer = &shell.colorizer;
                 let mut writer = TeeWriter { capture: shell.capture_file.as_mut() };
                 if let Some(ps) = page_size {
-                    formatter::print_paged(&result, ps as usize, expand, &mut writer);
+                    formatter::print_paged(&result, ps as usize, expand, colorizer, &mut writer);
                 } else if expand {
-                    formatter::print_expanded(&result, &mut writer);
+                    formatter::print_expanded(&result, colorizer, &mut writer);
                 } else {
-                    formatter::print_tabular(&result, &mut writer);
+                    formatter::print_tabular(&result, colorizer, &mut writer);
                 }
             }
 
@@ -546,8 +544,9 @@ fn dispatch_input<'a>(
                     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                     match session.get_trace_session(trace_id).await {
                         Ok(Some(trace)) => {
+                            let colorizer = &shell.colorizer;
                             let mut writer = TeeWriter { capture: shell.capture_file.as_mut() };
-                            formatter::print_trace(&trace, &mut writer);
+                            formatter::print_trace(&trace, colorizer, &mut writer);
                         }
                         Ok(None) => {
                             shell.outputln(&format!(
@@ -562,7 +561,7 @@ fn dispatch_input<'a>(
             }
         }
         Err(e) => {
-            eprintln!("{}", error::format_error(&e));
+            eprintln!("{}", error::format_error_colored(&e, &shell.colorizer));
             if config.debug {
                 eprintln!("Debug: {e:?}");
             }
@@ -790,8 +789,16 @@ mod tests {
     }
 
     #[test]
-    fn shell_state_default() {
-        let state = ShellState::default();
+    fn shell_state_initial() {
+        let state = ShellState {
+            expand: false,
+            page_size: Some(100),
+            capture_file: None,
+            capture_path: None,
+            schema_cache: None,
+            shared_keyspace: None,
+            colorizer: CqlColorizer::new(false),
+        };
         assert!(!state.expand);
         assert_eq!(state.page_size, Some(100));
         assert!(state.capture_file.is_none());
