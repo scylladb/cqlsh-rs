@@ -1,6 +1,7 @@
 //! cqlsh-rs library — exposes modules for benchmarks and integration tests.
 
 pub mod cli;
+pub mod colorizer;
 pub mod completer;
 pub mod config;
 pub mod describe;

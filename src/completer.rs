@@ -16,6 +16,7 @@ use rustyline::{Context, Helper};
 use tokio::runtime::Handle;
 use tokio::sync::RwLock;
 
+use crate::colorizer::CqlColorizer;
 use crate::schema_cache::SchemaCache;
 
 /// CQL keywords that can start a statement.
@@ -102,6 +103,8 @@ pub struct CqlCompleter {
     current_keyspace: Arc<RwLock<Option<String>>>,
     /// Tokio runtime handle for blocking cache reads inside sync complete().
     rt_handle: Handle,
+    /// Syntax colorizer for highlighting.
+    colorizer: CqlColorizer,
 }
 
 impl CqlCompleter {
@@ -110,11 +113,13 @@ impl CqlCompleter {
         cache: Arc<RwLock<SchemaCache>>,
         current_keyspace: Arc<RwLock<Option<String>>>,
         rt_handle: Handle,
+        color_enabled: bool,
     ) -> Self {
         Self {
             cache,
             current_keyspace,
             rt_handle,
+            colorizer: CqlColorizer::new(color_enabled),
         }
     }
 
@@ -431,8 +436,12 @@ impl Hinter for CqlCompleter {
 
 impl Highlighter for CqlCompleter {
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
-        // Highlighting will be added in Task 9
-        Cow::Borrowed(line)
+        let colored = self.colorizer.colorize_line(line);
+        if colored == line {
+            Cow::Borrowed(line)
+        } else {
+            Cow::Owned(colored)
+        }
     }
 
     fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
@@ -444,7 +453,8 @@ impl Highlighter for CqlCompleter {
     }
 
     fn highlight_char(&self, _line: &str, _pos: usize, _forced: rustyline::highlight::CmdKind) -> bool {
-        false
+        // Return true to trigger re-highlighting on every keystroke
+        true
     }
 }
 
@@ -460,7 +470,7 @@ mod tests {
         let rt = tokio::runtime::Runtime::new().unwrap();
         let cache = Arc::new(RwLock::new(SchemaCache::new()));
         let current_ks = Arc::new(RwLock::new(None::<String>));
-        CqlCompleter::new(cache, current_ks, rt.handle().clone())
+        CqlCompleter::new(cache, current_ks, rt.handle().clone(), false)
     }
 
     #[test]
