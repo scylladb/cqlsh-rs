@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774452966337,
+  "lastUpdate": 1774474911827,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -1133,6 +1133,168 @@ window.BENCHMARK_DATA = {
             "name": "end_to_end_startup/full",
             "value": 97783,
             "range": "± 425",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "48891954bf323e6ff378844edc132cf01da76e93",
+          "message": "feat(pager): replace MORE prompt with sapling-streampager\n\nReplace the simple ---MORE--- forward-only pagination with\nsapling-streampager, a pure-Rust pager using termwiz for ANSI-aware\nrendering. Features:\n- Vertical scrolling (up/down arrows)\n- Horizontal scrolling for wide tables (left/right arrows)\n- Regex search with /pattern\n- Correct ANSI color handling during scroll\n- Hybrid mode: prints directly if output fits the screen\n- Column names shown in pager title for context while scrolling\n- Max column width (40 chars) with cell wrapping for readability\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-03-25T23:33:58+02:00",
+          "tree_id": "caf5987311d0955e63a6244e9340cd8775d5482b",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/48891954bf323e6ff378844edc132cf01da76e93"
+        },
+        "date": 1774474911112,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 14723,
+            "range": "± 394",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/host_only",
+            "value": 16903,
+            "range": "± 60",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/host_and_port",
+            "value": 18212,
+            "range": "± 272",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/execute_mode",
+            "value": 17226,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/file_mode",
+            "value": 17346,
+            "range": "± 47",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/full_connection",
+            "value": 34372,
+            "range": "± 150",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_validate/valid_minimal",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2659,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 5882,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 42477,
+            "range": "± 78",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/0",
+            "value": 5146,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/10",
+            "value": 12902,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/50",
+            "value": 51893,
+            "range": "± 338",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/100",
+            "value": 97371,
+            "range": "± 1092",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/all_defaults",
+            "value": 291,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/cli_overrides_only",
+            "value": 341,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1092,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/nonexistent_file",
+            "value": 528,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/minimal_file",
+            "value": 8955,
+            "range": "± 77",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/full_file",
+            "value": 45967,
+            "range": "± 97",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end_to_end_startup/minimal",
+            "value": 18502,
+            "range": "± 94",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 90139,
+            "range": "± 269",
             "unit": "ns/iter"
           }
         ]
