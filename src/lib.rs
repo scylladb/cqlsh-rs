@@ -8,6 +8,7 @@ pub mod describe;
 pub mod driver;
 pub mod error;
 pub mod formatter;
+pub mod pager;
 pub mod parser;
 pub mod repl;
 pub mod schema_cache;

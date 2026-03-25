@@ -78,8 +78,10 @@ fn resolve_history_path(config: &MergedConfig) -> Option<PathBuf> {
 struct ShellState {
     /// Whether expanded (vertical) output is enabled.
     expand: bool,
-    /// Paging configuration: None = disabled, Some(n) = page size.
-    page_size: Option<i32>,
+    /// Whether to pipe output through the built-in pager.
+    paging_enabled: bool,
+    /// Whether stdout is a TTY (controls pager auto-disable).
+    is_tty: bool,
     /// Active CAPTURE file handle (output is tee'd to this file).
     capture_file: Option<File>,
     /// Path of the active capture file (for display).
@@ -94,10 +96,32 @@ struct ShellState {
 
 impl ShellState {
     /// Write output line to both stdout and the capture file (if active).
+    /// Used for short shell command output that doesn't need paging.
     fn outputln(&mut self, text: &str) {
         println!("{text}");
         if let Some(ref mut f) = self.capture_file {
             let _ = writeln!(f, "{text}");
+        }
+    }
+
+    /// Display output, routing through the pager if enabled, and writing to capture file.
+    /// An optional `title` is shown at the top of the pager (e.g., column names).
+    fn display_output(&mut self, content: &[u8], title: &str) {
+        // Write to capture file if active
+        if let Some(ref mut f) = self.capture_file {
+            let _ = f.write_all(content);
+        }
+
+        let text = String::from_utf8_lossy(content);
+
+        // Route through pager or print directly
+        if self.paging_enabled && self.is_tty {
+            if crate::pager::page_content(&text, title).is_err() {
+                // Fallback: print directly if pager fails
+                print!("{text}");
+            }
+        } else {
+            print!("{text}");
         }
     }
 }
@@ -163,10 +187,12 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
 
     let username = config.username.as_deref();
     let mut stmt_parser = StatementParser::new();
+    let is_tty = std::io::stdout().is_terminal();
     let colorizer = CqlColorizer::new(color_enabled);
     let mut shell = ShellState {
         expand: false,
-        page_size: Some(100),
+        paging_enabled: true,
+        is_tty,
         capture_file: None,
         capture_path: None,
         schema_cache: Some(Arc::clone(&schema_cache)),
@@ -355,31 +381,27 @@ fn dispatch_input<'a>(
 
     // Handle PAGING
     if upper == "PAGING" {
-        match shell.page_size {
-            Some(size) => shell.outputln(&format!("Page size: {size}")),
-            None => shell.outputln("Paging is currently disabled."),
+        if shell.paging_enabled {
+            shell.outputln("Query paging is currently enabled. Use PAGING OFF to disable.");
+        } else {
+            shell.outputln("Query paging is currently disabled. Use PAGING ON to enable.");
         }
         return;
     }
     if upper == "PAGING ON" {
-        shell.page_size = Some(100);
-        shell.outputln("Page size: 100");
+        shell.paging_enabled = true;
+        shell.outputln("Now query paging is enabled.");
         return;
     }
     if upper == "PAGING OFF" {
-        shell.page_size = None;
+        shell.paging_enabled = false;
         shell.outputln("Disabled paging.");
         return;
     }
-    if let Some(rest) = upper.strip_prefix("PAGING ") {
-        let size_str = rest.trim();
-        match size_str.parse::<i32>() {
-            Ok(size) if size > 0 => {
-                shell.page_size = Some(size);
-                shell.outputln(&format!("Page size: {size}"));
-            }
-            _ => eprintln!("Invalid page size: {}", rest.trim()),
-        }
+    if upper.strip_prefix("PAGING ").is_some() {
+        // Accept PAGING <N> for compatibility — enables paging
+        shell.paging_enabled = true;
+        shell.outputln("Now query paging is enabled.");
         return;
     }
 
@@ -451,9 +473,9 @@ fn dispatch_input<'a>(
         } else {
             ""
         };
-        let mut writer = TeeWriter { capture: shell.capture_file.as_mut() };
-        match describe::execute(session, args, &mut writer).await {
-            Ok(()) => {}
+        let mut buf = Vec::new();
+        match describe::execute(session, args, &mut buf).await {
+            Ok(()) => shell.display_output(&buf, ""),
             Err(e) => eprintln!("Error: {e}"),
         }
         return;
@@ -478,9 +500,9 @@ fn dispatch_input<'a>(
             Ok(trace_id) => {
                 match session.get_trace_session(trace_id).await {
                     Ok(Some(trace)) => {
-                        let colorizer = &shell.colorizer;
-                        let mut writer = TeeWriter { capture: shell.capture_file.as_mut() };
-                        formatter::print_trace(&trace, colorizer, &mut writer);
+                        let mut buf = Vec::new();
+                        formatter::print_trace(&trace, &shell.colorizer, &mut buf);
+                        shell.display_output(&buf, "");
                     }
                     Ok(None) => eprintln!("Trace session {trace_id} not found."),
                     Err(e) => eprintln!("Error fetching trace: {e}"),
@@ -524,17 +546,21 @@ fn dispatch_input<'a>(
             }
 
             if !result.columns.is_empty() {
-                let expand = shell.expand;
-                let page_size = shell.page_size;
-                let colorizer = &shell.colorizer;
-                let mut writer = TeeWriter { capture: shell.capture_file.as_mut() };
-                if let Some(ps) = page_size {
-                    formatter::print_paged(&result, ps as usize, expand, colorizer, &mut writer);
-                } else if expand {
-                    formatter::print_expanded(&result, colorizer, &mut writer);
+                // Build column list for pager title (sticky header context)
+                let col_title = result
+                    .columns
+                    .iter()
+                    .map(|c| c.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" | ");
+
+                let mut buf = Vec::new();
+                if shell.expand {
+                    formatter::print_expanded(&result, &shell.colorizer, &mut buf);
                 } else {
-                    formatter::print_tabular(&result, colorizer, &mut writer);
+                    formatter::print_tabular(&result, &shell.colorizer, &mut buf);
                 }
+                shell.display_output(&buf, &col_title);
             }
 
             // Print trace info if tracing is enabled
@@ -544,9 +570,9 @@ fn dispatch_input<'a>(
                     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                     match session.get_trace_session(trace_id).await {
                         Ok(Some(trace)) => {
-                            let colorizer = &shell.colorizer;
-                            let mut writer = TeeWriter { capture: shell.capture_file.as_mut() };
-                            formatter::print_trace(&trace, colorizer, &mut writer);
+                            let mut buf = Vec::new();
+                            formatter::print_trace(&trace, &shell.colorizer, &mut buf);
+                            shell.display_output(&buf, "");
                         }
                         Ok(None) => {
                             shell.outputln(&format!(
@@ -702,29 +728,6 @@ fn execute_source<'a>(
     })
 }
 
-/// Writer that tees output to both stdout and an optional capture file.
-struct TeeWriter<'a> {
-    capture: Option<&'a mut File>,
-}
-
-impl<'a> Write for TeeWriter<'a> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let n = io::stdout().write(buf)?;
-        if let Some(ref mut capture) = self.capture {
-            let _ = capture.write_all(&buf[..n]);
-        }
-        Ok(n)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        io::stdout().flush()?;
-        if let Some(ref mut capture) = self.capture {
-            let _ = capture.flush();
-        }
-        Ok(())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -792,7 +795,8 @@ mod tests {
     fn shell_state_initial() {
         let state = ShellState {
             expand: false,
-            page_size: Some(100),
+            paging_enabled: true,
+            is_tty: false,
             capture_file: None,
             capture_path: None,
             schema_cache: None,
@@ -800,7 +804,7 @@ mod tests {
             colorizer: CqlColorizer::new(false),
         };
         assert!(!state.expand);
-        assert_eq!(state.page_size, Some(100));
+        assert!(state.paging_enabled);
         assert!(state.capture_file.is_none());
         assert!(state.capture_path.is_none());
     }

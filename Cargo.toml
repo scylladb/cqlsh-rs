@@ -32,9 +32,9 @@ tracing-subscriber = "0.3"
 futures = "0.3"
 async-trait = "0.1"
 rustyline = { version = "15", features = ["derive"] }
-comfy-table = "7"
+comfy-table = { version = "7", features = ["custom_styling"] }
 crossterm = "0.28"
-terminal_size = "0.4"
+sapling-streampager = "0.12"
 
 [lib]
 name = "cqlsh_rs"
