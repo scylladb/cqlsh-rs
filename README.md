@@ -139,8 +139,9 @@ cqlsh-rs --completions fish > ~/.config/fish/completions/cqlsh-rs.fish
 Performance is tracked continuously via CI. Results are available at:
 
 - **[Historical Dashboard](https://fruch.github.io/cqlsh-rs/dev/bench/)** — Interactive commit-over-commit charts (updated on every merge to main)
-- **Job Summary** — Grouped benchmark tables posted to each CI run's summary page
-- **Rust vs Python** — Hyperfine startup comparison included in each benchmark run
+- **[Benchmark Workflow Runs](https://github.com/fruch/cqlsh-rs/actions/workflows/bench.yml)** — Grouped benchmark tables and Criterion artifacts posted to each CI run's summary page
+- **[Criterion Reports](https://github.com/fruch/cqlsh-rs/actions/workflows/bench.yml)** — Detailed HTML reports uploaded as artifacts on each run (retained 90 days)
+- **Rust vs Python** — Hyperfine startup comparison included in each benchmark run's job summary
 
 To run benchmarks locally:
 
