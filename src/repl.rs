@@ -432,6 +432,12 @@ fn dispatch_input<'a>(
         return;
     }
 
+    // Handle LOGIN (stub — implementation deferred to Phase 4)
+    if upper == "LOGIN" || upper.starts_with("LOGIN ") {
+        eprintln!("LOGIN command is not yet implemented. Use --username and --password flags.");
+        return;
+    }
+
     // Handle DESCRIBE / DESC
     if upper == "DESCRIBE" || upper == "DESC" || upper.starts_with("DESCRIBE ") || upper.starts_with("DESC ") {
         let args = if upper.starts_with("DESCRIBE ") {
