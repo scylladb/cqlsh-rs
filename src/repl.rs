@@ -426,6 +426,29 @@ fn dispatch_input<'a>(
         return;
     }
 
+    // Handle SHOW SESSION <uuid>
+    if let Some(rest) = upper.strip_prefix("SHOW SESSION ") {
+        let uuid_str = rest.trim();
+        match uuid::Uuid::parse_str(uuid_str) {
+            Ok(trace_id) => {
+                match session.get_trace_session(trace_id).await {
+                    Ok(Some(trace)) => {
+                        let mut writer = TeeWriter { capture: shell.capture_file.as_mut() };
+                        formatter::print_trace(&trace, &mut writer);
+                    }
+                    Ok(None) => eprintln!("Trace session {trace_id} not found."),
+                    Err(e) => eprintln!("Error fetching trace: {e}"),
+                }
+            }
+            Err(_) => eprintln!("Invalid UUID: {uuid_str}"),
+        }
+        return;
+    }
+    if upper == "SHOW SESSION" {
+        eprintln!("Usage: SHOW SESSION <trace-uuid>");
+        return;
+    }
+
     // Execute as CQL statement
     match session.execute(trimmed).await {
         Ok(result) => {
@@ -493,7 +516,7 @@ Documented shell commands:
   HELP          Show this help or help on a topic
   PAGING        Configure automatic paging
   SERIAL        Get/set serial consistency level
-  SHOW          Show version or host info
+  SHOW          Show version, host, or session trace info
   SOURCE        Execute CQL from a file
   TRACING       Toggle request tracing
 
@@ -759,6 +782,32 @@ mod tests {
     }
 
     // --- BUG: Shell commands with trailing semicolons ---
+
+    // --- SHOW SESSION tests ---
+
+    #[test]
+    fn show_session_parses_uuid() {
+        let input = "SHOW SESSION 12345678-1234-1234-1234-123456789abc";
+        let upper = input.trim().to_uppercase();
+        assert!(upper.starts_with("SHOW SESSION "));
+        let uuid_str = input.trim()["SHOW SESSION ".len()..].trim();
+        let uuid = uuid::Uuid::parse_str(uuid_str).unwrap();
+        assert_eq!(uuid.to_string(), "12345678-1234-1234-1234-123456789abc");
+    }
+
+    #[test]
+    fn show_session_rejects_invalid_uuid() {
+        let uuid_str = "not-a-uuid";
+        assert!(uuid::Uuid::parse_str(uuid_str).is_err());
+    }
+
+    #[test]
+    fn show_session_bare_detected_as_shell_command() {
+        assert!(parser::is_shell_command("SHOW SESSION 12345678-1234-1234-1234-123456789abc"));
+        assert!(parser::is_shell_command("SHOW SESSION"));
+    }
+
+    // --- Shell command semicolon tests ---
 
     #[test]
     fn shell_command_semicolon_stripped_before_dispatch() {
