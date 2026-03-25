@@ -7,17 +7,21 @@
 use std::fs::File;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Result;
 use rustyline::error::ReadlineError;
 use rustyline::history::DefaultHistory;
-use rustyline::{Config, EditMode, Editor};
+use rustyline::{CompletionType, Config, EditMode, Editor};
+use tokio::sync::RwLock;
 
+use crate::completer::CqlCompleter;
 use crate::config::MergedConfig;
 use crate::describe;
 use crate::error;
 use crate::formatter;
 use crate::parser::{self, ParseResult, StatementParser};
+use crate::schema_cache::SchemaCache;
 use crate::session::CqlSession;
 
 /// Default history file path: ~/.cassandra/cql_history
@@ -79,6 +83,10 @@ struct ShellState {
     capture_file: Option<File>,
     /// Path of the active capture file (for display).
     capture_path: Option<PathBuf>,
+    /// Shared schema cache for tab completion (invalidated on DDL).
+    schema_cache: Option<Arc<RwLock<SchemaCache>>>,
+    /// Shared current keyspace for tab completion.
+    shared_keyspace: Option<Arc<RwLock<Option<String>>>>,
 }
 
 impl Default for ShellState {
@@ -88,6 +96,8 @@ impl Default for ShellState {
             page_size: Some(100),
             capture_file: None,
             capture_path: None,
+            schema_cache: None,
+            shared_keyspace: None,
         }
     }
 }
@@ -117,9 +127,31 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
         .expect("valid history size")
         .edit_mode(EditMode::Emacs)
         .auto_add_history(true)
+        .completion_type(CompletionType::List)
         .build();
 
-    let mut rl: Editor<(), DefaultHistory> = Editor::with_config(rl_config)?;
+    // Set up schema cache and tab completer
+    let schema_cache = Arc::new(RwLock::new(SchemaCache::new()));
+    let current_keyspace: Arc<RwLock<Option<String>>> =
+        Arc::new(RwLock::new(session.current_keyspace().map(String::from)));
+
+    // Initial schema cache population (best-effort)
+    {
+        let mut cache = schema_cache.write().await;
+        if let Err(e) = cache.refresh(session).await {
+            eprintln!("Warning: could not load schema for tab completion: {e}");
+        }
+    }
+
+    let completer = CqlCompleter::new(
+        Arc::clone(&schema_cache),
+        Arc::clone(&current_keyspace),
+        tokio::runtime::Handle::current(),
+    );
+
+    let mut rl: Editor<CqlCompleter, DefaultHistory> =
+        Editor::with_config(rl_config)?;
+    rl.set_helper(Some(completer));
 
     // Load history
     let history_path = resolve_history_path(config);
@@ -133,7 +165,11 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
 
     let username = config.username.as_deref();
     let mut stmt_parser = StatementParser::new();
-    let mut shell = ShellState::default();
+    let mut shell = ShellState {
+        schema_cache: Some(Arc::clone(&schema_cache)),
+        shared_keyspace: Some(Arc::clone(&current_keyspace)),
+        ..ShellState::default()
+    };
 
     loop {
         let prompt = if stmt_parser.is_empty() {
@@ -452,6 +488,25 @@ fn dispatch_input<'a>(
     // Execute as CQL statement
     match session.execute(trimmed).await {
         Ok(result) => {
+            // Sync current keyspace for tab completion after USE
+            let upper_stmt = trimmed.to_uppercase();
+            if upper_stmt.starts_with("USE ") {
+                if let Some(ref shared_ks) = shell.shared_keyspace {
+                    let ks = session.current_keyspace().map(String::from);
+                    let shared = Arc::clone(shared_ks);
+                    *shared.blocking_write() = ks;
+                }
+            }
+
+            // Invalidate schema cache after DDL statements
+            if upper_stmt.starts_with("CREATE ") || upper_stmt.starts_with("ALTER ") || upper_stmt.starts_with("DROP ") {
+                if let Some(ref cache) = shell.schema_cache {
+                    if let Ok(mut c) = cache.try_write() {
+                        c.invalidate();
+                    }
+                }
+            }
+
             // Print warnings if present
             for warning in &result.warnings {
                 shell.outputln(&format!("Warnings: {warning}"));

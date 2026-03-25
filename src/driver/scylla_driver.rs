@@ -22,8 +22,9 @@ use uuid::Uuid;
 
 use super::types::{CqlColumn, CqlResult, CqlRow, CqlValue};
 use super::{
-    ColumnMetadata, ConnectionConfig, Consistency, CqlDriver, KeyspaceMetadata, PreparedId,
-    SslConfig, TableMetadata, TracingEvent, TracingSession,
+    AggregateMetadata, ColumnMetadata, ConnectionConfig, Consistency, CqlDriver, FunctionMetadata,
+    KeyspaceMetadata, PreparedId, SslConfig, TableMetadata, TracingEvent, TracingSession,
+    UdtMetadata,
 };
 
 /// ScyllaDriver wraps a scylla `Session` and provides the `CqlDriver` trait.
@@ -631,6 +632,18 @@ impl CqlDriver for ScyllaDriver {
     ) -> Result<Option<TableMetadata>> {
         let tables = self.get_tables(keyspace).await?;
         Ok(tables.into_iter().find(|t| t.name == table))
+    }
+
+    async fn get_udts(&self, _keyspace: &str) -> Result<Vec<UdtMetadata>> {
+        Ok(vec![])
+    }
+
+    async fn get_functions(&self, _keyspace: &str) -> Result<Vec<FunctionMetadata>> {
+        Ok(vec![])
+    }
+
+    async fn get_aggregates(&self, _keyspace: &str) -> Result<Vec<AggregateMetadata>> {
+        Ok(vec![])
     }
 
     async fn get_cluster_name(&self) -> Result<Option<String>> {

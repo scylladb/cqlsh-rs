@@ -84,6 +84,33 @@ pub struct TableMetadata {
     pub clustering_key: Vec<String>,
 }
 
+/// Metadata about a user-defined type (UDT).
+#[derive(Debug, Clone)]
+pub struct UdtMetadata {
+    pub keyspace: String,
+    pub name: String,
+    pub field_names: Vec<String>,
+    pub field_types: Vec<String>,
+}
+
+/// Metadata about a user-defined function (UDF).
+#[derive(Debug, Clone)]
+pub struct FunctionMetadata {
+    pub keyspace: String,
+    pub name: String,
+    pub argument_types: Vec<String>,
+    pub return_type: String,
+}
+
+/// Metadata about a user-defined aggregate (UDA).
+#[derive(Debug, Clone)]
+pub struct AggregateMetadata {
+    pub keyspace: String,
+    pub name: String,
+    pub argument_types: Vec<String>,
+    pub return_type: String,
+}
+
 /// Consistency levels matching CQL specification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Consistency {
@@ -210,6 +237,15 @@ pub trait CqlDriver: Send + Sync {
         table: &str,
     ) -> Result<Option<TableMetadata>>;
 
+    /// Get metadata for all user-defined types in a keyspace.
+    async fn get_udts(&self, keyspace: &str) -> Result<Vec<UdtMetadata>>;
+
+    /// Get metadata for all user-defined functions in a keyspace.
+    async fn get_functions(&self, keyspace: &str) -> Result<Vec<FunctionMetadata>>;
+
+    /// Get metadata for all user-defined aggregates in a keyspace.
+    async fn get_aggregates(&self, keyspace: &str) -> Result<Vec<AggregateMetadata>>;
+
     /// Get the cluster name.
     async fn get_cluster_name(&self) -> Result<Option<String>>;
 
@@ -259,6 +295,86 @@ pub struct TracingEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn udt_metadata_fields() {
+        let udt = UdtMetadata {
+            keyspace: "ks".to_string(),
+            name: "address".to_string(),
+            field_names: vec!["street".to_string(), "city".to_string()],
+            field_types: vec!["text".to_string(), "text".to_string()],
+        };
+        assert_eq!(udt.keyspace, "ks");
+        assert_eq!(udt.name, "address");
+        assert_eq!(udt.field_names.len(), 2);
+        assert_eq!(udt.field_types.len(), 2);
+        assert_eq!(udt.field_names[0], "street");
+        assert_eq!(udt.field_types[0], "text");
+    }
+
+    #[test]
+    fn function_metadata_fields() {
+        let func = FunctionMetadata {
+            keyspace: "ks".to_string(),
+            name: "my_func".to_string(),
+            argument_types: vec!["int".to_string(), "text".to_string()],
+            return_type: "boolean".to_string(),
+        };
+        assert_eq!(func.keyspace, "ks");
+        assert_eq!(func.name, "my_func");
+        assert_eq!(func.argument_types, vec!["int", "text"]);
+        assert_eq!(func.return_type, "boolean");
+    }
+
+    #[test]
+    fn aggregate_metadata_fields() {
+        let agg = AggregateMetadata {
+            keyspace: "ks".to_string(),
+            name: "my_agg".to_string(),
+            argument_types: vec!["int".to_string()],
+            return_type: "bigint".to_string(),
+        };
+        assert_eq!(agg.keyspace, "ks");
+        assert_eq!(agg.name, "my_agg");
+        assert_eq!(agg.argument_types, vec!["int"]);
+        assert_eq!(agg.return_type, "bigint");
+    }
+
+    #[test]
+    fn udt_metadata_clone() {
+        let udt = UdtMetadata {
+            keyspace: "ks".to_string(),
+            name: "my_type".to_string(),
+            field_names: vec!["f1".to_string()],
+            field_types: vec!["int".to_string()],
+        };
+        let cloned = udt.clone();
+        assert_eq!(cloned.keyspace, udt.keyspace);
+        assert_eq!(cloned.name, udt.name);
+    }
+
+    #[test]
+    fn function_metadata_empty_args() {
+        let func = FunctionMetadata {
+            keyspace: "ks".to_string(),
+            name: "no_args_func".to_string(),
+            argument_types: vec![],
+            return_type: "text".to_string(),
+        };
+        assert!(func.argument_types.is_empty());
+    }
+
+    #[test]
+    fn aggregate_metadata_clone() {
+        let agg = AggregateMetadata {
+            keyspace: "ks".to_string(),
+            name: "my_agg".to_string(),
+            argument_types: vec!["int".to_string()],
+            return_type: "bigint".to_string(),
+        };
+        let cloned = agg.clone();
+        assert_eq!(cloned.return_type, agg.return_type);
+    }
 
     #[test]
     fn consistency_from_str() {
