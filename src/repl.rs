@@ -5,7 +5,7 @@
 //! prompt formatting, and Ctrl-C/Ctrl-D handling.
 
 use std::fs::File;
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -142,10 +142,18 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
         }
     }
 
+    // Resolve color mode: Auto → check if stdout is a terminal
+    let color_enabled = match config.color {
+        crate::config::ColorMode::On => true,
+        crate::config::ColorMode::Off => false,
+        crate::config::ColorMode::Auto => std::io::stdout().is_terminal(),
+    };
+
     let completer = CqlCompleter::new(
         Arc::clone(&schema_cache),
         Arc::clone(&current_keyspace),
         tokio::runtime::Handle::current(),
+        color_enabled,
     );
 
     let mut rl: Editor<CqlCompleter, DefaultHistory> =
