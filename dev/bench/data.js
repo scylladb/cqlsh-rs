@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774507246178,
+  "lastUpdate": 1774524745105,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -1942,6 +1942,168 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 98380,
+            "range": "± 552",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "303eec32718f6cd0e1e09cba2eeaca17c7cb0361",
+          "message": "docs(plan): add SP19 test gap analysis — Python cqlsh vs cqlsh-rs\n\nComprehensive comparison of Python cqlsh test suites (scylla-cqlsh\nunit tests + scylla-dtest integration tests) against cqlsh-rs coverage.\n\nKey findings:\n- 0 integration tests in cqlsh-rs (Python has 80+)\n- Missing: escape sequences (25 tests), Unicode (5), auth (17),\n  output comparison (25+), COPY integration (35+), LOGIN (4)\n- 8-phase implementation plan to close gaps (Phases 1-8)\n- Target: 500+ tests (from current 327)\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-03-26T13:24:24+02:00",
+          "tree_id": "d2797d7bf03f5925f6bc846577aca5ca00690505",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/303eec32718f6cd0e1e09cba2eeaca17c7cb0361"
+        },
+        "date": 1774524744558,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 16257,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/host_only",
+            "value": 18522,
+            "range": "± 396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/host_and_port",
+            "value": 19207,
+            "range": "± 375",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/execute_mode",
+            "value": 19104,
+            "range": "± 71",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/file_mode",
+            "value": 18929,
+            "range": "± 110",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_parse_args/full_connection",
+            "value": 37653,
+            "range": "± 237",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cli_validate/valid_minimal",
+            "value": 2,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2896,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 6094,
+            "range": "± 59",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 45155,
+            "range": "± 150",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/0",
+            "value": 5374,
+            "range": "± 47",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/10",
+            "value": 12670,
+            "range": "± 208",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/50",
+            "value": 52276,
+            "range": "± 201",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_parse_scaling/certfiles/100",
+            "value": 96880,
+            "range": "± 873",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/all_defaults",
+            "value": 539,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/cli_overrides_only",
+            "value": 593,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1124,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/nonexistent_file",
+            "value": 1318,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/minimal_file",
+            "value": 14531,
+            "range": "± 45",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "cqlshrc_load_file/full_file",
+            "value": 53280,
+            "range": "± 157",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end_to_end_startup/minimal",
+            "value": 21193,
+            "range": "± 116",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 96943,
             "range": "± 552",
             "unit": "ns/iter"
           }
