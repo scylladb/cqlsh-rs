@@ -506,11 +506,7 @@ async fn describe_materialized_view(
             .collect::<Vec<_>>()
             .join(", ")
     };
-    writeln!(
-        writer,
-        "    SELECT {}",
-        columns_str
-    )?;
+    writeln!(writer, "    SELECT {columns_str}")?;
     writeln!(
         writer,
         "    FROM {}.{}",
@@ -551,19 +547,10 @@ async fn describe_materialized_view(
     if has_non_default_order {
         let order_str = clustering_keys
             .iter()
-            .map(|(_, name, order)| {
-                format!(
-                    "{} {}",
-                    quote_if_needed(name),
-                    order.to_uppercase()
-                )
-            })
+            .map(|(_, name, order)| format!("{} {}", quote_if_needed(name), order.to_uppercase()))
             .collect::<Vec<_>>()
             .join(", ");
-        writeln!(
-            writer,
-            "    WITH CLUSTERING ORDER BY ({order_str});"
-        )?;
+        writeln!(writer, "    WITH CLUSTERING ORDER BY ({order_str});")?;
     } else {
         writeln!(writer, ";")?;
     }
@@ -650,9 +637,16 @@ async fn describe_type(
         quote_if_needed(&keyspace),
         quote_if_needed(&udt_name)
     )?;
-    for (i, (name, typ)) in field_names.iter().zip(field_types.iter()).enumerate() {
-        let comma = if i < field_names.len() - 1 { "," } else { "" };
-        writeln!(writer, "    {} {}{}", quote_if_needed(name), typ, comma)?;
+    let field_count = field_names.len().min(field_types.len());
+    for i in 0..field_count {
+        let comma = if i < field_count - 1 { "," } else { "" };
+        writeln!(
+            writer,
+            "    {} {}{}",
+            quote_if_needed(&field_names[i]),
+            field_types[i],
+            comma
+        )?;
     }
     writeln!(writer, ");")?;
     writeln!(writer)?;
@@ -941,6 +935,88 @@ fn write_create_table(
     Ok(())
 }
 
+/// Resolve a potentially qualified name (ks.name or just name) into (keyspace, name).
+///
+/// If no keyspace prefix is given, uses the session's current keyspace.
+/// Returns `(None, name)` if no keyspace can be determined (and prints an error).
+fn resolve_qualified_name(
+    session: &CqlSession,
+    spec: &str,
+    writer: &mut dyn Write,
+) -> Result<(Option<String>, String)> {
+    if spec.contains('.') {
+        let parts: Vec<&str> = spec.splitn(2, '.').collect();
+        Ok((Some(parts[0].to_string()), parts[1].to_string()))
+    } else {
+        match session.current_keyspace() {
+            Some(ks) => Ok((Some(ks.to_string()), spec.to_string())),
+            None => {
+                writeln!(
+                    writer,
+                    "No keyspace selected. Use a fully qualified name (keyspace.name) or USE <keyspace> first."
+                )?;
+                Ok((None, spec.to_string()))
+            }
+        }
+    }
+}
+
+/// Parse a CQL list string like `['a', 'b', 'c']` or `[a, b, c]` into a Vec of strings.
+fn parse_list_value(s: &str) -> Vec<String> {
+    let trimmed = s.trim();
+    // Handle empty list
+    if trimmed == "[]" || trimmed.is_empty() {
+        return Vec::new();
+    }
+    // Strip surrounding brackets
+    let inner = if trimmed.starts_with('[') && trimmed.ends_with(']') {
+        &trimmed[1..trimmed.len() - 1]
+    } else {
+        trimmed
+    };
+    if inner.trim().is_empty() {
+        return Vec::new();
+    }
+    inner
+        .split(',')
+        .map(|s| {
+            let s = s.trim();
+            // Strip surrounding quotes
+            if (s.starts_with('\'') && s.ends_with('\''))
+                || (s.starts_with('"') && s.ends_with('"'))
+            {
+                s[1..s.len() - 1].to_string()
+            } else {
+                s.to_string()
+            }
+        })
+        .collect()
+}
+
+/// Extract a value from a CQL map string like `{'key': 'value', ...}`.
+fn extract_map_value(map_str: &str, key: &str) -> Option<String> {
+    let trimmed = map_str.trim();
+    // Strip surrounding braces
+    let inner = if trimmed.starts_with('{') && trimmed.ends_with('}') {
+        &trimmed[1..trimmed.len() - 1]
+    } else {
+        trimmed
+    };
+
+    // Simple parsing: split on commas, then on ':'
+    for entry in inner.split(',') {
+        let parts: Vec<&str> = entry.splitn(2, ':').collect();
+        if parts.len() == 2 {
+            let k = parts[0].trim().trim_matches('\'').trim_matches('"');
+            let v = parts[1].trim().trim_matches('\'').trim_matches('"');
+            if k == key {
+                return Some(v.to_string());
+            }
+        }
+    }
+    None
+}
+
 /// Check if a keyspace is a system keyspace.
 fn is_system_keyspace(name: &str) -> bool {
     name.starts_with("system")
@@ -975,66 +1051,6 @@ fn strip_quotes(s: &str) -> &str {
     } else {
         s
     }
-}
-
-/// Resolve a possibly qualified name (e.g., "ks.table" or just "table") into
-/// (keyspace, name). If no keyspace is specified, uses the session's current keyspace.
-/// Returns `(None, _)` and prints an error if no keyspace context is available.
-fn resolve_qualified_name(
-    session: &CqlSession,
-    spec: &str,
-    writer: &mut dyn Write,
-) -> Result<(Option<String>, String)> {
-    if let Some(dot_pos) = spec.find('.') {
-        let ks = strip_quotes(&spec[..dot_pos]).to_string();
-        let name = strip_quotes(&spec[dot_pos + 1..]).to_string();
-        Ok((Some(ks), name))
-    } else {
-        let name = strip_quotes(spec).to_string();
-        if let Some(ks) = session.current_keyspace() {
-            Ok((Some(ks.to_string()), name))
-        } else {
-            writeln!(
-                writer,
-                "No keyspace specified. Use <keyspace>.{name} or USE <keyspace> first."
-            )?;
-            Ok((None, name))
-        }
-    }
-}
-
-/// Extract a value from a CQL map literal string like `{'key': 'value', ...}`.
-fn extract_map_value(map_str: &str, key: &str) -> Option<String> {
-    // Simple parser for CQL map literal format: {'key': 'value', ...}
-    let trimmed = map_str.trim();
-    let inner = trimmed.strip_prefix('{')?.strip_suffix('}')?;
-    for pair in inner.split(',') {
-        let pair = pair.trim();
-        if let Some((k, v)) = pair.split_once(':') {
-            let k = k.trim().trim_matches('\'').trim_matches('"');
-            let v = v.trim().trim_matches('\'').trim_matches('"');
-            if k == key {
-                return Some(v.to_string());
-            }
-        }
-    }
-    None
-}
-
-/// Parse a CQL list literal string like `['a', 'b', 'c']` into a Vec of strings.
-fn parse_list_value(list_str: &str) -> Vec<String> {
-    let trimmed = list_str.trim();
-    let inner = match trimmed.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
-        Some(s) => s,
-        None => return Vec::new(),
-    };
-    if inner.trim().is_empty() {
-        return Vec::new();
-    }
-    inner
-        .split(',')
-        .map(|s| s.trim().trim_matches('\'').trim_matches('"').to_string())
-        .collect()
 }
 
 #[cfg(test)]
@@ -1077,6 +1093,32 @@ mod tests {
         assert_eq!(strip_quotes("\"hello\""), "hello");
         assert_eq!(strip_quotes("'hello'"), "hello");
         assert_eq!(strip_quotes("hello"), "hello");
+    }
+
+    #[test]
+    fn parse_list_value_test() {
+        assert_eq!(parse_list_value("[]"), Vec::<String>::new());
+        assert_eq!(parse_list_value(""), Vec::<String>::new());
+        assert_eq!(
+            parse_list_value("['a', 'b', 'c']"),
+            vec!["a", "b", "c"]
+        );
+        assert_eq!(
+            parse_list_value("[int, text, uuid]"),
+            vec!["int", "text", "uuid"]
+        );
+    }
+
+    #[test]
+    fn extract_map_value_test() {
+        assert_eq!(
+            extract_map_value("{'target': 'email', 'class_name': 'foo'}", "target"),
+            Some("email".to_string())
+        );
+        assert_eq!(
+            extract_map_value("{'target': 'email'}", "missing"),
+            None
+        );
     }
 
     #[test]

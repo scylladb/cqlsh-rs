@@ -529,6 +529,44 @@ fn dispatch_input<'a>(
         return;
     }
 
+    // Handle COPY TO
+    if upper.starts_with("COPY ") && upper.contains(" TO ") {
+        if config.no_file_io {
+            eprintln!("File I/O is disabled (--no-file-io).");
+        } else {
+            match crate::copy::parse_copy_to(trimmed) {
+                Ok(cmd) => {
+                    let ks = session.current_keyspace();
+                    match crate::copy::execute_copy_to(session, &cmd, ks).await {
+                        Ok(()) => {}
+                        Err(e) => eprintln!("COPY TO error: {e}"),
+                    }
+                }
+                Err(e) => eprintln!("Invalid COPY TO syntax: {e}"),
+            }
+        }
+        return;
+    }
+
+    // Handle COPY FROM
+    if upper.starts_with("COPY ") && upper.contains(" FROM ") {
+        if config.no_file_io {
+            eprintln!("File I/O is disabled (--no-file-io).");
+        } else {
+            match crate::copy::parse_copy_from(trimmed) {
+                Ok(cmd) => {
+                    let ks = session.current_keyspace();
+                    match crate::copy::execute_copy_from(session, &cmd, ks).await {
+                        Ok(()) => {}
+                        Err(e) => eprintln!("COPY FROM error: {e}"),
+                    }
+                }
+                Err(e) => eprintln!("Invalid COPY FROM syntax: {e}"),
+            }
+        }
+        return;
+    }
+
     // Handle DESCRIBE / DESC
     if upper == "DESCRIBE" || upper == "DESC" || upper.starts_with("DESCRIBE ") || upper.starts_with("DESC ") {
         let args = if upper.starts_with("DESCRIBE ") {
@@ -682,8 +720,9 @@ Documented shell commands:
   TRACING       Toggle request tracing
   UNICODE       Show Unicode character handling info
 
-Not yet implemented:
-  COPY          Import/export CSV data
+Partially implemented:
+  COPY TO       Export table data to CSV file
+  COPY FROM     Import CSV data into a table
 
 CQL statements (executed via the database):
   SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, USE, etc."
