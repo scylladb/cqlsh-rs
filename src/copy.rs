@@ -167,7 +167,7 @@ pub async fn execute_copy_to(
                 row_count += 1;
 
                 if let Some(freq) = cmd.options.report_frequency {
-                    if freq > 0 && row_count % freq == 0 {
+                    if freq > 0 && row_count.is_multiple_of(freq) {
                         eprintln!("Processed {} rows...", row_count);
                     }
                 }
@@ -206,7 +206,7 @@ pub async fn execute_copy_to(
                 row_count += 1;
 
                 if let Some(freq) = cmd.options.report_frequency {
-                    if freq > 0 && row_count % freq == 0 {
+                    if freq > 0 && row_count.is_multiple_of(freq) {
                         eprintln!("Processed {} rows...", row_count);
                     }
                 }
@@ -355,7 +355,7 @@ fn find_keyword_outside_parens(s: &str, keyword: &str) -> Option<usize> {
         }
         if depth == 0 && !in_quote {
             // Check if keyword matches at this position, surrounded by word boundaries
-            if i + kw_len <= upper.len() && &upper[i..i + kw_len] == kw_upper {
+            if i + kw_len <= upper.len() && upper[i..i + kw_len] == *kw_upper {
                 // Check word boundaries
                 let before_ok =
                     i == 0 || !bytes[i - 1].is_ascii_alphanumeric();
@@ -607,12 +607,11 @@ fn split_on_and(s: &str) -> Vec<String> {
 /// Remove surrounding single or double quotes from a value.
 fn unquote(s: &str) -> String {
     let s = s.trim();
-    if s.len() >= 2 {
-        if (s.starts_with('\'') && s.ends_with('\''))
-            || (s.starts_with('"') && s.ends_with('"'))
-        {
-            return s[1..s.len() - 1].to_string();
-        }
+    if s.len() >= 2
+        && ((s.starts_with('\'') && s.ends_with('\''))
+            || (s.starts_with('"') && s.ends_with('"')))
+    {
+        return s[1..s.len() - 1].to_string();
     }
     s.to_string()
 }
@@ -1131,7 +1130,7 @@ pub async fn execute_copy_from(
         }
 
         if let Some(freq) = cmd.options.report_frequency {
-            if freq > 0 && (row_count + insert_errors + parse_errors) % freq == 0 {
+            if freq > 0 && (row_count + insert_errors + parse_errors).is_multiple_of(freq) {
                 eprintln!("Processed {} rows...", row_count);
             }
         }
@@ -1228,8 +1227,8 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            format_value_for_csv(&CqlValue::Float(3.14159), &opts),
-            "3.142"
+            format_value_for_csv(&CqlValue::Float(1.23456), &opts),
+            "1.235"
         );
     }
 
