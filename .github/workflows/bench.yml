@@ -52,10 +52,10 @@ jobs:
             ${{ runner.os }}-cargo-bench-
 
       - name: Run benchmarks
-        run: cargo bench -- --output-format bencher | tee output.txt
+        run: cargo bench 2>&1 | tee bench_output.txt
 
-      - name: Generate benchmark summary
-        run: python3 scripts/format_bench_summary.py < output.txt >> "$GITHUB_STEP_SUMMARY"
+      - name: Parse benchmark results
+        run: python3 scripts/format_bench_summary.py < bench_output.txt >> "$GITHUB_STEP_SUMMARY" || echo "No benchmark results" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install hyperfine
         run: sudo apt-get install -y hyperfine
@@ -103,8 +103,8 @@ jobs:
       - name: Store results & track history
         uses: benchmark-action/github-action-benchmark@v1
         with:
-          tool: 'cargo'
-          output-file-path: output.txt
+          tool: 'customSmallerIsBetter'
+          output-file-path: output.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Only push historical data on main merges (not PRs/schedule)
           auto-push: ${{ github.event_name == 'push' }}
