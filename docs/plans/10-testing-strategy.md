@@ -1,6 +1,7 @@
 # Sub-Plan SP10: Testing Strategy
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 5 (ongoing from Phase 1)
+> **Status: IN PROGRESS** — 327 unit/CLI tests written and passing. Integration test infrastructure (testcontainers-rs), snapshot tests (insta), property tests (proptest), and coverage tooling not yet set up. 3/16 Phase 5 tasks done.
 
 ## Objective
 

@@ -1,7 +1,7 @@
 # Sub-Plan SP2: Driver & Connection
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 1-2
-> **Status: IN PROGRESS** — Core implementation complete (2026-03-14)
+> **Status: COMPLETED** — All 15 implementation steps done (2026-03-14). Integration tests deferred to Phase 5 (SP10).
 
 ## Objective
 
@@ -24,7 +24,7 @@ Design a driver abstraction layer and implement Cassandra/ScyllaDB connectivity 
 - [x] Driver trait API design (`CqlDriver` trait in `driver/mod.rs`)
 - [x] CQL type mapping table (scylla Rust types <-> CQL types, implemented in `driver/scylla_driver.rs`)
 - [x] SSL/TLS configuration matrix (Python cqlsh options -> rustls config)
-- [ ] Error code catalog
+- [x] Error code catalog (implemented in `src/error.rs` — 18 error categories)
 
 ---
 

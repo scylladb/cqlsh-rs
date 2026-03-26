@@ -1,5 +1,7 @@
 # SP17: Embedded AI Assistant (`--ai-help`)
 
+> **Status: NOT STARTED** — Post-v1 value-add feature. All 4 phases pending.
+
 ## Overview
 
 Embed a small, quantized LLM (Qwen2.5-Coder-0.5B) directly into cqlsh-rs to provide instant, offline CQL diagnostic suggestions when queries fail. This is a **value-add feature** beyond Python cqlsh compatibility — it must never interfere with core functionality.

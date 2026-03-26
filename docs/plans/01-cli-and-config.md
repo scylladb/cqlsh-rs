@@ -1,7 +1,7 @@
 # Sub-Plan SP1: CLI & Configuration
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 1 (Bootstrap MVP)
-> **Status: IN PROGRESS** — Initial implementation complete (2026-03-13)
+> **Status: COMPLETED** — All core tasks done (2026-03-13). Remaining TODOs are low-priority polish items for Phase 4+.
 
 ## Objective
 

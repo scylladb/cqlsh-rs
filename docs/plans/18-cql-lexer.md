@@ -3,6 +3,7 @@
 > Parent: [high-level-design.md](high-level-design.md) | Cross-cutting
 >
 > **This is a living document.** Update it as development progresses.
+> **Status: NOT STARTED** — Post-v1 refactor. Current workaround (ad-hoc tokenizers in colorizer/completer/parser) is functional.
 
 ## Objective
 

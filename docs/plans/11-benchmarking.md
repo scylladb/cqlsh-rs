@@ -1,6 +1,7 @@
 # Sub-Plan SP11: Benchmarking
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 5
+> **Status: IN PROGRESS** — Startup benchmarks done, CI workflow live, GitHub Pages dashboard deployed. Remaining: parser, formatter, completion benchmarks and Python baseline measurements.
 
 ## Objective
 

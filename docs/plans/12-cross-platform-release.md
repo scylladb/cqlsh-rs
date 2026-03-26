@@ -1,6 +1,7 @@
 # Sub-Plan SP12: Cross-Platform & Release
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 6
+> **Status: NOT STARTED** — Blocked on Phase 4-5 completion. All 10 tasks pending.
 
 ## Objective
 

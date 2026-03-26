@@ -1,6 +1,7 @@
 # Sub-Plan SP14: Documentation & LLM Skills
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 3-6 (ongoing)
+> **Status: NOT STARTED** — All documentation deliverables pending. Blocked on feature completion (Phase 4-5).
 
 ## Objective
 

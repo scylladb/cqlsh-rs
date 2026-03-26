@@ -1,6 +1,7 @@
 # Sub-Plan SP6: Output Formatting
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 2-3
+> **Status: COMPLETED** — All 20 implementation steps done (2026-03-22). Tabular, expanded, color, type-aware formatting all implemented.
 
 ## Objective
 
@@ -21,11 +22,11 @@ Implement all output formatting modes (tabular, JSON, CSV, expanded) with type-a
 
 ### Research Deliverables
 
-- [ ] Exact table border format specification (character-level)
-- [ ] CQL type -> display string mapping for all types
-- [ ] ANSI color code table for all output elements
-- [ ] JSON output schema
-- [ ] Pagination algorithm specification
+- [x] Exact table border format specification (character-level)
+- [x] CQL type -> display string mapping for all types
+- [x] ANSI color code table for all output elements
+- [x] JSON output schema
+- [x] Pagination algorithm specification
 
 ---
 
@@ -58,14 +59,14 @@ Implement all output formatting modes (tabular, JSON, CSV, expanded) with type-a
 
 ### Acceptance Criteria
 
-- [ ] Tabular output matches Python cqlsh character-for-character (border chars, spacing)
-- [ ] All CQL types format correctly (see SP9 for type details)
-- [ ] JSON output is valid JSON and matches Python cqlsh structure
-- [ ] CSV output is RFC 4180 compliant
-- [ ] Expanded mode shows each row as key-value pairs
-- [ ] Pagination pauses at terminal height with `--More--` prompt
-- [ ] Colors match Python cqlsh defaults
-- [ ] Color can be forced on/off with flags
+- [x] Tabular output matches Python cqlsh character-for-character (border chars, spacing)
+- [x] All CQL types format correctly (see SP9 for type details)
+- [x] JSON output is valid JSON and matches Python cqlsh structure
+- [x] CSV output is RFC 4180 compliant
+- [x] Expanded mode shows each row as key-value pairs
+- [x] Pagination pauses at terminal height with `--More--` prompt
+- [x] Colors match Python cqlsh defaults
+- [x] Color can be forced on/off with flags
 
 ---
 

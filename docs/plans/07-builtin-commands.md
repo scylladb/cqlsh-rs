@@ -1,6 +1,7 @@
 # Sub-Plan SP7: Built-in Commands
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 2-4
+> **Status: PARTIALLY COMPLETE** — 19 of 25+ commands implemented (Phases 2-3 done). Remaining: DESCRIBE extensions (INDEX, VIEW, TYPE, FUNCTION, AGGREGATE), LOGIN, SHOW SESSION, safe mode. Deferred to Phase 4.
 
 ## Objective
 
@@ -20,10 +21,10 @@ Implement all built-in shell commands with 100% behavior parity to Python cqlsh.
 
 ### Research Deliverables
 
-- [ ] Per-command specification (arguments, output format, error cases)
-- [ ] DESCRIBE DDL generation algorithm
-- [ ] Help text catalog
-- [ ] Command parsing grammar
+- [x] Per-command specification (arguments, output format, error cases)
+- [x] DESCRIBE DDL generation algorithm
+- [x] Help text catalog
+- [x] Command parsing grammar
 
 ---
 
@@ -105,14 +106,14 @@ When `--safe-mode` is enabled (via CLI flag or `safe_mode = true` in `[connectio
 
 ### Acceptance Criteria
 
-- [ ] Every command in the matrix works with correct output
-- [ ] HELP shows correct help text for each command
-- [ ] DESCRIBE output matches Python cqlsh DDL format
-- [ ] Error messages match Python cqlsh
-- [ ] Commands are case-insensitive
-- [ ] Invalid arguments produce helpful errors
-- [ ] **Safe mode prompts for all protected operations when enabled** (PR #147)
-- [ ] **Safe mode is skipped in non-interactive mode** (PR #147)
+- [ ] Every command in the matrix works with correct output (19/25+ done — DESCRIBE extensions, LOGIN, SHOW SESSION remain)
+- [x] HELP shows correct help text for each command
+- [x] DESCRIBE output matches Python cqlsh DDL format (for implemented DESCRIBE variants)
+- [x] Error messages match Python cqlsh
+- [x] Commands are case-insensitive
+- [x] Invalid arguments produce helpful errors
+- [ ] **Safe mode prompts for all protected operations when enabled** (PR #147) — Phase 4
+- [ ] **Safe mode is skipped in non-interactive mode** (PR #147) — Phase 4
 
 ---
 

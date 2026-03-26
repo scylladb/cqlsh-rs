@@ -2,7 +2,7 @@
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 1-2
 >
-> **Status: IN PROGRESS** — Initial REPL implementation complete (2026-03-13)
+> **Status: COMPLETED** — Core REPL done (2026-03-13). TTY detection and error display improvements deferred to Phase 4.
 
 ## Objective
 
@@ -116,12 +116,12 @@ An opt-in AI-powered error assistance layer for future implementation:
 - [x] Multi-line input shows continuation prompt
 - [x] Ctrl-C cancels input without exiting
 - [x] Ctrl-D exits on empty line
-- [ ] Pipe/redirect mode works without editing features
-- [ ] `--tty` forces interactive mode even in pipe
-- [ ] Syntax errors display as `SyntaxException: <msg>` (no "Database returned an error" wrapper)
-- [ ] Invalid queries display as `InvalidRequest: <msg>`
-- [ ] No backtraces in normal mode; `--debug` shows full error chain
-- [ ] Connection errors show clean one-liner messages
+- [ ] Pipe/redirect mode works without editing features (Phase 4)
+- [ ] `--tty` forces interactive mode even in pipe (Phase 4)
+- [x] Syntax errors display as `SyntaxException: <msg>` (no "Database returned an error" wrapper)
+- [x] Invalid queries display as `InvalidRequest: <msg>`
+- [x] No backtraces in normal mode; `--debug` shows full error chain
+- [x] Connection errors show clean one-liner messages
 
 ---
 

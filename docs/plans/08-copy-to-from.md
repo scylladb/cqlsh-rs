@@ -1,6 +1,7 @@
 # Sub-Plan SP8: COPY TO/FROM
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 4
+> **Status: PARTIALLY COMPLETE** — COPY TO implemented with all 17 options. COPY FROM not started (19 options, parallel workers, rate limiting). Deferred to Phase 4.
 
 ## Objective
 

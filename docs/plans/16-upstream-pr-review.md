@@ -3,6 +3,7 @@
 > Parent: [high-level-design.md](high-level-design.md)
 > Date: 2026-03-14
 > Source: https://github.com/scylladb/scylla-cqlsh/pulls
+> **Status: COMPLETED** — PR #150 (parser fix) and PR #151 (O(n) parsing) incorporated into SP4. PR #154 not needed. PR #147 (safe mode) deferred to Phase 4. PR #163 (SSL tests) deferred to Phase 5.
 
 ## Purpose
 

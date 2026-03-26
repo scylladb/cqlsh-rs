@@ -1,7 +1,7 @@
 # Sub-Plan SP4: Statement Parser
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 1-2
-> **Status: IN PROGRESS** — Core parser implementation complete (2026-03-14)
+> **Status: COMPLETED** — All parser features done (2026-03-14). O(n) benchmark verification deferred to Phase 5 (SP11).
 
 ## Objective
 

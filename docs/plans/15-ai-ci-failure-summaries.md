@@ -1,6 +1,7 @@
 # Sub-Plan SP15: AI-Powered CI Failure Summaries
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 5 (CI/CD)
+> **Status: NOT STARTED** — All acceptance criteria pending. Can be implemented once CI pipeline has integration tests.
 
 ## Objective
 

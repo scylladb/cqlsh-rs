@@ -1,6 +1,7 @@
 # Sub-Plan SP5: Tab Completion
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 3
+> **Status: COMPLETED** — All 19 implementation steps done (2026-03-22). 17+ unit tests, schema cache with TTL, context-aware completion.
 
 ## Objective
 
@@ -21,11 +22,11 @@ Implement 100% tab-completion parity with Python cqlsh, including context-aware 
 
 ### Research Deliverables
 
-- [ ] Complete context-to-completion mapping (every CQL statement context)
-- [ ] Schema metadata query catalog (system_schema.* tables)
-- [ ] Cache design document (TTL, invalidation triggers)
-- [ ] rustyline Completer integration design
-- [ ] Performance benchmarks for schema queries
+- [x] Complete context-to-completion mapping (every CQL statement context)
+- [x] Schema metadata query catalog (system_schema.* tables)
+- [x] Cache design document (TTL, invalidation triggers)
+- [x] rustyline Completer integration design
+- [ ] Performance benchmarks for schema queries (deferred to Phase 5 SP11)
 
 ---
 
@@ -57,13 +58,13 @@ Implement 100% tab-completion parity with Python cqlsh, including context-aware 
 
 ### Acceptance Criteria
 
-- [ ] Every context from the parent tab-completion matrix produces correct completions
-- [ ] Schema objects are completed after cache is populated
-- [ ] DDL operations (CREATE/ALTER/DROP) invalidate the cache
-- [ ] File path completion works with absolute and relative paths
-- [ ] Completion latency is <50ms even with 1000+ tables
-- [ ] Case-insensitive matching works
-- [ ] No completions are offered in inappropriate contexts
+- [x] Every context from the parent tab-completion matrix produces correct completions
+- [x] Schema objects are completed after cache is populated
+- [x] DDL operations (CREATE/ALTER/DROP) invalidate the cache
+- [x] File path completion works with absolute and relative paths
+- [ ] Completion latency is <50ms even with 1000+ tables (needs benchmark verification, Phase 5)
+- [x] Case-insensitive matching works
+- [x] No completions are offered in inappropriate contexts
 
 ---
 

@@ -1,6 +1,7 @@
 # Sub-Plan SP9: CQL Type System
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 2
+> **Status: COMPLETED** — All 18 implementation steps done, all 25 CQL types supported (2026-03-18). Collections, UDTs, tuples, frozen types all working.
 
 ## Objective
 
@@ -19,11 +20,11 @@ Implement complete CQL type system mapping from Cassandra wire format to display
 
 ### Research Deliverables
 
-- [ ] Complete type mapping table: CQL type -> scylla Rust type -> display string
-- [ ] Formatting rules for each type (precision, quoting, escaping)
-- [ ] Collection formatting rules (delimiters, nesting)
-- [ ] UDT formatting rules (field order, naming)
-- [ ] Edge case catalog
+- [x] Complete type mapping table: CQL type -> scylla Rust type -> display string
+- [x] Formatting rules for each type (precision, quoting, escaping)
+- [x] Collection formatting rules (delimiters, nesting)
+- [x] UDT formatting rules (field order, naming)
+- [x] Edge case catalog
 
 ---
 
@@ -86,14 +87,14 @@ Implement complete CQL type system mapping from Cassandra wire format to display
 
 ### Acceptance Criteria
 
-- [ ] Every CQL type formats identically to Python cqlsh
-- [ ] Configurable timestamp format works (datetimeformat)
-- [ ] Configurable float/double precision works
-- [ ] Nested collections display correctly to arbitrary depth
-- [ ] UDTs show field names in correct order
-- [ ] NULL values display as configured
-- [ ] Empty collections display correctly
-- [ ] Frozen types display the same as their unfrozen counterparts
+- [x] Every CQL type formats identically to Python cqlsh
+- [x] Configurable timestamp format works (datetimeformat)
+- [x] Configurable float/double precision works
+- [x] Nested collections display correctly to arbitrary depth
+- [x] UDTs show field names in correct order
+- [x] NULL values display as configured
+- [x] Empty collections display correctly
+- [x] Frozen types display the same as their unfrozen counterparts
 
 ---
 
