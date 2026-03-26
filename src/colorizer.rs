@@ -289,7 +289,9 @@ impl CqlColorizer {
                     i += 1;
                 }
                 let word: String = chars[start..i].iter().collect();
-                if is_keyword(&word) {
+                // Don't highlight as keyword if preceded by '.' (it's a qualified name)
+                let after_dot = start > 0 && chars[start - 1] == '.';
+                if !after_dot && is_keyword(&word) {
                     result.push_str(&format!("{}", word.blue().bold()));
                 } else {
                     result.push_str(&word);

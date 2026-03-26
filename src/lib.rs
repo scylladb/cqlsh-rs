@@ -4,6 +4,7 @@ pub mod cli;
 pub mod colorizer;
 pub mod completer;
 pub mod config;
+pub mod copy;
 pub mod describe;
 pub mod driver;
 pub mod error;

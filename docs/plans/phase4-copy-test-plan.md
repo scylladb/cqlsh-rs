@@ -123,13 +123,14 @@ SELECT * FROM test_ks.users WHERE id = 30;
 - Grace's email should be null
 
 ### Test 13: COPY FROM with custom DELIMITER
+Note: without HEADER, CSV columns must match CREATE TABLE order or specify columns explicitly.
 ```bash
 cat > /tmp/import_pipe.csv << 'EOF'
 40|Heidi|heidi@example.com|33|True
 EOF
 ```
 ```
-COPY test_ks.users FROM '/tmp/import_pipe.csv' WITH DELIMITER='|';
+COPY test_ks.users (id, name, email, age, active) FROM '/tmp/import_pipe.csv' WITH DELIMITER='|';
 SELECT * FROM test_ks.users WHERE id = 40;
 ```
 
