@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774820093041,
+  "lastUpdate": 1774820500530,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -3407,6 +3407,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 97159,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "7815b75cb482aa5da98ab4d1ef53a7fba69cc70d",
+          "message": "fix(ci): fix integration test failures and CI infrastructure\n\nCode fixes:\n- src/main.rs: print banner in -e/-f mode (Python cqlsh compat); add\n  trailing semicolon to -e input so parse_batch doesn't silently drop it\n- src/parser.rs: track BEGIN BATCH…APPLY BATCH blocks so internal\n  semicolons don't split the statement\n\nIntegration test fixes:\n- tests/integration/helpers.rs: add with_semicolon() helper so all\n  execute_cql calls normalise input; change OnceLock<ScyllaContainer> to\n  OnceLock<Result<…,String>> so a failed container start is cached and\n  never retried (prevents Docker networking storm on subsequent tests)\n- tests/integration/unicode_tests.rs: escape apostrophe as '' in CQL;\n  add graceful skip when ScyllaDB rejects non-ASCII table names\n- tests/integration/output_tests.rs: new banner and stdin-pipe tests\n- tests/integration/escape_tests.rs: minor fixes\n\nCI infrastructure:\n- .github/workflows/ci.yml: switch integration job from nextest to\n  cargo test (shared OnceLock across all tests); add --test-threads=1\n  to serialise tests; disable Docker userland-proxy to fix \"address\n  already in use\" port-forwarding errors on ubuntu-latest runners\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-03-30T00:19:28+03:00",
+          "tree_id": "999b8b51bc804966ecea9045a2ffff0322983203",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/7815b75cb482aa5da98ab4d1ef53a7fba69cc70d"
+        },
+        "date": 1774820500130,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 54335,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 527690,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 5186700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 6966,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 38871,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 364200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 3721400,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 27914,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 28039,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 63809,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 4192,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 16186,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2797,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 6076,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 44047,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1148,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 96046,
             "unit": "ns"
           }
         ]
