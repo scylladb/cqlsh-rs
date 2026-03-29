@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774809954161,
+  "lastUpdate": 1774816216727,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -2931,6 +2931,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 97567,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "a3f35e6d11eba2304d1d1d5aed43630de6604c2a",
+          "message": "docs(SP11): update benchmarking plan with actual CI results and optimization roadmap\n\nReplace approximate formatter/completion baseline values with actual CI measurements\n(criterion 0.5, GitHub Actions ubuntu-latest). Add Performance Analysis & Optimization\nRoadmap section with summary table and P1–P5 proposals. Mark 200× startup improvement\nacceptance criterion as confirmed.\n\nKey findings:\n- format_table/rows/100: 510 µs ✅ (under 1 ms target)\n- format_table_colored/rows/100: 1.215 ms ❌ (P1: fix color overhead)\n- Parser O(n) confirmed: 630–660 ns/stmt across 10–500 statements\n- All completion ops <40 µs ✅ (P3: phf/trie opportunity)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-03-29T23:08:19+03:00",
+          "tree_id": "ee79388c77df36cf1b0a8c9c18bf79baf8085b2f",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/a3f35e6d11eba2304d1d1d5aed43630de6604c2a"
+        },
+        "date": 1774816215904,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 47037,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 479100,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 4880700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 6000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 34442,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 347440,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 3618400,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 25643,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 25007,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 59213,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 2737,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 14784,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2725,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 5900,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 42355,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1104,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 90188,
             "unit": "ns"
           }
         ]
