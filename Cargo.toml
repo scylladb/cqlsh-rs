@@ -66,5 +66,9 @@ name = "format"
 harness = false
 
 [[bench]]
+name = "formatter"
+harness = false
+
+[[bench]]
 name = "completion"
 harness = false
