@@ -13,7 +13,8 @@
       { "date": "2026-03-18", "tasks_done": 22, "phase": 2, "pr": "#17" },
       { "date": "2026-03-22", "tasks_done": 21, "phase": 3, "pr": "#24" },
       { "date": "2026-03-26", "tasks_done": 6, "phase": 5, "pr": "SP19" },
-      { "date": "2026-03-29", "tasks_done": 5, "phase": 4, "pr": "#TBD" }
+      { "date": "2026-03-29", "tasks_done": 5, "phase": 4, "pr": "#TBD" },
+      { "date": "2026-03-29", "tasks_done": 3, "phase": 5, "pr": "SP11-benches" }
     ]
   },
   "phases": [
@@ -62,7 +63,7 @@
       "name": "Testing & Benchmarks",
       "description": "Test suites, benchmarks, CI matrix",
       "total_tasks": 16,
-      "completed_tasks": 6,
+      "completed_tasks": 9,
       "status": "in_progress",
       "started_date": "2026-03-26",
       "completed_date": null

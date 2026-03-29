@@ -171,6 +171,25 @@ impl SchemaCache {
             .map(|aggs| aggs.iter().map(|a| a.name.as_str()).collect())
             .unwrap_or_default()
     }
+
+    /// Build a pre-populated cache for testing and benchmarking.
+    ///
+    /// Not part of the public API — may change without notice.
+    #[doc(hidden)]
+    pub fn from_test_data(
+        keyspaces: Vec<crate::driver::KeyspaceMetadata>,
+        tables: std::collections::HashMap<String, Vec<crate::driver::TableMetadata>>,
+    ) -> Self {
+        SchemaCache {
+            keyspaces,
+            tables,
+            udts: Default::default(),
+            functions: Default::default(),
+            aggregates: Default::default(),
+            last_refresh: Some(std::time::Instant::now()),
+            ttl: DEFAULT_TTL,
+        }
+    }
 }
 
 impl Default for SchemaCache {
