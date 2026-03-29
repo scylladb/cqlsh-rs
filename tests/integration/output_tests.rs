@@ -37,7 +37,10 @@ fn test_no_color_output() {
         !stdout.contains("\x1b["),
         "ANSI escape codes found in --no-color output: {stdout}"
     );
-    assert!(stdout.contains("Alice"), "Expected data in output: {stdout}");
+    assert!(
+        stdout.contains("Alice"),
+        "Expected data in output: {stdout}"
+    );
 
     drop_test_keyspace(scylla, &ks);
 }
@@ -119,7 +122,10 @@ fn test_numeric_output() {
         output.contains("9223372036854775807"),
         "Expected bigint value: {output}"
     );
-    assert!(output.contains("32000"), "Expected smallint value: {output}");
+    assert!(
+        output.contains("32000"),
+        "Expected smallint value: {output}"
+    );
     assert!(output.contains("127"), "Expected tinyint value: {output}");
     // Float precision may vary; check prefix
     assert!(
@@ -227,17 +233,10 @@ fn test_null_output() {
     .success();
 
     // Insert with only PK → val is null
-    execute_cql(
-        scylla,
-        &format!("INSERT INTO {ks}.nulls (id) VALUES (1)"),
-    )
-    .success();
+    execute_cql(scylla, &format!("INSERT INTO {ks}.nulls (id) VALUES (1)")).success();
 
     let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.nulls WHERE id = 1"));
-    assert!(
-        output.contains("null"),
-        "Expected null display: {output}"
-    );
+    assert!(output.contains("null"), "Expected null display: {output}");
 
     drop_test_keyspace(scylla, &ks);
 }
@@ -424,7 +423,9 @@ fn test_describe_cluster_output() {
 
     let output = execute_cql_output(scylla, "DESCRIBE CLUSTER");
     assert!(
-        output.contains("Cluster:") || output.contains("Partitioner:") || output.contains("Snitch:"),
+        output.contains("Cluster:")
+            || output.contains("Partitioner:")
+            || output.contains("Snitch:"),
         "DESCRIBE CLUSTER should show cluster info: {output}"
     );
 }
@@ -469,10 +470,7 @@ fn test_help_in_noninteractive_mode() {
     let scylla = get_scylla();
 
     // HELP should be silently ignored in non-interactive mode
-    cqlsh_cmd(scylla)
-        .args(["-e", "HELP"])
-        .assert()
-        .success();
+    cqlsh_cmd(scylla).args(["-e", "HELP"]).assert().success();
 }
 
 // ---------------------------------------------------------------------------
@@ -485,7 +483,11 @@ fn test_cql_error_output() {
     let scylla = get_scylla();
 
     let output = cqlsh_cmd(scylla)
-        .args(["--no-color", "-e", "SELECT FROM nonexistent_keyspace.nonexistent_table"])
+        .args([
+            "--no-color",
+            "-e",
+            "SELECT FROM nonexistent_keyspace.nonexistent_table",
+        ])
         .output()
         .expect("failed to run cqlsh-rs");
 
@@ -497,10 +499,7 @@ fn test_cql_error_output() {
 
     // Error should appear on stderr
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        !stderr.is_empty(),
-        "Expected error message on stderr"
-    );
+    assert!(!stderr.is_empty(), "Expected error message on stderr");
 }
 
 #[test]
@@ -699,4 +698,169 @@ fn test_exit_code_failure() {
         .args(["-e", "SELECT * FROM nonexistent_ks_12345.nosuchtable"])
         .assert()
         .failure();
+}
+
+// ---------------------------------------------------------------------------
+// 4.1 — Non-interactive mode & shell improvements
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_debug_command_status() {
+    let scylla = get_scylla();
+
+    let output = cqlsh_cmd(scylla)
+        .args(["--no-color", "-e", "DEBUG"])
+        .output()
+        .expect("failed to run cqlsh-rs");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("Debug output is currently disabled"),
+        "Expected debug status in stdout: {stdout}"
+    );
+    assert!(output.status.success(), "Expected exit 0 for DEBUG command");
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_debug_on_command() {
+    let scylla = get_scylla();
+
+    let output = cqlsh_cmd(scylla)
+        .args(["--no-color", "-e", "DEBUG ON"])
+        .output()
+        .expect("failed to run cqlsh-rs");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("Now printing debug output"),
+        "Expected debug-on confirmation in stdout: {stdout}"
+    );
+    assert!(output.status.success(), "Expected exit 0 for DEBUG ON");
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_debug_off_command() {
+    let scylla = get_scylla();
+
+    let output = cqlsh_cmd(scylla)
+        .args(["--no-color", "-e", "DEBUG OFF"])
+        .output()
+        .expect("failed to run cqlsh-rs");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("Disabled debug output"),
+        "Expected debug-off confirmation in stdout: {stdout}"
+    );
+    assert!(output.status.success(), "Expected exit 0 for DEBUG OFF");
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_unicode_command() {
+    let scylla = get_scylla();
+
+    let output = cqlsh_cmd(scylla)
+        .args(["--no-color", "-e", "UNICODE"])
+        .output()
+        .expect("failed to run cqlsh-rs");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("Encoding:"),
+        "Expected 'Encoding:' in UNICODE output: {stdout}"
+    );
+    assert!(
+        stdout.contains("utf-8"),
+        "Expected 'utf-8' in UNICODE output: {stdout}"
+    );
+    assert!(output.status.success(), "Expected exit 0 for UNICODE command");
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_stdin_pipe_query() {
+    let scylla = get_scylla();
+
+    // Pipe a SELECT into cqlsh-rs via stdin (no -e flag)
+    let output = cqlsh_cmd(scylla)
+        .arg("--no-color")
+        .write_stdin("SELECT key FROM system.local;\n")
+        .output()
+        .expect("failed to run cqlsh-rs");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // system.local always has exactly one row with key='local'
+    assert!(
+        stdout.contains("local"),
+        "Expected 'local' in piped SELECT output: {stdout}"
+    );
+    assert!(
+        output.status.success(),
+        "Expected exit 0 for piped SELECT: stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_stdin_pipe_error_exits_1() {
+    let scylla = get_scylla();
+
+    // Invalid CQL piped via stdin should exit 1 (CQL error)
+    let output = cqlsh_cmd(scylla)
+        .arg("--no-color")
+        .write_stdin("SELECT * FROM nonexistent_keyspace.nonexistent_table;\n")
+        .output()
+        .expect("failed to run cqlsh-rs");
+
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "Expected exit code 1 for piped CQL error: stdout={} stderr={}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_stdin_no_banner() {
+    let scylla = get_scylla();
+
+    // When stdin is piped the connection banner must NOT appear in stdout
+    let output = cqlsh_cmd(scylla)
+        .arg("--no-color")
+        .write_stdin("SELECT key FROM system.local;\n")
+        .output()
+        .expect("failed to run cqlsh-rs");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        !stdout.contains("Connected to"),
+        "Banner should not appear in stdout when stdin is piped: {stdout}"
+    );
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_tty_flag_enables_banner_with_piped_stdin() {
+    let scylla = get_scylla();
+
+    // --tty forces interactive REPL mode even when stdin is piped.
+    // Rustyline receives EOF immediately → exits cleanly after printing the banner.
+    let output = cqlsh_cmd(scylla)
+        .args(["--no-color", "--tty"])
+        .write_stdin("")
+        .output()
+        .expect("failed to run cqlsh-rs");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("Connected to"),
+        "Banner should appear with --tty even when stdin is piped: {stdout}"
+    );
 }

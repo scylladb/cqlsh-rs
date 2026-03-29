@@ -207,3 +207,43 @@ fn connection_error_shows_host_port() {
         .stderr(predicate::str::contains("Connection error"))
         .stderr(predicate::str::contains("10.255.255.1:9999"));
 }
+
+#[test]
+fn connection_error_exits_with_code_2() {
+    // Connection failure must exit with code 2 (distinct from CQL error = 1)
+    cmd()
+        .args(["10.255.255.1", "9999", "--connect-timeout", "1"])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("Connection error"));
+}
+
+#[test]
+fn help_flag_shows_tty() {
+    cmd()
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--tty"));
+}
+
+#[test]
+fn stdin_pipe_empty_exits_with_code_2() {
+    // assert_cmd's write_stdin provides a closed pipe, so stdin.is_terminal() = false.
+    // The binary connects first (fails → exit 2) before reading any stdin.
+    cmd()
+        .write_stdin("")
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn tty_flag_accepted_with_piped_stdin() {
+    // --tty forces REPL path even when stdin is a pipe.
+    // Without a cluster both paths still fail at connection → exit 2.
+    cmd()
+        .arg("--tty")
+        .write_stdin("")
+        .assert()
+        .code(2);
+}
