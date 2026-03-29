@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774819250016,
+  "lastUpdate": 1774820093041,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -3288,6 +3288,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 98421,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "f0774c5c18de49a0553224cc1c9ebdd435e3bbb3",
+          "message": "ci(integration): work around testcontainers Docker networking failure\n\ntestcontainers-rs fails on GitHub Actions (Ubuntu 24.04 / Docker 27)\nwith \"address already in use\" when Docker's networking driver tries\nto program external connectivity, even with userland-proxy disabled.\nRoot cause not yet identified.\n\nTemporary workaround: start ScyllaDB via plain docker run in CI and\npass SCYLLA_TEST_HOST/PORT env vars; helpers.rs bypasses testcontainers\nwhen those vars are set, falling back to testcontainers for local dev.\n\nTODO: restore testcontainers-managed lifecycle once the Docker\nnetworking issue on GHA runners is understood and fixed.\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-03-30T00:12:44+03:00",
+          "tree_id": "140e9c33a88305c434eb894d267e78ce7c961a29",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/f0774c5c18de49a0553224cc1c9ebdd435e3bbb3"
+        },
+        "date": 1774820092798,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 53177,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 516240,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 5070800,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 6911,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 37913,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 369780,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 3727500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 29211,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 26859,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 62885,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 3774,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 5,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 16224,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2774,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 6051,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 44881,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1120,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 97159,
             "unit": "ns"
           }
         ]
