@@ -65,20 +65,62 @@ fn make_mixed_result(num_rows: usize) -> CqlResult {
 /// Create a result set exercising every CQL type.
 fn make_all_types_result() -> CqlResult {
     let columns = vec![
-        CqlColumn { name: "ascii_col".to_string(), type_name: "ascii".to_string() },
-        CqlColumn { name: "bigint_col".to_string(), type_name: "bigint".to_string() },
-        CqlColumn { name: "blob_col".to_string(), type_name: "blob".to_string() },
-        CqlColumn { name: "boolean_col".to_string(), type_name: "boolean".to_string() },
-        CqlColumn { name: "double_col".to_string(), type_name: "double".to_string() },
-        CqlColumn { name: "float_col".to_string(), type_name: "float".to_string() },
-        CqlColumn { name: "int_col".to_string(), type_name: "int".to_string() },
-        CqlColumn { name: "text_col".to_string(), type_name: "text".to_string() },
-        CqlColumn { name: "uuid_col".to_string(), type_name: "uuid".to_string() },
-        CqlColumn { name: "inet_col".to_string(), type_name: "inet".to_string() },
-        CqlColumn { name: "list_col".to_string(), type_name: "list<int>".to_string() },
-        CqlColumn { name: "map_col".to_string(), type_name: "map<text,int>".to_string() },
-        CqlColumn { name: "set_col".to_string(), type_name: "set<text>".to_string() },
-        CqlColumn { name: "null_col".to_string(), type_name: "text".to_string() },
+        CqlColumn {
+            name: "ascii_col".to_string(),
+            type_name: "ascii".to_string(),
+        },
+        CqlColumn {
+            name: "bigint_col".to_string(),
+            type_name: "bigint".to_string(),
+        },
+        CqlColumn {
+            name: "blob_col".to_string(),
+            type_name: "blob".to_string(),
+        },
+        CqlColumn {
+            name: "boolean_col".to_string(),
+            type_name: "boolean".to_string(),
+        },
+        CqlColumn {
+            name: "double_col".to_string(),
+            type_name: "double".to_string(),
+        },
+        CqlColumn {
+            name: "float_col".to_string(),
+            type_name: "float".to_string(),
+        },
+        CqlColumn {
+            name: "int_col".to_string(),
+            type_name: "int".to_string(),
+        },
+        CqlColumn {
+            name: "text_col".to_string(),
+            type_name: "text".to_string(),
+        },
+        CqlColumn {
+            name: "uuid_col".to_string(),
+            type_name: "uuid".to_string(),
+        },
+        CqlColumn {
+            name: "inet_col".to_string(),
+            type_name: "inet".to_string(),
+        },
+        CqlColumn {
+            name: "list_col".to_string(),
+            type_name: "list<int>".to_string(),
+        },
+        CqlColumn {
+            name: "map_col".to_string(),
+            type_name: "map<text,int>".to_string(),
+        },
+        CqlColumn {
+            name: "set_col".to_string(),
+            type_name: "set<text>".to_string(),
+        },
+        CqlColumn {
+            name: "null_col".to_string(),
+            type_name: "text".to_string(),
+        },
     ];
 
     let rows = vec![CqlRow {
@@ -127,17 +169,13 @@ fn bench_format_table(c: &mut Criterion) {
     for num_rows in [10, 100, 1000] {
         let result = make_mixed_result(num_rows);
 
-        group.bench_with_input(
-            BenchmarkId::new("rows", num_rows),
-            &result,
-            |b, result| {
-                b.iter(|| {
-                    let mut buf = Vec::with_capacity(num_rows * 100);
-                    print_tabular(black_box(result), &colorizer, &mut buf);
-                    black_box(buf)
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("rows", num_rows), &result, |b, result| {
+            b.iter(|| {
+                let mut buf = Vec::with_capacity(num_rows * 100);
+                print_tabular(black_box(result), &colorizer, &mut buf);
+                black_box(buf)
+            })
+        });
     }
 
     group.finish();
@@ -154,17 +192,13 @@ fn bench_format_table_colored(c: &mut Criterion) {
     for num_rows in [10, 100] {
         let result = make_mixed_result(num_rows);
 
-        group.bench_with_input(
-            BenchmarkId::new("rows", num_rows),
-            &result,
-            |b, result| {
-                b.iter(|| {
-                    let mut buf = Vec::with_capacity(num_rows * 150);
-                    print_tabular(black_box(result), &colorizer, &mut buf);
-                    black_box(buf)
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("rows", num_rows), &result, |b, result| {
+            b.iter(|| {
+                let mut buf = Vec::with_capacity(num_rows * 150);
+                print_tabular(black_box(result), &colorizer, &mut buf);
+                black_box(buf)
+            })
+        });
     }
 
     group.finish();
@@ -181,17 +215,13 @@ fn bench_format_expanded(c: &mut Criterion) {
     for num_rows in [10, 100] {
         let result = make_mixed_result(num_rows);
 
-        group.bench_with_input(
-            BenchmarkId::new("rows", num_rows),
-            &result,
-            |b, result| {
-                b.iter(|| {
-                    let mut buf = Vec::with_capacity(num_rows * 200);
-                    print_expanded(black_box(result), &colorizer, &mut buf);
-                    black_box(buf)
-                })
-            },
-        );
+        group.bench_with_input(BenchmarkId::new("rows", num_rows), &result, |b, result| {
+            b.iter(|| {
+                let mut buf = Vec::with_capacity(num_rows * 200);
+                print_expanded(black_box(result), &colorizer, &mut buf);
+                black_box(buf)
+            })
+        });
     }
 
     group.finish();
@@ -284,8 +314,14 @@ fn bench_format_edge_cases(c: &mut Criterion) {
     // Zero rows but with columns
     let no_rows = CqlResult {
         columns: vec![
-            CqlColumn { name: "id".to_string(), type_name: "int".to_string() },
-            CqlColumn { name: "name".to_string(), type_name: "text".to_string() },
+            CqlColumn {
+                name: "id".to_string(),
+                type_name: "int".to_string(),
+            },
+            CqlColumn {
+                name: "name".to_string(),
+                type_name: "text".to_string(),
+            },
         ],
         rows: vec![],
         has_rows: true,

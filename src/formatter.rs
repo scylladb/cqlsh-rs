@@ -128,7 +128,11 @@ pub fn print_expanded(result: &CqlResult, colorizer: &CqlColorizer, writer: &mut
 /// Format tracing session output matching Python cqlsh style.
 ///
 /// Displays session metadata and a table of trace events sorted by elapsed time.
-pub fn print_trace(trace: &crate::driver::TracingSession, colorizer: &CqlColorizer, writer: &mut dyn Write) {
+pub fn print_trace(
+    trace: &crate::driver::TracingSession,
+    colorizer: &CqlColorizer,
+    writer: &mut dyn Write,
+) {
     writeln!(writer).ok();
     writeln!(
         writer,
@@ -335,8 +339,14 @@ mod tests {
         let mut buf = Vec::new();
         print_tabular(&result, &no_color(), &mut buf);
         let output = String::from_utf8(buf).unwrap();
-        assert!(!output.contains("||||"), "row separators should not contain pipe characters");
-        assert!(output.contains("-+-") || output.contains("---"), "header separator should use dashes");
+        assert!(
+            !output.contains("||||"),
+            "row separators should not contain pipe characters"
+        );
+        assert!(
+            output.contains("-+-") || output.contains("---"),
+            "header separator should use dashes"
+        );
     }
 
     #[test]
@@ -345,7 +355,10 @@ mod tests {
         let mut buf = Vec::new();
         print_tabular(&result, &no_color(), &mut buf);
         let output = String::from_utf8(buf).unwrap();
-        assert!(output.contains("| "), "columns should be separated by pipes");
+        assert!(
+            output.contains("| "),
+            "columns should be separated by pipes"
+        );
     }
 
     #[test]

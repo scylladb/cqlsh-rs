@@ -94,7 +94,10 @@ pub fn format_error(error: &anyhow::Error) -> String {
 }
 
 /// Format a classified error with optional color (red bold when enabled).
-pub fn format_error_colored(error: &anyhow::Error, colorizer: &crate::colorizer::CqlColorizer) -> String {
+pub fn format_error_colored(
+    error: &anyhow::Error,
+    colorizer: &crate::colorizer::CqlColorizer,
+) -> String {
     let plain = format_error(error);
     colorizer.colorize_error(&plain)
 }

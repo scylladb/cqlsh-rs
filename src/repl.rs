@@ -175,8 +175,7 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
         color_enabled,
     );
 
-    let mut rl: Editor<CqlCompleter, DefaultHistory> =
-        Editor::with_config(rl_config)?;
+    let mut rl: Editor<CqlCompleter, DefaultHistory> = Editor::with_config(rl_config)?;
     rl.set_helper(Some(completer));
 
     // Load history
@@ -217,14 +216,7 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
                 // lines so each is processed separately.
                 let lines: Vec<&str> = line.split('\n').collect();
                 for sub_line in lines {
-                    process_line(
-                        sub_line,
-                        &mut stmt_parser,
-                        session,
-                        config,
-                        &mut shell,
-                    )
-                    .await;
+                    process_line(sub_line, &mut stmt_parser, session, config, &mut shell).await;
                 }
             }
             Err(ReadlineError::Interrupted) => {
@@ -295,313 +287,324 @@ fn dispatch_input<'a>(
     input: &'a str,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + 'a>> {
     Box::pin(async move {
-    let trimmed = input.trim();
-    let upper = trimmed.to_uppercase();
+        let trimmed = input.trim();
+        let upper = trimmed.to_uppercase();
 
-    // Handle QUIT/EXIT
-    if upper == "QUIT" || upper == "EXIT" {
-        std::process::exit(0);
-    }
-
-    // Handle HELP [topic]
-    if upper == "HELP" || upper == "?" || upper.starts_with("HELP ") {
-        if let Some(topic) = upper.strip_prefix("HELP ") {
-            print_help_topic(topic.trim());
-        } else {
-            print_help();
+        // Handle QUIT/EXIT
+        if upper == "QUIT" || upper == "EXIT" {
+            std::process::exit(0);
         }
-        return;
-    }
 
-    // Handle CLEAR/CLS
-    if upper == "CLEAR" || upper == "CLS" {
-        print!("\x1B[2J\x1B[1;1H");
-        return;
-    }
-
-    // Handle CONSISTENCY
-    if upper == "CONSISTENCY" {
-        let cl = session.get_consistency();
-        shell.outputln(&format!("Current consistency level is {cl}."));
-        return;
-    }
-    if let Some(rest) = upper.strip_prefix("CONSISTENCY ") {
-        let level = rest.trim();
-        match session.set_consistency_str(level) {
-            Ok(()) => shell.outputln(&format!("Consistency level set to {level}.")),
-            Err(e) => eprintln!("{e}"),
-        }
-        return;
-    }
-
-    // Handle SERIAL CONSISTENCY
-    if upper == "SERIAL CONSISTENCY" {
-        match session.get_serial_consistency() {
-            Some(scl) => shell.outputln(&format!("Current serial consistency level is {scl}.")),
-            None => shell.outputln("Current serial consistency level is SERIAL."),
-        }
-        return;
-    }
-    if let Some(rest) = upper.strip_prefix("SERIAL CONSISTENCY ") {
-        let level = rest.trim();
-        match session.set_serial_consistency_str(level) {
-            Ok(()) => shell.outputln(&format!("Serial consistency level set to {level}.")),
-            Err(e) => eprintln!("{e}"),
-        }
-        return;
-    }
-
-    // Handle TRACING
-    if upper == "TRACING" || upper == "TRACING OFF" {
-        session.set_tracing(false);
-        shell.outputln("Disabled tracing.");
-        return;
-    }
-    if upper == "TRACING ON" {
-        session.set_tracing(true);
-        shell.outputln("Now tracing requests.");
-        return;
-    }
-
-    // Handle EXPAND
-    if upper == "EXPAND" {
-        if shell.expand {
-            shell.outputln("Expanded output is currently enabled. Use EXPAND OFF to disable.");
-        } else {
-            shell.outputln("Expanded output is currently disabled. Use EXPAND ON to enable.");
-        }
-        return;
-    }
-    if upper == "EXPAND ON" {
-        shell.expand = true;
-        shell.outputln("Now printing expanded output.");
-        return;
-    }
-    if upper == "EXPAND OFF" {
-        shell.expand = false;
-        shell.outputln("Disabled expanded output.");
-        return;
-    }
-
-    // Handle PAGING
-    if upper == "PAGING" {
-        if shell.paging_enabled {
-            shell.outputln("Query paging is currently enabled. Use PAGING OFF to disable.");
-        } else {
-            shell.outputln("Query paging is currently disabled. Use PAGING ON to enable.");
-        }
-        return;
-    }
-    if upper == "PAGING ON" {
-        shell.paging_enabled = true;
-        shell.outputln("Now query paging is enabled.");
-        return;
-    }
-    if upper == "PAGING OFF" {
-        shell.paging_enabled = false;
-        shell.outputln("Disabled paging.");
-        return;
-    }
-    if upper.strip_prefix("PAGING ").is_some() {
-        // Accept PAGING <N> for compatibility — enables paging
-        shell.paging_enabled = true;
-        shell.outputln("Now query paging is enabled.");
-        return;
-    }
-
-    // Handle SOURCE
-    if upper.starts_with("SOURCE ") {
-        let path = trimmed["SOURCE ".len()..].trim();
-        let path = strip_quotes(path);
-        if config.no_file_io {
-            eprintln!("File I/O is disabled (--no-file-io).");
-        } else {
-            execute_source(session, config, shell, path).await;
-        }
-        return;
-    }
-    if upper == "SOURCE" {
-        eprintln!("SOURCE requires a file path argument.");
-        return;
-    }
-
-    // Handle CAPTURE
-    if upper == "CAPTURE" {
-        match &shell.capture_path {
-            Some(path) => shell.outputln(&format!("Currently capturing to '{}'.", path.display())),
-            None => shell.outputln("Not currently capturing."),
-        }
-        return;
-    }
-    if upper == "CAPTURE OFF" {
-        if shell.capture_file.is_some() {
-            let path = shell.capture_path.take().unwrap();
-            shell.capture_file = None;
-            shell.outputln(&format!("Stopped capture. Output saved to '{}'.", path.display()));
-        } else {
-            shell.outputln("Not currently capturing.");
-        }
-        return;
-    }
-    if upper.strip_prefix("CAPTURE ").is_some() {
-        let path = trimmed["CAPTURE ".len()..].trim();
-        let path = strip_quotes(path);
-        if config.no_file_io {
-            eprintln!("File I/O is disabled (--no-file-io).");
-        } else {
-            let expanded = expand_tilde(path);
-            match File::create(&expanded) {
-                Ok(file) => {
-                    shell.outputln(&format!("Now capturing query output to '{}'.", expanded.display()));
-                    shell.capture_file = Some(file);
-                    shell.capture_path = Some(expanded);
-                }
-                Err(e) => eprintln!("Unable to open '{}' for writing: {e}", expanded.display()),
-            }
-        }
-        return;
-    }
-
-    // Handle DEBUG
-    if upper == "DEBUG" {
-        if shell.debug {
-            shell.outputln("Debug output is currently enabled. Use DEBUG OFF to disable.");
-        } else {
-            shell.outputln("Debug output is currently disabled. Use DEBUG ON to enable.");
-        }
-        return;
-    }
-    if upper == "DEBUG ON" {
-        shell.debug = true;
-        shell.outputln("Now printing debug output.");
-        return;
-    }
-    if upper == "DEBUG OFF" {
-        shell.debug = false;
-        shell.outputln("Disabled debug output.");
-        return;
-    }
-
-    // Handle UNICODE
-    if upper == "UNICODE" {
-        shell.outputln(&format!(
-            "Encoding: {}\nDefault encoding: utf-8",
-            config.encoding
-        ));
-        return;
-    }
-
-    // Handle LOGIN
-    if upper == "LOGIN" {
-        eprintln!("Usage: LOGIN <username> [<password>]");
-        return;
-    }
-    if upper.starts_with("LOGIN ") {
-        let args = trimmed["LOGIN ".len()..].trim();
-        let parts: Vec<&str> = args.splitn(2, char::is_whitespace).collect();
-        let new_user = parts[0].to_string();
-        let new_pass = if parts.len() > 1 {
-            Some(parts[1].to_string())
-        } else {
-            // Prompt for password
-            eprint!("Password: ");
-            let _ = io::stderr().flush();
-            let mut pass = String::new();
-            if io::stdin().read_line(&mut pass).is_ok() {
-                Some(pass.trim().to_string())
+        // Handle HELP [topic]
+        if upper == "HELP" || upper == "?" || upper.starts_with("HELP ") {
+            if let Some(topic) = upper.strip_prefix("HELP ") {
+                print_help_topic(topic.trim());
             } else {
-                None
+                print_help();
             }
-        };
-        // Reconnect with new credentials
-        let mut new_config = config.clone();
-        new_config.username = Some(new_user);
-        new_config.password = new_pass;
-        match crate::session::CqlSession::connect(&new_config).await {
-            Ok(new_session) => {
-                *session = new_session;
-                shell.outputln("Login successful.");
-            }
-            Err(e) => {
-                eprintln!("Login failed: {e}");
-            }
+            return;
         }
-        return;
-    }
 
-    // Handle COPY TO
-    if upper.starts_with("COPY ") && upper.contains(" TO ") {
-        if config.no_file_io {
-            eprintln!("File I/O is disabled (--no-file-io).");
-        } else {
-            match crate::copy::parse_copy_to(trimmed) {
-                Ok(cmd) => {
-                    let ks = session.current_keyspace();
-                    match crate::copy::execute_copy_to(session, &cmd, ks).await {
-                        Ok(()) => {}
-                        Err(e) => eprintln!("COPY TO error: {e}"),
-                    }
+        // Handle CLEAR/CLS
+        if upper == "CLEAR" || upper == "CLS" {
+            print!("\x1B[2J\x1B[1;1H");
+            return;
+        }
+
+        // Handle CONSISTENCY
+        if upper == "CONSISTENCY" {
+            let cl = session.get_consistency();
+            shell.outputln(&format!("Current consistency level is {cl}."));
+            return;
+        }
+        if let Some(rest) = upper.strip_prefix("CONSISTENCY ") {
+            let level = rest.trim();
+            match session.set_consistency_str(level) {
+                Ok(()) => shell.outputln(&format!("Consistency level set to {level}.")),
+                Err(e) => eprintln!("{e}"),
+            }
+            return;
+        }
+
+        // Handle SERIAL CONSISTENCY
+        if upper == "SERIAL CONSISTENCY" {
+            match session.get_serial_consistency() {
+                Some(scl) => shell.outputln(&format!("Current serial consistency level is {scl}.")),
+                None => shell.outputln("Current serial consistency level is SERIAL."),
+            }
+            return;
+        }
+        if let Some(rest) = upper.strip_prefix("SERIAL CONSISTENCY ") {
+            let level = rest.trim();
+            match session.set_serial_consistency_str(level) {
+                Ok(()) => shell.outputln(&format!("Serial consistency level set to {level}.")),
+                Err(e) => eprintln!("{e}"),
+            }
+            return;
+        }
+
+        // Handle TRACING
+        if upper == "TRACING" || upper == "TRACING OFF" {
+            session.set_tracing(false);
+            shell.outputln("Disabled tracing.");
+            return;
+        }
+        if upper == "TRACING ON" {
+            session.set_tracing(true);
+            shell.outputln("Now tracing requests.");
+            return;
+        }
+
+        // Handle EXPAND
+        if upper == "EXPAND" {
+            if shell.expand {
+                shell.outputln("Expanded output is currently enabled. Use EXPAND OFF to disable.");
+            } else {
+                shell.outputln("Expanded output is currently disabled. Use EXPAND ON to enable.");
+            }
+            return;
+        }
+        if upper == "EXPAND ON" {
+            shell.expand = true;
+            shell.outputln("Now printing expanded output.");
+            return;
+        }
+        if upper == "EXPAND OFF" {
+            shell.expand = false;
+            shell.outputln("Disabled expanded output.");
+            return;
+        }
+
+        // Handle PAGING
+        if upper == "PAGING" {
+            if shell.paging_enabled {
+                shell.outputln("Query paging is currently enabled. Use PAGING OFF to disable.");
+            } else {
+                shell.outputln("Query paging is currently disabled. Use PAGING ON to enable.");
+            }
+            return;
+        }
+        if upper == "PAGING ON" {
+            shell.paging_enabled = true;
+            shell.outputln("Now query paging is enabled.");
+            return;
+        }
+        if upper == "PAGING OFF" {
+            shell.paging_enabled = false;
+            shell.outputln("Disabled paging.");
+            return;
+        }
+        if upper.strip_prefix("PAGING ").is_some() {
+            // Accept PAGING <N> for compatibility — enables paging
+            shell.paging_enabled = true;
+            shell.outputln("Now query paging is enabled.");
+            return;
+        }
+
+        // Handle SOURCE
+        if upper.starts_with("SOURCE ") {
+            let path = trimmed["SOURCE ".len()..].trim();
+            let path = strip_quotes(path);
+            if config.no_file_io {
+                eprintln!("File I/O is disabled (--no-file-io).");
+            } else {
+                execute_source(session, config, shell, path).await;
+            }
+            return;
+        }
+        if upper == "SOURCE" {
+            eprintln!("SOURCE requires a file path argument.");
+            return;
+        }
+
+        // Handle CAPTURE
+        if upper == "CAPTURE" {
+            match &shell.capture_path {
+                Some(path) => {
+                    shell.outputln(&format!("Currently capturing to '{}'.", path.display()))
                 }
-                Err(e) => eprintln!("Invalid COPY TO syntax: {e}"),
+                None => shell.outputln("Not currently capturing."),
             }
+            return;
         }
-        return;
-    }
-
-    // Handle COPY FROM
-    if upper.starts_with("COPY ") && upper.contains(" FROM ") {
-        if config.no_file_io {
-            eprintln!("File I/O is disabled (--no-file-io).");
-        } else {
-            match crate::copy::parse_copy_from(trimmed) {
-                Ok(cmd) => {
-                    let ks = session.current_keyspace();
-                    match crate::copy::execute_copy_from(session, &cmd, ks).await {
-                        Ok(()) => {}
-                        Err(e) => eprintln!("COPY FROM error: {e}"),
+        if upper == "CAPTURE OFF" {
+            if shell.capture_file.is_some() {
+                let path = shell.capture_path.take().unwrap();
+                shell.capture_file = None;
+                shell.outputln(&format!(
+                    "Stopped capture. Output saved to '{}'.",
+                    path.display()
+                ));
+            } else {
+                shell.outputln("Not currently capturing.");
+            }
+            return;
+        }
+        if upper.strip_prefix("CAPTURE ").is_some() {
+            let path = trimmed["CAPTURE ".len()..].trim();
+            let path = strip_quotes(path);
+            if config.no_file_io {
+                eprintln!("File I/O is disabled (--no-file-io).");
+            } else {
+                let expanded = expand_tilde(path);
+                match File::create(&expanded) {
+                    Ok(file) => {
+                        shell.outputln(&format!(
+                            "Now capturing query output to '{}'.",
+                            expanded.display()
+                        ));
+                        shell.capture_file = Some(file);
+                        shell.capture_path = Some(expanded);
                     }
+                    Err(e) => eprintln!("Unable to open '{}' for writing: {e}", expanded.display()),
                 }
-                Err(e) => eprintln!("Invalid COPY FROM syntax: {e}"),
             }
+            return;
         }
-        return;
-    }
 
-    // Handle DESCRIBE / DESC
-    if upper == "DESCRIBE" || upper == "DESC" || upper.starts_with("DESCRIBE ") || upper.starts_with("DESC ") {
-        let args = if upper.starts_with("DESCRIBE ") {
-            trimmed["DESCRIBE ".len()..].trim()
-        } else if upper.starts_with("DESC ") {
-            trimmed["DESC ".len()..].trim()
-        } else {
-            ""
-        };
-        let mut buf = Vec::new();
-        match describe::execute(session, args, &mut buf).await {
-            Ok(()) => shell.display_output(&buf, ""),
-            Err(e) => eprintln!("Error: {e}"),
+        // Handle DEBUG
+        if upper == "DEBUG" {
+            if shell.debug {
+                shell.outputln("Debug output is currently enabled. Use DEBUG OFF to disable.");
+            } else {
+                shell.outputln("Debug output is currently disabled. Use DEBUG ON to enable.");
+            }
+            return;
         }
-        return;
-    }
+        if upper == "DEBUG ON" {
+            shell.debug = true;
+            shell.outputln("Now printing debug output.");
+            return;
+        }
+        if upper == "DEBUG OFF" {
+            shell.debug = false;
+            shell.outputln("Disabled debug output.");
+            return;
+        }
 
-    // Handle SHOW VERSION
-    if upper == "SHOW VERSION" {
-        shell.outputln(&format!("[cqlsh {}]", env!("CARGO_PKG_VERSION")));
-        return;
-    }
+        // Handle UNICODE
+        if upper == "UNICODE" {
+            shell.outputln(&format!(
+                "Encoding: {}\nDefault encoding: utf-8",
+                config.encoding
+            ));
+            return;
+        }
 
-    // Handle SHOW HOST
-    if upper == "SHOW HOST" {
-        shell.outputln(&format!("Connected to: {}", session.connection_display));
-        return;
-    }
+        // Handle LOGIN
+        if upper == "LOGIN" {
+            eprintln!("Usage: LOGIN <username> [<password>]");
+            return;
+        }
+        if upper.starts_with("LOGIN ") {
+            let args = trimmed["LOGIN ".len()..].trim();
+            let parts: Vec<&str> = args.splitn(2, char::is_whitespace).collect();
+            let new_user = parts[0].to_string();
+            let new_pass = if parts.len() > 1 {
+                Some(parts[1].to_string())
+            } else {
+                // Prompt for password
+                eprint!("Password: ");
+                let _ = io::stderr().flush();
+                let mut pass = String::new();
+                if io::stdin().read_line(&mut pass).is_ok() {
+                    Some(pass.trim().to_string())
+                } else {
+                    None
+                }
+            };
+            // Reconnect with new credentials
+            let mut new_config = config.clone();
+            new_config.username = Some(new_user);
+            new_config.password = new_pass;
+            match crate::session::CqlSession::connect(&new_config).await {
+                Ok(new_session) => {
+                    *session = new_session;
+                    shell.outputln("Login successful.");
+                }
+                Err(e) => {
+                    eprintln!("Login failed: {e}");
+                }
+            }
+            return;
+        }
 
-    // Handle SHOW SESSION <uuid>
-    if let Some(rest) = upper.strip_prefix("SHOW SESSION ") {
-        let uuid_str = rest.trim();
-        match uuid::Uuid::parse_str(uuid_str) {
-            Ok(trace_id) => {
-                match session.get_trace_session(trace_id).await {
+        // Handle COPY TO
+        if upper.starts_with("COPY ") && upper.contains(" TO ") {
+            if config.no_file_io {
+                eprintln!("File I/O is disabled (--no-file-io).");
+            } else {
+                match crate::copy::parse_copy_to(trimmed) {
+                    Ok(cmd) => {
+                        let ks = session.current_keyspace();
+                        match crate::copy::execute_copy_to(session, &cmd, ks).await {
+                            Ok(()) => {}
+                            Err(e) => eprintln!("COPY TO error: {e}"),
+                        }
+                    }
+                    Err(e) => eprintln!("Invalid COPY TO syntax: {e}"),
+                }
+            }
+            return;
+        }
+
+        // Handle COPY FROM
+        if upper.starts_with("COPY ") && upper.contains(" FROM ") {
+            if config.no_file_io {
+                eprintln!("File I/O is disabled (--no-file-io).");
+            } else {
+                match crate::copy::parse_copy_from(trimmed) {
+                    Ok(cmd) => {
+                        let ks = session.current_keyspace();
+                        match crate::copy::execute_copy_from(session, &cmd, ks).await {
+                            Ok(()) => {}
+                            Err(e) => eprintln!("COPY FROM error: {e}"),
+                        }
+                    }
+                    Err(e) => eprintln!("Invalid COPY FROM syntax: {e}"),
+                }
+            }
+            return;
+        }
+
+        // Handle DESCRIBE / DESC
+        if upper == "DESCRIBE"
+            || upper == "DESC"
+            || upper.starts_with("DESCRIBE ")
+            || upper.starts_with("DESC ")
+        {
+            let args = if upper.starts_with("DESCRIBE ") {
+                trimmed["DESCRIBE ".len()..].trim()
+            } else if upper.starts_with("DESC ") {
+                trimmed["DESC ".len()..].trim()
+            } else {
+                ""
+            };
+            let mut buf = Vec::new();
+            match describe::execute(session, args, &mut buf).await {
+                Ok(()) => shell.display_output(&buf, ""),
+                Err(e) => eprintln!("Error: {e}"),
+            }
+            return;
+        }
+
+        // Handle SHOW VERSION
+        if upper == "SHOW VERSION" {
+            shell.outputln(&format!("[cqlsh {}]", env!("CARGO_PKG_VERSION")));
+            return;
+        }
+
+        // Handle SHOW HOST
+        if upper == "SHOW HOST" {
+            shell.outputln(&format!("Connected to: {}", session.connection_display));
+            return;
+        }
+
+        // Handle SHOW SESSION <uuid>
+        if let Some(rest) = upper.strip_prefix("SHOW SESSION ") {
+            let uuid_str = rest.trim();
+            match uuid::Uuid::parse_str(uuid_str) {
+                Ok(trace_id) => match session.get_trace_session(trace_id).await {
                     Ok(Some(trace)) => {
                         let mut buf = Vec::new();
                         formatter::print_trace(&trace, &shell.colorizer, &mut buf);
@@ -609,93 +612,95 @@ fn dispatch_input<'a>(
                     }
                     Ok(None) => eprintln!("Trace session {trace_id} not found."),
                     Err(e) => eprintln!("Error fetching trace: {e}"),
-                }
+                },
+                Err(_) => eprintln!("Invalid UUID: {uuid_str}"),
             }
-            Err(_) => eprintln!("Invalid UUID: {uuid_str}"),
+            return;
         }
-        return;
-    }
-    if upper == "SHOW SESSION" {
-        eprintln!("Usage: SHOW SESSION <trace-uuid>");
-        return;
-    }
+        if upper == "SHOW SESSION" {
+            eprintln!("Usage: SHOW SESSION <trace-uuid>");
+            return;
+        }
 
-    // Execute as CQL statement
-    match session.execute(trimmed).await {
-        Ok(result) => {
-            // Sync current keyspace for tab completion after USE
-            let upper_stmt = trimmed.to_uppercase();
-            if upper_stmt.starts_with("USE ") {
-                if let Some(ref shared_ks) = shell.shared_keyspace {
-                    let ks = session.current_keyspace().map(String::from);
-                    let shared = Arc::clone(shared_ks);
-                    *shared.write().await = ks;
-                }
-            }
-
-            // Invalidate schema cache after DDL statements
-            if upper_stmt.starts_with("CREATE ") || upper_stmt.starts_with("ALTER ") || upper_stmt.starts_with("DROP ") {
-                if let Some(ref cache) = shell.schema_cache {
-                    if let Ok(mut c) = cache.try_write() {
-                        c.invalidate();
+        // Execute as CQL statement
+        match session.execute(trimmed).await {
+            Ok(result) => {
+                // Sync current keyspace for tab completion after USE
+                let upper_stmt = trimmed.to_uppercase();
+                if upper_stmt.starts_with("USE ") {
+                    if let Some(ref shared_ks) = shell.shared_keyspace {
+                        let ks = session.current_keyspace().map(String::from);
+                        let shared = Arc::clone(shared_ks);
+                        *shared.write().await = ks;
                     }
                 }
-            }
 
-            // Print warnings if present (red bold when colored)
-            for warning in &result.warnings {
-                let msg = format!("Warnings: {warning}");
-                eprintln!("{}", shell.colorizer.colorize_warning(&msg));
-            }
-
-            if !result.columns.is_empty() {
-                // Build column list for pager title (sticky header context)
-                let col_title = result
-                    .columns
-                    .iter()
-                    .map(|c| c.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(" | ");
-
-                let mut buf = Vec::new();
-                if shell.expand {
-                    formatter::print_expanded(&result, &shell.colorizer, &mut buf);
-                } else {
-                    formatter::print_tabular(&result, &shell.colorizer, &mut buf);
-                }
-                shell.display_output(&buf, &col_title);
-            }
-
-            // Print trace info if tracing is enabled
-            if session.is_tracing_enabled() {
-                if let Some(trace_id) = result.tracing_id {
-                    // Brief delay to allow trace data to propagate
-                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                    match session.get_trace_session(trace_id).await {
-                        Ok(Some(trace)) => {
-                            let mut buf = Vec::new();
-                            formatter::print_trace(&trace, &shell.colorizer, &mut buf);
-                            shell.display_output(&buf, "");
+                // Invalidate schema cache after DDL statements
+                if upper_stmt.starts_with("CREATE ")
+                    || upper_stmt.starts_with("ALTER ")
+                    || upper_stmt.starts_with("DROP ")
+                {
+                    if let Some(ref cache) = shell.schema_cache {
+                        if let Ok(mut c) = cache.try_write() {
+                            c.invalidate();
                         }
-                        Ok(None) => {
-                            shell.outputln(&format!(
+                    }
+                }
+
+                // Print warnings if present (red bold when colored)
+                for warning in &result.warnings {
+                    let msg = format!("Warnings: {warning}");
+                    eprintln!("{}", shell.colorizer.colorize_warning(&msg));
+                }
+
+                if !result.columns.is_empty() {
+                    // Build column list for pager title (sticky header context)
+                    let col_title = result
+                        .columns
+                        .iter()
+                        .map(|c| c.name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(" | ");
+
+                    let mut buf = Vec::new();
+                    if shell.expand {
+                        formatter::print_expanded(&result, &shell.colorizer, &mut buf);
+                    } else {
+                        formatter::print_tabular(&result, &shell.colorizer, &mut buf);
+                    }
+                    shell.display_output(&buf, &col_title);
+                }
+
+                // Print trace info if tracing is enabled
+                if session.is_tracing_enabled() {
+                    if let Some(trace_id) = result.tracing_id {
+                        // Brief delay to allow trace data to propagate
+                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                        match session.get_trace_session(trace_id).await {
+                            Ok(Some(trace)) => {
+                                let mut buf = Vec::new();
+                                formatter::print_trace(&trace, &shell.colorizer, &mut buf);
+                                shell.display_output(&buf, "");
+                            }
+                            Ok(None) => {
+                                shell.outputln(&format!(
                                 "Trace {trace_id} not yet available. Use SHOW SESSION {trace_id} to view later."
                             ));
-                        }
-                        Err(e) => {
-                            eprintln!("Error fetching trace: {e}");
+                            }
+                            Err(e) => {
+                                eprintln!("Error fetching trace: {e}");
+                            }
                         }
                     }
                 }
             }
-        }
-        Err(e) => {
-            eprintln!("{}", error::format_error_colored(&e, &shell.colorizer));
-            if config.debug {
-                eprintln!("Debug: {e:?}");
+            Err(e) => {
+                eprintln!("{}", error::format_error_colored(&e, &shell.colorizer));
+                if config.debug {
+                    eprintln!("Debug: {e:?}");
+                }
             }
         }
-    }
     })
 }
 
@@ -735,18 +740,64 @@ CQL statements (executed via the database):
 /// For now, print a message indicating the topic exists or is unknown.
 fn print_help_topic(topic: &str) {
     let shell_commands = [
-        "CAPTURE", "CLEAR", "CLS", "CONSISTENCY", "COPY", "DESC", "DESCRIBE",
-        "EXIT", "EXPAND", "HELP", "LOGIN", "PAGING", "QUIT", "SERIAL",
-        "SHOW", "SOURCE", "TRACING", "UNICODE", "DEBUG", "USE",
+        "CAPTURE",
+        "CLEAR",
+        "CLS",
+        "CONSISTENCY",
+        "COPY",
+        "DESC",
+        "DESCRIBE",
+        "EXIT",
+        "EXPAND",
+        "HELP",
+        "LOGIN",
+        "PAGING",
+        "QUIT",
+        "SERIAL",
+        "SHOW",
+        "SOURCE",
+        "TRACING",
+        "UNICODE",
+        "DEBUG",
+        "USE",
     ];
     let cql_topics = [
-        "AGGREGATES", "ALTER_KEYSPACE", "ALTER_TABLE", "ALTER_TYPE", "ALTER_USER",
-        "APPLY", "BEGIN", "CREATE_AGGREGATE", "CREATE_FUNCTION", "CREATE_INDEX",
-        "CREATE_KEYSPACE", "CREATE_TABLE", "CREATE_TRIGGER", "CREATE_TYPE",
-        "CREATE_USER", "DELETE", "DROP_AGGREGATE", "DROP_FUNCTION", "DROP_INDEX",
-        "DROP_KEYSPACE", "DROP_TABLE", "DROP_TRIGGER", "DROP_TYPE", "DROP_USER",
-        "GRANT", "INSERT", "LIST_PERMISSIONS", "LIST_USERS", "PERMISSIONS",
-        "REVOKE", "SELECT", "TEXT_OUTPUT", "TRUNCATE", "TYPES", "UPDATE", "USE",
+        "AGGREGATES",
+        "ALTER_KEYSPACE",
+        "ALTER_TABLE",
+        "ALTER_TYPE",
+        "ALTER_USER",
+        "APPLY",
+        "BEGIN",
+        "CREATE_AGGREGATE",
+        "CREATE_FUNCTION",
+        "CREATE_INDEX",
+        "CREATE_KEYSPACE",
+        "CREATE_TABLE",
+        "CREATE_TRIGGER",
+        "CREATE_TYPE",
+        "CREATE_USER",
+        "DELETE",
+        "DROP_AGGREGATE",
+        "DROP_FUNCTION",
+        "DROP_INDEX",
+        "DROP_KEYSPACE",
+        "DROP_TABLE",
+        "DROP_TRIGGER",
+        "DROP_TYPE",
+        "DROP_USER",
+        "GRANT",
+        "INSERT",
+        "LIST_PERMISSIONS",
+        "LIST_USERS",
+        "PERMISSIONS",
+        "REVOKE",
+        "SELECT",
+        "TEXT_OUTPUT",
+        "TRUNCATE",
+        "TYPES",
+        "UPDATE",
+        "USE",
     ];
 
     let upper = topic.to_uppercase();
@@ -792,43 +843,43 @@ fn execute_source<'a>(
     path: &'a str,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + 'a>> {
     Box::pin(async move {
-    let expanded = expand_tilde(path);
-    let file = match File::open(&expanded) {
-        Ok(f) => f,
-        Err(e) => {
-            eprintln!("Could not open '{}': {e}", expanded.display());
-            return;
-        }
-    };
-
-    let reader = io::BufReader::new(file);
-    let mut parser = StatementParser::new();
-
-    for line_result in reader.lines() {
-        let line = match line_result {
-            Ok(l) => l,
+        let expanded = expand_tilde(path);
+        let file = match File::open(&expanded) {
+            Ok(f) => f,
             Err(e) => {
-                eprintln!("Error reading '{}': {e}", expanded.display());
+                eprintln!("Could not open '{}': {e}", expanded.display());
                 return;
             }
         };
 
-        // Check if it's a shell command on a fresh line
-        let trimmed = line.trim();
-        if parser.is_empty() && !trimmed.is_empty() && parser::is_shell_command(trimmed) {
-            dispatch_input(session, config, shell, trimmed).await;
-            continue;
-        }
+        let reader = io::BufReader::new(file);
+        let mut parser = StatementParser::new();
 
-        match parser.feed_line(&line) {
-            ParseResult::Complete(statements) => {
-                for stmt in statements {
-                    dispatch_input(session, config, shell, &stmt).await;
+        for line_result in reader.lines() {
+            let line = match line_result {
+                Ok(l) => l,
+                Err(e) => {
+                    eprintln!("Error reading '{}': {e}", expanded.display());
+                    return;
                 }
+            };
+
+            // Check if it's a shell command on a fresh line
+            let trimmed = line.trim();
+            if parser.is_empty() && !trimmed.is_empty() && parser::is_shell_command(trimmed) {
+                dispatch_input(session, config, shell, trimmed).await;
+                continue;
             }
-            ParseResult::Incomplete => {}
+
+            match parser.feed_line(&line) {
+                ParseResult::Complete(statements) => {
+                    for stmt in statements {
+                        dispatch_input(session, config, shell, &stmt).await;
+                    }
+                }
+                ParseResult::Incomplete => {}
+            }
         }
-    }
     })
 }
 
@@ -885,7 +936,10 @@ mod tests {
 
     #[test]
     fn expand_tilde_plain_path() {
-        assert_eq!(expand_tilde("/tmp/file.cql"), PathBuf::from("/tmp/file.cql"));
+        assert_eq!(
+            expand_tilde("/tmp/file.cql"),
+            PathBuf::from("/tmp/file.cql")
+        );
     }
 
     #[test]
@@ -988,7 +1042,9 @@ mod tests {
 
     #[test]
     fn show_session_bare_detected_as_shell_command() {
-        assert!(parser::is_shell_command("SHOW SESSION 12345678-1234-1234-1234-123456789abc"));
+        assert!(parser::is_shell_command(
+            "SHOW SESSION 12345678-1234-1234-1234-123456789abc"
+        ));
         assert!(parser::is_shell_command("SHOW SESSION"));
     }
 
@@ -1045,11 +1101,7 @@ mod tests {
 
     #[test]
     fn source_file_line_by_line_detects_shell_commands() {
-        let lines = vec![
-            "CONSISTENCY QUORUM",
-            "SELECT * FROM t;",
-            "SHOW HOST",
-        ];
+        let lines = vec!["CONSISTENCY QUORUM", "SELECT * FROM t;", "SHOW HOST"];
         let mut shell_cmds = Vec::new();
         let mut cql_stmts = Vec::new();
         let mut parser = StatementParser::new();

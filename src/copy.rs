@@ -87,8 +87,8 @@ pub fn parse_copy_to(input: &str) -> Result<CopyToCommand> {
     }
 
     // Find the TO keyword (case-insensitive), but not inside parentheses
-    let to_pos = find_keyword_outside_parens(trimmed, "TO")
-        .context("COPY statement missing TO keyword")?;
+    let to_pos =
+        find_keyword_outside_parens(trimmed, "TO").context("COPY statement missing TO keyword")?;
 
     let before_to = trimmed[4..to_pos].trim(); // skip "COPY"
     let after_to = trimmed[to_pos + 2..].trim(); // skip "TO"
@@ -147,8 +147,7 @@ pub async fn execute_copy_to(
             let mut wtr = build_csv_writer(&cmd.options, buf);
 
             if cmd.options.header {
-                let headers: Vec<String> =
-                    result.columns.iter().map(|c| c.name.clone()).collect();
+                let headers: Vec<String> = result.columns.iter().map(|c| c.name.clone()).collect();
                 wtr.write_record(&headers)?;
             }
 
@@ -174,11 +173,7 @@ pub async fn execute_copy_to(
             }
 
             wtr.flush()?;
-            println!(
-                "{} rows exported to '{}'.",
-                row_count,
-                path.display()
-            );
+            println!("{} rows exported to '{}'.", row_count, path.display());
         }
         CopyTarget::Stdout => {
             let stdout = std::io::stdout();
@@ -186,8 +181,7 @@ pub async fn execute_copy_to(
             let mut wtr = build_csv_writer(&cmd.options, handle);
 
             if cmd.options.header {
-                let headers: Vec<String> =
-                    result.columns.iter().map(|c| c.name.clone()).collect();
+                let headers: Vec<String> = result.columns.iter().map(|c| c.name.clone()).collect();
                 wtr.write_record(&headers)?;
             }
 
@@ -357,10 +351,8 @@ fn find_keyword_outside_parens(s: &str, keyword: &str) -> Option<usize> {
             // Check if keyword matches at this position, surrounded by word boundaries
             if i + kw_len <= upper.len() && upper[i..i + kw_len] == *kw_upper {
                 // Check word boundaries
-                let before_ok =
-                    i == 0 || !bytes[i - 1].is_ascii_alphanumeric();
-                let after_ok = i + kw_len >= s.len()
-                    || !bytes[i + kw_len].is_ascii_alphanumeric();
+                let before_ok = i == 0 || !bytes[i - 1].is_ascii_alphanumeric();
+                let after_ok = i + kw_len >= s.len() || !bytes[i + kw_len].is_ascii_alphanumeric();
                 if before_ok && after_ok {
                     return Some(i);
                 }
@@ -493,14 +485,11 @@ fn parse_options(options_str: &str) -> Result<CopyOptions> {
                 opts.encoding = val;
             }
             "FLOATPRECISION" => {
-                opts.float_precision = val
-                    .parse()
-                    .context("FLOATPRECISION must be an integer")?;
+                opts.float_precision = val.parse().context("FLOATPRECISION must be an integer")?;
             }
             "DOUBLEPRECISION" => {
-                opts.double_precision = val
-                    .parse()
-                    .context("DOUBLEPRECISION must be an integer")?;
+                opts.double_precision =
+                    val.parse().context("DOUBLEPRECISION must be an integer")?;
             }
             "DECIMALSEP" => {
                 opts.decimal_sep = val
@@ -528,9 +517,7 @@ fn parse_options(options_str: &str) -> Result<CopyOptions> {
                 opts.max_output_size = Some(n);
             }
             "REPORTFREQUENCY" => {
-                let n: usize = val
-                    .parse()
-                    .context("REPORTFREQUENCY must be an integer")?;
+                let n: usize = val.parse().context("REPORTFREQUENCY must be an integer")?;
                 opts.report_frequency = if n == 0 { None } else { Some(n) };
             }
             other => {
@@ -608,8 +595,7 @@ fn split_on_and(s: &str) -> Vec<String> {
 fn unquote(s: &str) -> String {
     let s = s.trim();
     if s.len() >= 2
-        && ((s.starts_with('\'') && s.ends_with('\''))
-            || (s.starts_with('"') && s.ends_with('"')))
+        && ((s.starts_with('\'') && s.ends_with('\'')) || (s.starts_with('"') && s.ends_with('"')))
     {
         return s[1..s.len() - 1].to_string();
     }
@@ -1033,9 +1019,13 @@ pub async fn execute_copy_from(
 
     // When HEADER=true and no explicit columns, use CSV header for column order
     let column_names = if cmd.options.header && cmd.columns.is_none() {
-        let headers = csv_reader.headers()
+        let headers = csv_reader
+            .headers()
             .context("failed to read CSV header row")?;
-        headers.iter().map(|h| h.trim().to_string()).collect::<Vec<_>>()
+        headers
+            .iter()
+            .map(|h| h.trim().to_string())
+            .collect::<Vec<_>>()
     } else {
         column_names
     };
@@ -1065,9 +1055,7 @@ pub async fn execute_copy_from(
                 }
                 if let Some(max) = cmd.options.max_parse_errors {
                     if parse_errors > max {
-                        bail!(
-                            "Exceeded maximum number of parse errors ({max}). Aborting import."
-                        );
+                        bail!("Exceeded maximum number of parse errors ({max}). Aborting import.");
                     }
                 }
                 continue;
@@ -1121,9 +1109,7 @@ pub async fn execute_copy_from(
                 }
                 if let Some(max) = cmd.options.max_insert_errors {
                     if insert_errors > max {
-                        bail!(
-                            "Exceeded maximum number of insert errors ({max}). Aborting import."
-                        );
+                        bail!("Exceeded maximum number of insert errors ({max}). Aborting import.");
                     }
                 }
             }
@@ -1161,7 +1147,10 @@ mod tests {
         assert_eq!(cmd.keyspace, Some("ks".to_string()));
         assert_eq!(cmd.table, "table");
         assert_eq!(cmd.columns, None);
-        assert_eq!(cmd.filename, CopyTarget::File(PathBuf::from("/tmp/out.csv")));
+        assert_eq!(
+            cmd.filename,
+            CopyTarget::File(PathBuf::from("/tmp/out.csv"))
+        );
     }
 
     #[test]
@@ -1173,7 +1162,10 @@ mod tests {
             cmd.columns,
             Some(vec!["col1".to_string(), "col2".to_string()])
         );
-        assert_eq!(cmd.filename, CopyTarget::File(PathBuf::from("/tmp/out.csv")));
+        assert_eq!(
+            cmd.filename,
+            CopyTarget::File(PathBuf::from("/tmp/out.csv"))
+        );
     }
 
     #[test]
@@ -1184,10 +1176,9 @@ mod tests {
 
     #[test]
     fn parse_copy_to_with_options() {
-        let cmd = parse_copy_to(
-            "COPY ks.table TO '/tmp/out.csv' WITH DELIMITER='|' AND HEADER=true",
-        )
-        .unwrap();
+        let cmd =
+            parse_copy_to("COPY ks.table TO '/tmp/out.csv' WITH DELIMITER='|' AND HEADER=true")
+                .unwrap();
         assert_eq!(cmd.options.delimiter, '|');
         assert!(cmd.options.header);
     }
@@ -1315,10 +1306,7 @@ mod tests {
         .unwrap();
         assert_eq!(cmd.options.max_parse_errors, Some(100));
         assert_eq!(cmd.options.max_insert_errors, Some(50));
-        assert_eq!(
-            cmd.options.err_file,
-            Some(PathBuf::from("/tmp/err.log"))
-        );
+        assert_eq!(cmd.options.err_file, Some(PathBuf::from("/tmp/err.log")));
     }
 
     #[test]

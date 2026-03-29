@@ -11,19 +11,101 @@ use crate::driver::types::CqlValue;
 
 /// Set of CQL keywords to highlight (uppercase for matching).
 const KEYWORDS: &[&str] = &[
-    "ADD", "ALTER", "AND", "APPLY", "AS", "ASC", "AUTHORIZE", "BATCH", "BEGIN",
-    "BY", "CALLED", "CLUSTERING", "COLUMN", "COMPACT", "CONTAINS", "COUNT",
-    "CREATE", "CUSTOM", "DELETE", "DESC", "DESCRIBE", "DISTINCT", "DROP",
-    "ENTRIES", "EXECUTE", "EXISTS", "FILTERING", "FROM", "FROZEN", "FULL",
-    "FUNCTION", "GRANT", "IF", "IN", "INDEX", "INSERT", "INTO", "IS", "JSON",
-    "KEY", "KEYSPACE", "KEYSPACES", "LANGUAGE", "LIKE", "LIMIT", "LIST",
-    "LOGIN", "MAP", "MATERIALIZED", "MODIFY", "NAMESPACE", "NOT", "NULL",
-    "OF", "ON", "OR", "ORDER", "PARTITION", "PASSWORD", "PER", "PERMISSION",
-    "PERMISSIONS", "PRIMARY", "RENAME", "REPLACE", "RETURNS", "REVOKE",
-    "SCHEMA", "SELECT", "SET", "STATIC", "STORAGE", "SUPERUSER", "TABLE",
-    "TABLES", "TEXT", "TIMESTAMP", "TO", "TOKEN", "TRIGGER", "TRUNCATE",
-    "TTL", "TUPLE", "TYPE", "UNLOGGED", "UPDATE", "USE", "USER", "USERS",
-    "USING", "VALUES", "VIEW", "WHERE", "WITH", "WRITETIME",
+    "ADD",
+    "ALTER",
+    "AND",
+    "APPLY",
+    "AS",
+    "ASC",
+    "AUTHORIZE",
+    "BATCH",
+    "BEGIN",
+    "BY",
+    "CALLED",
+    "CLUSTERING",
+    "COLUMN",
+    "COMPACT",
+    "CONTAINS",
+    "COUNT",
+    "CREATE",
+    "CUSTOM",
+    "DELETE",
+    "DESC",
+    "DESCRIBE",
+    "DISTINCT",
+    "DROP",
+    "ENTRIES",
+    "EXECUTE",
+    "EXISTS",
+    "FILTERING",
+    "FROM",
+    "FROZEN",
+    "FULL",
+    "FUNCTION",
+    "GRANT",
+    "IF",
+    "IN",
+    "INDEX",
+    "INSERT",
+    "INTO",
+    "IS",
+    "JSON",
+    "KEY",
+    "KEYSPACE",
+    "KEYSPACES",
+    "LANGUAGE",
+    "LIKE",
+    "LIMIT",
+    "LIST",
+    "LOGIN",
+    "MAP",
+    "MATERIALIZED",
+    "MODIFY",
+    "NAMESPACE",
+    "NOT",
+    "NULL",
+    "OF",
+    "ON",
+    "OR",
+    "ORDER",
+    "PARTITION",
+    "PASSWORD",
+    "PER",
+    "PERMISSION",
+    "PERMISSIONS",
+    "PRIMARY",
+    "RENAME",
+    "REPLACE",
+    "RETURNS",
+    "REVOKE",
+    "SCHEMA",
+    "SELECT",
+    "SET",
+    "STATIC",
+    "STORAGE",
+    "SUPERUSER",
+    "TABLE",
+    "TABLES",
+    "TEXT",
+    "TIMESTAMP",
+    "TO",
+    "TOKEN",
+    "TRIGGER",
+    "TRUNCATE",
+    "TTL",
+    "TUPLE",
+    "TYPE",
+    "UNLOGGED",
+    "UPDATE",
+    "USE",
+    "USER",
+    "USERS",
+    "USING",
+    "VALUES",
+    "VIEW",
+    "WHERE",
+    "WITH",
+    "WRITETIME",
 ];
 
 /// CQL syntax colorizer using ANSI escape codes.
@@ -369,7 +451,10 @@ mod tests {
     fn mixed_case_keywords() {
         let c = CqlColorizer::new(true);
         let output = c.colorize_line("select * from users");
-        assert!(output.contains("\x1b["), "lowercase keywords should also be highlighted");
+        assert!(
+            output.contains("\x1b["),
+            "lowercase keywords should also be highlighted"
+        );
     }
 
     #[test]
@@ -453,10 +538,7 @@ mod tests {
     #[test]
     fn colorize_map_with_colored_elements() {
         let c = CqlColorizer::new(true);
-        let map = CqlValue::Map(vec![(
-            CqlValue::Text("key".to_string()),
-            CqlValue::Int(42),
-        )]);
+        let map = CqlValue::Map(vec![(CqlValue::Text("key".to_string()), CqlValue::Int(42))]);
         let output = c.colorize_value(&map);
         assert!(output.contains("\x1b["), "should contain ANSI codes");
     }
@@ -468,7 +550,10 @@ mod tests {
             keyspace: "ks".to_string(),
             type_name: "my_type".to_string(),
             fields: vec![
-                ("name".to_string(), Some(CqlValue::Text("Alice".to_string()))),
+                (
+                    "name".to_string(),
+                    Some(CqlValue::Text("Alice".to_string())),
+                ),
                 ("age".to_string(), Some(CqlValue::Int(30))),
             ],
         };

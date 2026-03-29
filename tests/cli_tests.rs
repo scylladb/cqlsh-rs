@@ -231,19 +231,12 @@ fn help_flag_shows_tty() {
 fn stdin_pipe_empty_exits_with_code_2() {
     // assert_cmd's write_stdin provides a closed pipe, so stdin.is_terminal() = false.
     // The binary connects first (fails → exit 2) before reading any stdin.
-    cmd()
-        .write_stdin("")
-        .assert()
-        .code(2);
+    cmd().write_stdin("").assert().code(2);
 }
 
 #[test]
 fn tty_flag_accepted_with_piped_stdin() {
     // --tty forces REPL path even when stdin is a pipe.
     // Without a cluster both paths still fail at connection → exit 2.
-    cmd()
-        .arg("--tty")
-        .write_stdin("")
-        .assert()
-        .code(2);
+    cmd().arg("--tty").write_stdin("").assert().code(2);
 }

@@ -266,7 +266,11 @@ mod tests {
             "ks1".to_string(),
             vec![
                 make_table("ks1", "users", &[("id", "uuid"), ("name", "text")]),
-                make_table("ks1", "orders", &[("order_id", "uuid"), ("total", "decimal")]),
+                make_table(
+                    "ks1",
+                    "orders",
+                    &[("order_id", "uuid"), ("total", "decimal")],
+                ),
             ],
         );
         cache.tables.insert(
@@ -297,7 +301,10 @@ mod tests {
     #[test]
     fn new_cache_is_empty_and_stale() {
         let cache = SchemaCache::new();
-        assert!(cache.is_stale(), "fresh cache should be stale (never refreshed)");
+        assert!(
+            cache.is_stale(),
+            "fresh cache should be stale (never refreshed)"
+        );
         assert!(cache.keyspace_names().is_empty());
     }
 

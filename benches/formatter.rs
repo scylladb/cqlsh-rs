@@ -39,10 +39,22 @@ fn no_color() -> CqlColorizer {
 /// Schema: `(id int, name text, score float, active boolean)`
 fn make_result(n: usize) -> CqlResult {
     let columns = vec![
-        CqlColumn { name: "id".to_string(),     type_name: "int".to_string() },
-        CqlColumn { name: "name".to_string(),   type_name: "text".to_string() },
-        CqlColumn { name: "score".to_string(),  type_name: "float".to_string() },
-        CqlColumn { name: "active".to_string(), type_name: "boolean".to_string() },
+        CqlColumn {
+            name: "id".to_string(),
+            type_name: "int".to_string(),
+        },
+        CqlColumn {
+            name: "name".to_string(),
+            type_name: "text".to_string(),
+        },
+        CqlColumn {
+            name: "score".to_string(),
+            type_name: "float".to_string(),
+        },
+        CqlColumn {
+            name: "active".to_string(),
+            type_name: "boolean".to_string(),
+        },
     ];
 
     let rows = (0..n)
@@ -56,17 +68,29 @@ fn make_result(n: usize) -> CqlResult {
         })
         .collect();
 
-    CqlResult { columns, rows, has_rows: true, tracing_id: None, warnings: vec![] }
+    CqlResult {
+        columns,
+        rows,
+        has_rows: true,
+        tracing_id: None,
+        warnings: vec![],
+    }
 }
 
 // Pre-built results for the table benchmarks — built once, reused across iters.
-static RESULT_10:   OnceLock<CqlResult> = OnceLock::new();
-static RESULT_100:  OnceLock<CqlResult> = OnceLock::new();
+static RESULT_10: OnceLock<CqlResult> = OnceLock::new();
+static RESULT_100: OnceLock<CqlResult> = OnceLock::new();
 static RESULT_1000: OnceLock<CqlResult> = OnceLock::new();
 
-fn result_10()   -> &'static CqlResult { RESULT_10.get_or_init(||   make_result(10)) }
-fn result_100()  -> &'static CqlResult { RESULT_100.get_or_init(||  make_result(100)) }
-fn result_1000() -> &'static CqlResult { RESULT_1000.get_or_init(|| make_result(1000)) }
+fn result_10() -> &'static CqlResult {
+    RESULT_10.get_or_init(|| make_result(10))
+}
+fn result_100() -> &'static CqlResult {
+    RESULT_100.get_or_init(|| make_result(100))
+}
+fn result_1000() -> &'static CqlResult {
+    RESULT_1000.get_or_init(|| make_result(1000))
+}
 
 // ---------------------------------------------------------------------------
 // format_table/{10,100,1000}
@@ -76,7 +100,11 @@ fn bench_format_table(c: &mut Criterion) {
     let color = no_color();
     let mut group = c.benchmark_group("format_table");
 
-    for (size, result) in [(10, result_10()), (100, result_100()), (1000, result_1000())] {
+    for (size, result) in [
+        (10, result_10()),
+        (100, result_100()),
+        (1000, result_1000()),
+    ] {
         group.bench_with_input(BenchmarkId::from_parameter(size), result, |b, r| {
             b.iter(|| {
                 let mut buf = Vec::with_capacity(size * 40);
@@ -183,30 +211,102 @@ fn each_type_result() -> &'static CqlResult {
         let test_uuid = Uuid::parse_str("550e8400-e29b-41d4-a716-446655440000").unwrap();
 
         let columns = vec![
-            CqlColumn { name: "ascii_col".to_string(),    type_name: "ascii".to_string() },
-            CqlColumn { name: "boolean_col".to_string(),  type_name: "boolean".to_string() },
-            CqlColumn { name: "bigint_col".to_string(),   type_name: "bigint".to_string() },
-            CqlColumn { name: "blob_col".to_string(),     type_name: "blob".to_string() },
-            CqlColumn { name: "counter_col".to_string(),  type_name: "counter".to_string() },
-            CqlColumn { name: "double_col".to_string(),   type_name: "double".to_string() },
-            CqlColumn { name: "duration_col".to_string(), type_name: "duration".to_string() },
-            CqlColumn { name: "float_col".to_string(),    type_name: "float".to_string() },
-            CqlColumn { name: "int_col".to_string(),      type_name: "int".to_string() },
-            CqlColumn { name: "smallint_col".to_string(), type_name: "smallint".to_string() },
-            CqlColumn { name: "tinyint_col".to_string(),  type_name: "tinyint".to_string() },
-            CqlColumn { name: "timestamp_col".to_string(),type_name: "timestamp".to_string() },
-            CqlColumn { name: "uuid_col".to_string(),     type_name: "uuid".to_string() },
-            CqlColumn { name: "timeuuid_col".to_string(), type_name: "timeuuid".to_string() },
-            CqlColumn { name: "inet_col".to_string(),     type_name: "inet".to_string() },
-            CqlColumn { name: "date_col".to_string(),     type_name: "date".to_string() },
-            CqlColumn { name: "time_col".to_string(),     type_name: "time".to_string() },
-            CqlColumn { name: "text_col".to_string(),     type_name: "text".to_string() },
-            CqlColumn { name: "varint_col".to_string(),   type_name: "varint".to_string() },
-            CqlColumn { name: "list_col".to_string(),     type_name: "list<int>".to_string() },
-            CqlColumn { name: "set_col".to_string(),      type_name: "set<text>".to_string() },
-            CqlColumn { name: "map_col".to_string(),      type_name: "map<text,int>".to_string() },
-            CqlColumn { name: "tuple_col".to_string(),    type_name: "tuple<int,text>".to_string() },
-            CqlColumn { name: "null_col".to_string(),     type_name: "text".to_string() },
+            CqlColumn {
+                name: "ascii_col".to_string(),
+                type_name: "ascii".to_string(),
+            },
+            CqlColumn {
+                name: "boolean_col".to_string(),
+                type_name: "boolean".to_string(),
+            },
+            CqlColumn {
+                name: "bigint_col".to_string(),
+                type_name: "bigint".to_string(),
+            },
+            CqlColumn {
+                name: "blob_col".to_string(),
+                type_name: "blob".to_string(),
+            },
+            CqlColumn {
+                name: "counter_col".to_string(),
+                type_name: "counter".to_string(),
+            },
+            CqlColumn {
+                name: "double_col".to_string(),
+                type_name: "double".to_string(),
+            },
+            CqlColumn {
+                name: "duration_col".to_string(),
+                type_name: "duration".to_string(),
+            },
+            CqlColumn {
+                name: "float_col".to_string(),
+                type_name: "float".to_string(),
+            },
+            CqlColumn {
+                name: "int_col".to_string(),
+                type_name: "int".to_string(),
+            },
+            CqlColumn {
+                name: "smallint_col".to_string(),
+                type_name: "smallint".to_string(),
+            },
+            CqlColumn {
+                name: "tinyint_col".to_string(),
+                type_name: "tinyint".to_string(),
+            },
+            CqlColumn {
+                name: "timestamp_col".to_string(),
+                type_name: "timestamp".to_string(),
+            },
+            CqlColumn {
+                name: "uuid_col".to_string(),
+                type_name: "uuid".to_string(),
+            },
+            CqlColumn {
+                name: "timeuuid_col".to_string(),
+                type_name: "timeuuid".to_string(),
+            },
+            CqlColumn {
+                name: "inet_col".to_string(),
+                type_name: "inet".to_string(),
+            },
+            CqlColumn {
+                name: "date_col".to_string(),
+                type_name: "date".to_string(),
+            },
+            CqlColumn {
+                name: "time_col".to_string(),
+                type_name: "time".to_string(),
+            },
+            CqlColumn {
+                name: "text_col".to_string(),
+                type_name: "text".to_string(),
+            },
+            CqlColumn {
+                name: "varint_col".to_string(),
+                type_name: "varint".to_string(),
+            },
+            CqlColumn {
+                name: "list_col".to_string(),
+                type_name: "list<int>".to_string(),
+            },
+            CqlColumn {
+                name: "set_col".to_string(),
+                type_name: "set<text>".to_string(),
+            },
+            CqlColumn {
+                name: "map_col".to_string(),
+                type_name: "map<text,int>".to_string(),
+            },
+            CqlColumn {
+                name: "tuple_col".to_string(),
+                type_name: "tuple<int,text>".to_string(),
+            },
+            CqlColumn {
+                name: "null_col".to_string(),
+                type_name: "text".to_string(),
+            },
         ];
 
         let row = CqlRow {
@@ -217,7 +317,11 @@ fn each_type_result() -> &'static CqlResult {
                 CqlValue::Blob(vec![0xde, 0xad, 0xbe, 0xef]),
                 CqlValue::Counter(42),
                 CqlValue::Double(std::f64::consts::PI),
-                CqlValue::Duration { months: 1, days: 2, nanoseconds: 3_000_000_000 },
+                CqlValue::Duration {
+                    months: 1,
+                    days: 2,
+                    nanoseconds: 3_000_000_000,
+                },
                 CqlValue::Float(std::f32::consts::E),
                 CqlValue::Int(2_147_483_647),
                 CqlValue::SmallInt(32_767),

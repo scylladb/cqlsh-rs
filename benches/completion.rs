@@ -30,7 +30,11 @@ fn make_completer() -> (CqlCompleter, tokio::runtime::Runtime) {
 }
 
 /// Perform a completion and return the results.
-fn do_complete(completer: &CqlCompleter, line: &str, pos: usize) -> Vec<rustyline::completion::Pair> {
+fn do_complete(
+    completer: &CqlCompleter,
+    line: &str,
+    pos: usize,
+) -> Vec<rustyline::completion::Pair> {
     // We need a rustyline Context, but the completer doesn't use it.
     // Create a minimal history for the context.
     let history = rustyline::history::DefaultHistory::new();
@@ -121,7 +125,13 @@ fn bench_complete_consistency(c: &mut Criterion) {
     });
 
     group.bench_function("serial", |b| {
-        b.iter(|| black_box(do_complete(&completer, black_box("SERIAL CONSISTENCY "), 19)))
+        b.iter(|| {
+            black_box(do_complete(
+                &completer,
+                black_box("SERIAL CONSISTENCY "),
+                19,
+            ))
+        })
     });
 
     group.finish();

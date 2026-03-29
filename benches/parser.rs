@@ -47,8 +47,7 @@ SELECT * FROM users;
 const DOLLAR_QUOTED: &str =
     "CREATE FUNCTION ks.my_func() RETURNS NULL ON NULL INPUT RETURNS text LANGUAGE java AS $$return input;$$;";
 
-const NESTED_COMMENTS: &str =
-    "SELECT /* outer /* inner */ still comment */ * FROM users;";
+const NESTED_COMMENTS: &str = "SELECT /* outer /* inner */ still comment */ * FROM users;";
 
 // ---------------------------------------------------------------------------
 // Benchmarks: Single statement parsing
@@ -163,9 +162,7 @@ fn bench_parse_batch(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("insert_statements", count),
             &input,
-            |b, input| {
-                b.iter(|| black_box(parse_batch(black_box(input))))
-            },
+            |b, input| b.iter(|| black_box(parse_batch(black_box(input)))),
         );
     }
 
