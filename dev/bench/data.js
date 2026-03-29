@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774820500530,
+  "lastUpdate": 1774821402865,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -3526,6 +3526,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 96046,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "940f113d8da90e2cd372b28e903e67051eaa5091",
+          "message": "test(SP19): add DESCRIBE, COPY TO/FROM, and SSL integration tests (Phase 6)\n\nExtends the integration test suite with three new test modules:\n\n- describe_tests.rs — 18 tests covering DESCRIBE KEYSPACE(S), TABLE(S),\n  INDEX, TYPE(S), CLUSTER, SCHEMA, FULL SCHEMA, MATERIALIZED VIEW, FUNCTION,\n  AGGREGATE, not-found errors, and tables with keyword column names.\n  Merged with main's Phase 4 describe tests; duplicate test_describe_index\n  renamed to test_describe_index_on_non_pk_column.\n\n- copy_tests.rs — 7 tests for COPY TO, COPY FROM, round-trip, HEADER,\n  NULL indicator, collection types, and wrong column count. Each test probes\n  whether COPY is dispatched in -e mode (Phase 4); skips gracefully with\n  eprintln! when the server returns SyntaxException.\n\n- ssl_tests.rs — 4 tests verifying --ssl fails gracefully on a non-TLS\n  server, plain connection baseline, --ssl + auth no-panic, and\n  connect-timeout bounded.\n\nAlso updates docs/progress.json (Phase 5: 6 → 9 completed tasks).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-03-30T00:34:20+03:00",
+          "tree_id": "013a8e0fae1031b5700a0ef9c0b70084132412f1",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/940f113d8da90e2cd372b28e903e67051eaa5091"
+        },
+        "date": 1774821402014,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 52844,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 519760,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 5169100,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 7000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 38938,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 370060,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 3744700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 28182,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 28059,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 63740,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 4087,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 5,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 16552,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2810,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 6068,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 44577,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1146,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 97069,
             "unit": "ns"
           }
         ]
