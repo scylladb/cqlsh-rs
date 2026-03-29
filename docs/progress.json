@@ -1,6 +1,6 @@
 {
   "project": "cqlsh-rs",
-  "last_updated": "2026-03-29",
+  "last_updated": "2026-03-30",
   "velocity": {
     "started_date": "2026-03-01",
     "merged_prs": 24,
@@ -16,7 +16,8 @@
       { "date": "2026-03-29", "tasks_done": 5, "phase": 4, "pr": "#TBD" },
       { "date": "2026-03-29", "tasks_done": 3, "phase": 5, "pr": "SP11-benches" },
       { "date": "2026-03-29", "tasks_done": 6, "phase": 4, "pr": null },
-      { "date": "2026-03-30", "tasks_done": 3, "phase": 5, "pr": "SP19-p6" }
+      { "date": "2026-03-30", "tasks_done": 3, "phase": 5, "pr": "SP19-p6" },
+      { "date": "2026-03-30", "tasks_done": 10, "phase": 4, "pr": "SP08-copy-from" }
     ]
   },
   "phases": [
@@ -55,7 +56,7 @@
       "name": "COPY & Advanced",
       "description": "COPY TO/FROM, remaining DESCRIBE, batch",
       "total_tasks": 24,
-      "completed_tasks": 11,
+      "completed_tasks": 21,
       "status": "in_progress",
       "started_date": "2026-03-29",
       "completed_date": null

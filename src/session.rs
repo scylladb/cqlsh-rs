@@ -7,6 +7,7 @@
 use anyhow::{bail, Result};
 
 use crate::config::MergedConfig;
+use crate::driver::types::CqlValue;
 use crate::driver::{
     AggregateMetadata, ConnectionConfig, Consistency, CqlDriver, CqlResult, FunctionMetadata,
     KeyspaceMetadata, PreparedId, ScyllaDriver, SslConfig, TableMetadata, TracingSession,
@@ -122,6 +123,15 @@ impl CqlSession {
     /// Prepare a CQL statement.
     pub async fn prepare(&self, query: &str) -> Result<PreparedId> {
         self.driver.prepare(query).await
+    }
+
+    /// Execute a previously prepared statement with typed bound values.
+    pub async fn execute_prepared(
+        &self,
+        id: &PreparedId,
+        values: &[CqlValue],
+    ) -> Result<CqlResult> {
+        self.driver.execute_prepared(id, values).await
     }
 
     /// Switch to a different keyspace.

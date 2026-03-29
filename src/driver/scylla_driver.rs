@@ -11,13 +11,17 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
+use chrono::{Datelike, Timelike};
 use futures::TryStreamExt;
 use scylla::client::session::Session;
 use scylla::client::session_builder::SessionBuilder;
 use scylla::response::query_result::QueryResult;
 use scylla::statement::prepared::PreparedStatement;
 use scylla::statement::Statement;
-use scylla::value::{CqlValue as ScyllaCqlValue, Row};
+use scylla::value::{
+    Counter as ScyllaCounter, CqlDate, CqlDecimal, CqlDuration, CqlTime, CqlTimestamp, CqlTimeuuid,
+    CqlValue as ScyllaCqlValue, CqlVarint, Row,
+};
 use uuid::Uuid;
 
 use super::types::{CqlColumn, CqlResult, CqlRow, CqlValue};
@@ -263,6 +267,96 @@ impl ScyllaDriver {
         }
     }
 
+    /// Convert our internal CqlValue to scylla's CqlValue (reverse of convert_scylla_value).
+    fn internal_to_scylla_cql(v: &CqlValue) -> ScyllaCqlValue {
+        match v {
+            CqlValue::Ascii(s) => ScyllaCqlValue::Ascii(s.clone()),
+            CqlValue::Boolean(b) => ScyllaCqlValue::Boolean(*b),
+            CqlValue::Blob(bytes) => ScyllaCqlValue::Blob(bytes.clone()),
+            CqlValue::Counter(n) => ScyllaCqlValue::Counter(ScyllaCounter(*n)),
+            CqlValue::Double(d) => ScyllaCqlValue::Double(*d),
+            CqlValue::Duration {
+                months,
+                days,
+                nanoseconds,
+            } => ScyllaCqlValue::Duration(CqlDuration {
+                months: *months,
+                days: *days,
+                nanoseconds: *nanoseconds,
+            }),
+            CqlValue::Float(f) => ScyllaCqlValue::Float(*f),
+            CqlValue::Int(i) => ScyllaCqlValue::Int(*i),
+            CqlValue::BigInt(i) => ScyllaCqlValue::BigInt(*i),
+            CqlValue::SmallInt(i) => ScyllaCqlValue::SmallInt(*i),
+            CqlValue::TinyInt(i) => ScyllaCqlValue::TinyInt(*i),
+            CqlValue::Text(s) => ScyllaCqlValue::Text(s.clone()),
+            CqlValue::Timestamp(ms) => ScyllaCqlValue::Timestamp(CqlTimestamp(*ms)),
+            CqlValue::Inet(addr) => ScyllaCqlValue::Inet(*addr),
+            CqlValue::Uuid(u) => ScyllaCqlValue::Uuid(*u),
+            CqlValue::TimeUuid(u) => ScyllaCqlValue::Timeuuid(CqlTimeuuid::from(*u)),
+            CqlValue::Date(d) => {
+                // Convert NaiveDate back to scylla's u32 days offset from 2^31 epoch
+                let days_from_ce = d.num_days_from_ce();
+                let epoch_offset = days_from_ce as i64 - 719_163;
+                let cql_days = (epoch_offset + (1i64 << 31)) as u32;
+                ScyllaCqlValue::Date(CqlDate(cql_days))
+            }
+            CqlValue::Time(t) => {
+                let nanos =
+                    t.num_seconds_from_midnight() as i64 * 1_000_000_000 + t.nanosecond() as i64;
+                ScyllaCqlValue::Time(CqlTime(nanos))
+            }
+            CqlValue::Varint(bi) => {
+                let bytes = bi.to_signed_bytes_be();
+                ScyllaCqlValue::Varint(CqlVarint::from_signed_bytes_be(bytes))
+            }
+            CqlValue::Decimal(d) => {
+                let (int_val, scale) = d.as_bigint_and_exponent();
+                let bytes = int_val.to_signed_bytes_be();
+                ScyllaCqlValue::Decimal(CqlDecimal::from_signed_be_bytes_slice_and_exponent(
+                    &bytes,
+                    scale as i32,
+                ))
+            }
+            CqlValue::List(items) => {
+                ScyllaCqlValue::List(items.iter().map(Self::internal_to_scylla_cql).collect())
+            }
+            CqlValue::Set(items) => {
+                ScyllaCqlValue::Set(items.iter().map(Self::internal_to_scylla_cql).collect())
+            }
+            CqlValue::Map(entries) => ScyllaCqlValue::Map(
+                entries
+                    .iter()
+                    .map(|(k, v)| {
+                        (
+                            Self::internal_to_scylla_cql(k),
+                            Self::internal_to_scylla_cql(v),
+                        )
+                    })
+                    .collect(),
+            ),
+            CqlValue::Tuple(items) => ScyllaCqlValue::Tuple(
+                items
+                    .iter()
+                    .map(|opt| opt.as_ref().map(Self::internal_to_scylla_cql))
+                    .collect(),
+            ),
+            CqlValue::UserDefinedType {
+                keyspace,
+                type_name,
+                fields,
+            } => ScyllaCqlValue::UserDefinedType {
+                keyspace: keyspace.clone(),
+                name: type_name.clone(),
+                fields: fields
+                    .iter()
+                    .map(|(n, v)| (n.clone(), v.as_ref().map(Self::internal_to_scylla_cql)))
+                    .collect(),
+            },
+            CqlValue::Null | CqlValue::Unset => ScyllaCqlValue::Empty,
+        }
+    }
+
     /// Convert our Consistency to scylla's Consistency.
     fn to_scylla_consistency(c: Consistency) -> scylla::statement::Consistency {
         use scylla::statement::Consistency as SC;
@@ -443,7 +537,7 @@ impl CqlDriver for ScyllaDriver {
     async fn execute_prepared(
         &self,
         prepared_id: &PreparedId,
-        _values: &[CqlValue],
+        values: &[CqlValue],
     ) -> Result<CqlResult> {
         let prepared = self
             .prepared_cache
@@ -453,9 +547,19 @@ impl CqlDriver for ScyllaDriver {
             .cloned()
             .ok_or_else(|| anyhow!("prepared statement not found in cache"))?;
 
+        // Convert internal CqlValues to scylla CqlValues for binding.
+        // Null/Unset become None (bound as null), all others become Some(value).
+        let scylla_values: Vec<Option<ScyllaCqlValue>> = values
+            .iter()
+            .map(|v| match v {
+                CqlValue::Null | CqlValue::Unset => None,
+                other => Some(Self::internal_to_scylla_cql(other)),
+            })
+            .collect();
+
         let result = self
             .session
-            .execute_unpaged(&prepared, ())
+            .execute_unpaged(&prepared, scylla_values)
             .await
             .context("executing prepared statement")?;
 
