@@ -68,9 +68,11 @@ async fn main() -> Result<()> {
     // been set to force interactive mode.
     let stdin_is_pipe = !io::stdin().is_terminal() && !config.tty;
 
-    // Print the connection banner only in interactive mode.
-    // Suppress it when stdin is piped (batch-like) or when using -e/-f.
-    if !stdin_is_pipe && config.execute.is_none() && config.file.is_none() {
+    // Print the connection banner unless stdin is piped/redirected in batch mode.
+    // Python cqlsh always prints the banner with -e/-f, only suppresses it when
+    // reading from a pipe/redirect without an explicit command.
+    let suppress_banner = stdin_is_pipe && config.execute.is_none() && config.file.is_none();
+    if !suppress_banner {
         print_banner(&session);
     }
 
@@ -133,6 +135,18 @@ async fn execute_cql_string(
     colorizer: &CqlColorizer,
     cql_string: &str,
 ) -> i32 {
+    // Python cqlsh accepts `-e "SELECT 1"` without a trailing semicolon.
+    // parse_batch silently drops statements that lack one, so normalise here.
+    let with_semi;
+    let cql_string = {
+        let t = cql_string.trim_end();
+        if !t.is_empty() && !t.ends_with(';') {
+            with_semi = format!("{t};");
+            &with_semi
+        } else {
+            cql_string
+        }
+    };
     let statements = parser::parse_batch(cql_string);
     let mut had_error = false;
     let mut debug = config.debug;
@@ -143,7 +157,11 @@ async fn execute_cql_string(
         }
     }
 
-    if had_error { 1 } else { 0 }
+    if had_error {
+        1
+    } else {
+        0
+    }
 }
 
 /// Execute CQL statements from a file (`-f` flag).
@@ -207,7 +225,11 @@ async fn execute_cql_reader<R: io::BufRead>(
         }
     }
 
-    if had_error { 1 } else { 0 }
+    if had_error {
+        1
+    } else {
+        0
+    }
 }
 
 /// Execute a single CQL statement or shell command in non-interactive mode.

@@ -201,7 +201,9 @@ fn test_mixed_content_roundtrip() {
     // A string with quotes and various characters
     execute_cql(
         scylla,
-        &format!("INSERT INTO {ks}.esc (id, val) VALUES (1, 'Hello, it''s a \"mixed\" test: 100%')"),
+        &format!(
+            "INSERT INTO {ks}.esc (id, val) VALUES (1, 'Hello, it''s a \"mixed\" test: 100%')"
+        ),
     )
     .success();
 

@@ -777,7 +777,10 @@ fn test_unicode_command() {
         stdout.contains("utf-8"),
         "Expected 'utf-8' in UNICODE output: {stdout}"
     );
-    assert!(output.status.success(), "Expected exit 0 for UNICODE command");
+    assert!(
+        output.status.success(),
+        "Expected exit 0 for UNICODE command"
+    );
 }
 
 #[test]

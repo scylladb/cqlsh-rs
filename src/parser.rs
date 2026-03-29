@@ -43,6 +43,9 @@ pub struct StatementParser {
     state: LexState,
     /// Depth of nested block comments.
     block_comment_depth: usize,
+    /// True when we are inside a `BEGIN BATCH … APPLY BATCH` block.
+    /// Semicolons inside a batch do not terminate the batch statement.
+    in_batch: bool,
 }
 
 /// The result of feeding a line to the parser.
@@ -106,6 +109,7 @@ impl StatementParser {
         self.stmt_start = 0;
         self.state = LexState::Normal;
         self.block_comment_depth = 0;
+        self.in_batch = false;
     }
 
     /// Returns true if the parser has no accumulated input.
@@ -173,11 +177,35 @@ impl StatementParser {
                         let raw = &self.buffer[self.stmt_start..i];
                         let stripped = strip_comments(raw);
                         let trimmed = stripped.trim();
-                        if !trimmed.is_empty() {
-                            statements.push(trimmed.to_string());
+
+                        if self.in_batch {
+                            // Inside BEGIN BATCH … APPLY BATCH: semicolons
+                            // between DML statements are part of the batch
+                            // syntax, not statement terminators.  Only emit
+                            // when APPLY BATCH has been reached.
+                            if ends_with_apply_batch(trimmed) {
+                                self.in_batch = false;
+                                if !trimmed.is_empty() {
+                                    statements.push(trimmed.to_string());
+                                }
+                                self.stmt_start = i + 1;
+                            }
+                            // Otherwise keep accumulating; do NOT advance stmt_start.
+                            i += 1;
+                        } else if starts_with_begin_batch(trimmed) {
+                            // Opening of a BATCH block: treat the ';' as
+                            // internal to the batch, not as a terminator.
+                            self.in_batch = true;
+                            // Do NOT advance stmt_start — keep accumulating
+                            // from the start of BEGIN BATCH.
+                            i += 1;
+                        } else {
+                            if !trimmed.is_empty() {
+                                statements.push(trimmed.to_string());
+                            }
+                            self.stmt_start = i + 1; // skip the ';'
+                            i += 1;
                         }
-                        self.stmt_start = i + 1; // skip the ';'
-                        i += 1;
                     } else {
                         i += char_len;
                     }
@@ -277,6 +305,40 @@ fn decode_char_at(s: &str, i: usize) -> (char, usize) {
     // because we always advance by `char_len`.
     let ch = s[i..].chars().next().unwrap_or('\0');
     (ch, ch.len_utf8())
+}
+
+/// Return true if `text` is the opening of a CQL BATCH block.
+///
+/// Matches: `BEGIN BATCH`, `BEGIN UNLOGGED BATCH`, `BEGIN COUNTER BATCH`
+/// (case-insensitive, any amount of internal whitespace).
+fn starts_with_begin_batch(text: &str) -> bool {
+    let words: Vec<&str> = text.split_whitespace().collect();
+    match words.as_slice() {
+        [b, batch, ..]
+            if b.eq_ignore_ascii_case("BEGIN") && batch.eq_ignore_ascii_case("BATCH") =>
+        {
+            true
+        }
+        [b, modifier, batch, ..]
+            if b.eq_ignore_ascii_case("BEGIN")
+                && (modifier.eq_ignore_ascii_case("UNLOGGED")
+                    || modifier.eq_ignore_ascii_case("COUNTER"))
+                && batch.eq_ignore_ascii_case("BATCH") =>
+        {
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Return true if `text` ends with the `APPLY BATCH` token pair.
+fn ends_with_apply_batch(text: &str) -> bool {
+    let words: Vec<&str> = text.split_whitespace().collect();
+    matches!(
+        words.as_slice(),
+        [.., apply, batch]
+            if apply.eq_ignore_ascii_case("APPLY") && batch.eq_ignore_ascii_case("BATCH")
+    )
 }
 
 /// Strip comments from a CQL fragment (used on extracted statements).

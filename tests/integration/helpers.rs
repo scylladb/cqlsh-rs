@@ -54,7 +54,11 @@ fn start_scylla() -> StartResult {
             .ok()
             .and_then(|p| p.parse().ok())
             .unwrap_or(CQL_PORT);
-        return Ok(ScyllaContainer { _container: None, port, host });
+        return Ok(ScyllaContainer {
+            _container: None,
+            port,
+            host,
+        });
     }
 
     let container = GenericImage::new("scylladb/scylla", "6.2")
@@ -94,25 +98,34 @@ fn start_scylla() -> StartResult {
 }
 
 /// Execute cqlsh-rs with the given arguments against the test container.
-///
-/// Returns an `assert_cmd::Command` pre-configured with the container's
-/// host and port.
 pub fn cqlsh_cmd(scylla: &ScyllaContainer) -> assert_cmd::Command {
     let mut cmd = assert_cmd::Command::cargo_bin("cqlsh-rs").unwrap();
     cmd.args([&scylla.host, &scylla.port.to_string()]);
     cmd
 }
 
+/// Ensure a CQL/shell statement has a trailing semicolon.
+fn with_semicolon(stmt: &str) -> String {
+    let trimmed = stmt.trim_end();
+    if trimmed.ends_with(';') {
+        trimmed.to_string()
+    } else {
+        format!("{trimmed};")
+    }
+}
+
 /// Execute a CQL statement via cqlsh-rs `-e` flag and return the command assertion.
 pub fn execute_cql(scylla: &ScyllaContainer, cql: &str) -> assert_cmd::assert::Assert {
-    cqlsh_cmd(scylla).args(["-e", cql]).assert()
+    cqlsh_cmd(scylla)
+        .args(["-e", &with_semicolon(cql)])
+        .assert()
 }
 
 /// Execute a CQL statement and return stdout as a string.
 /// Panics if the command fails.
 pub fn execute_cql_output(scylla: &ScyllaContainer, cql: &str) -> String {
     let output = cqlsh_cmd(scylla)
-        .args(["-e", cql])
+        .args(["-e", &with_semicolon(cql)])
         .output()
         .expect("failed to execute cqlsh-rs");
 
@@ -125,8 +138,6 @@ pub fn execute_cql_output(scylla: &ScyllaContainer, cql: &str) -> String {
 }
 
 /// Create a unique test keyspace and return its name.
-///
-/// Uses SimpleStrategy with RF=1 for single-node test cluster.
 pub fn create_test_keyspace(scylla: &ScyllaContainer, prefix: &str) -> String {
     let ks_name = format!(
         "test_{}_{:x}",
