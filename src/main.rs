@@ -1,6 +1,6 @@
 //! cqlsh-rs — A Rust re-implementation of the Apache Cassandra cqlsh shell.
 
-use std::io::{self, BufRead, IsTerminal, Write};
+use std::io::{self, IsTerminal, Write};
 
 use anyhow::Result;
 use clap::Parser;
@@ -59,19 +59,31 @@ async fn main() -> Result<()> {
             if config.debug {
                 eprintln!("Debug: {e:?}");
             }
-            std::process::exit(1);
+            // Exit code 2 = connection failure (distinct from CQL error = 1)
+            std::process::exit(2);
         }
     };
 
-    // Print connection banner
-    print_banner(&session);
+    // Determine whether stdin is a pipe/redirect (non-TTY) and --tty hasn't
+    // been set to force interactive mode.
+    let stdin_is_pipe = !io::stdin().is_terminal() && !config.tty;
+
+    // Print the connection banner only in interactive mode.
+    // Suppress it when stdin is piped (batch-like) or when using -e/-f.
+    if !stdin_is_pipe && config.execute.is_none() && config.file.is_none() {
+        print_banner(&session);
+    }
 
     if config.execute.is_some() || config.file.is_some() {
         // Non-interactive execution mode (-e or -f)
         let exit_code = execute_noninteractive(&mut session, &config).await;
         std::process::exit(exit_code);
+    } else if stdin_is_pipe {
+        // Stdin pipe mode: read CQL statements from piped/redirected stdin
+        let exit_code = execute_stdin(&mut session, &config).await;
+        std::process::exit(exit_code);
     } else {
-        // Enter interactive REPL
+        // Enter interactive REPL (TTY or --tty override)
         repl::run(&mut session, &config).await?;
     }
 
@@ -99,6 +111,21 @@ async fn execute_noninteractive(session: &mut CqlSession, config: &MergedConfig)
     }
 }
 
+/// Execute CQL statements piped from stdin (non-TTY stdin without -e/-f).
+///
+/// Returns exit code: 0 on success, 1 on any CQL error.
+async fn execute_stdin(session: &mut CqlSession, config: &MergedConfig) -> i32 {
+    // When stdin is a pipe stdout is also typically not a terminal.
+    let color_enabled = match config.color {
+        ColorMode::On => true,
+        ColorMode::Off => false,
+        ColorMode::Auto => io::stdout().is_terminal(),
+    };
+    let colorizer = CqlColorizer::new(color_enabled);
+    let reader = io::BufReader::new(io::stdin().lock());
+    execute_cql_reader(session, config, &colorizer, reader, "<stdin>").await
+}
+
 /// Execute a CQL string from the `-e` flag (semicolon-separated statements).
 async fn execute_cql_string(
     session: &mut CqlSession,
@@ -108,9 +135,10 @@ async fn execute_cql_string(
 ) -> i32 {
     let statements = parser::parse_batch(cql_string);
     let mut had_error = false;
+    let mut debug = config.debug;
 
     for stmt in statements {
-        if !execute_single_statement(session, config, colorizer, &stmt).await {
+        if !execute_single_statement(session, config, colorizer, &mut debug, &stmt).await {
             had_error = true;
         }
     }
@@ -132,16 +160,30 @@ async fn execute_cql_file(
             return 1;
         }
     };
-
     let reader = io::BufReader::new(file);
+    execute_cql_reader(session, config, colorizer, reader, file_path).await
+}
+
+/// Execute CQL statements from any `BufRead` source (file or stdin).
+///
+/// `source_name` is used in I/O error messages.
+/// Returns exit code: 0 on success, 1 on any CQL or I/O error.
+async fn execute_cql_reader<R: io::BufRead>(
+    session: &mut CqlSession,
+    config: &MergedConfig,
+    colorizer: &CqlColorizer,
+    reader: R,
+    source_name: &str,
+) -> i32 {
     let mut stmt_parser = StatementParser::new();
     let mut had_error = false;
+    let mut debug = config.debug;
 
     for line_result in reader.lines() {
         let line = match line_result {
             Ok(l) => l,
             Err(e) => {
-                eprintln!("Error reading '{}': {e}", file_path);
+                eprintln!("Error reading '{}': {e}", source_name);
                 return 1;
             }
         };
@@ -150,7 +192,7 @@ async fn execute_cql_file(
         let trimmed = line.trim();
         if stmt_parser.is_empty() && !trimmed.is_empty() && parser::is_shell_command(trimmed) {
             let clean = trimmed.strip_suffix(';').unwrap_or(trimmed).trim_end();
-            if !execute_single_statement(session, config, colorizer, clean).await {
+            if !execute_single_statement(session, config, colorizer, &mut debug, clean).await {
                 had_error = true;
             }
             continue;
@@ -158,7 +200,7 @@ async fn execute_cql_file(
 
         if let ParseResult::Complete(statements) = stmt_parser.feed_line(&line) {
             for stmt in statements {
-                if !execute_single_statement(session, config, colorizer, &stmt).await {
+                if !execute_single_statement(session, config, colorizer, &mut debug, &stmt).await {
                     had_error = true;
                 }
             }
@@ -168,13 +210,17 @@ async fn execute_cql_file(
     if had_error { 1 } else { 0 }
 }
 
-/// Execute a single CQL statement in non-interactive mode.
+/// Execute a single CQL statement or shell command in non-interactive mode.
+///
+/// `debug` is a mutable flag so that DEBUG ON/OFF commands take effect for
+/// subsequent statements in the same batch.
 ///
 /// Returns `true` on success, `false` on error.
 async fn execute_single_statement(
     session: &mut CqlSession,
     config: &MergedConfig,
     colorizer: &CqlColorizer,
+    debug: &mut bool,
     input: &str,
 ) -> bool {
     let trimmed = input.trim();
@@ -184,7 +230,33 @@ async fn execute_single_statement(
 
     let upper = trimmed.to_uppercase();
 
-    // Handle shell commands that make sense in non-interactive mode
+    // Handle DEBUG command (toggle debug output within a batch)
+    if upper == "DEBUG" {
+        if *debug {
+            println!("Debug output is currently enabled. Use DEBUG OFF to disable.");
+        } else {
+            println!("Debug output is currently disabled. Use DEBUG ON to enable.");
+        }
+        return true;
+    }
+    if upper == "DEBUG ON" {
+        *debug = true;
+        println!("Now printing debug output.");
+        return true;
+    }
+    if upper == "DEBUG OFF" {
+        *debug = false;
+        println!("Disabled debug output.");
+        return true;
+    }
+
+    // Handle UNICODE command
+    if upper == "UNICODE" {
+        println!("Encoding: {}\nDefault encoding: utf-8", config.encoding);
+        return true;
+    }
+
+    // Handle CONSISTENCY
     if upper == "CONSISTENCY" {
         let cl = session.get_consistency();
         println!("Current consistency level is {cl}.");
@@ -239,7 +311,11 @@ async fn execute_single_statement(
     }
 
     // Handle DESCRIBE / DESC
-    if upper == "DESCRIBE" || upper == "DESC" || upper.starts_with("DESCRIBE ") || upper.starts_with("DESC ") {
+    if upper == "DESCRIBE"
+        || upper == "DESC"
+        || upper.starts_with("DESCRIBE ")
+        || upper.starts_with("DESC ")
+    {
         let args = if upper.starts_with("DESCRIBE ") {
             trimmed["DESCRIBE ".len()..].trim()
         } else if upper.starts_with("DESC ") {
@@ -261,13 +337,25 @@ async fn execute_single_statement(
     }
 
     // Skip commands that don't make sense in non-interactive mode
-    if upper == "QUIT" || upper == "EXIT" || upper == "CLEAR" || upper == "CLS"
-        || upper == "HELP" || upper == "?" || upper.starts_with("HELP ")
-        || upper == "EXPAND" || upper == "EXPAND ON" || upper == "EXPAND OFF"
-        || upper == "PAGING" || upper == "PAGING ON" || upper == "PAGING OFF"
+    if upper == "QUIT"
+        || upper == "EXIT"
+        || upper == "CLEAR"
+        || upper == "CLS"
+        || upper == "HELP"
+        || upper == "?"
+        || upper.starts_with("HELP ")
+        || upper == "EXPAND"
+        || upper == "EXPAND ON"
+        || upper == "EXPAND OFF"
+        || upper == "PAGING"
+        || upper == "PAGING ON"
+        || upper == "PAGING OFF"
         || upper.starts_with("PAGING ")
-        || upper == "CAPTURE" || upper == "CAPTURE OFF" || upper.starts_with("CAPTURE ")
-        || upper == "LOGIN" || upper.starts_with("LOGIN ")
+        || upper == "CAPTURE"
+        || upper == "CAPTURE OFF"
+        || upper.starts_with("CAPTURE ")
+        || upper == "LOGIN"
+        || upper.starts_with("LOGIN ")
     {
         // Silently ignore interactive-only commands
         return true;
@@ -315,7 +403,7 @@ async fn execute_single_statement(
         }
         Err(e) => {
             eprintln!("{}", error::format_error_colored(&e, colorizer));
-            if config.debug {
+            if *debug {
                 eprintln!("Debug: {e:?}");
             }
             false
