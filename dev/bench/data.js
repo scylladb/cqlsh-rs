@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774821402865,
+  "lastUpdate": 1774821908411,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -3645,6 +3645,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 97069,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "e29ddd0d74995db4c3104dc7b66ec7fdddd06b33",
+          "message": "feat(copy): implement COPY FROM with full type conversion and advanced options\n\nImplements Phase 1 (core) and Phase 2 (advanced) of COPY FROM:\n\n- csv_str_to_cql_value(): type-aware CSV→CQL conversion for all 25 CQL\n  types (ascii, text, varchar, int, bigint, smallint, tinyint, float,\n  double, boolean, uuid, timeuuid, timestamp, date, time, inet, blob,\n  varint, decimal, duration; collections fall back to Text passthrough)\n- cql_value_to_insert_literal(): proper CQL literal formatting for the\n  unprepared INSERT string path\n- Dual execution path: PREPAREDSTATEMENTS=true (default) uses prepared\n  statements with Vec<Option<ScyllaCqlValue>> binding; false uses string\n  INSERT\n- insert_row_with_retry(): exponential backoff up to MAXATTEMPTS\n- NUMPROCESSES: parallel inserts via futures::StreamExt::buffer_unordered\n  (no Arc/threading needed — futures borrow &CqlSession cooperatively)\n- INGESTRATE: TokenBucket rate limiter with async tokio::time::sleep\n- CHUNKSIZE buffering, TTL clause on INSERT, elapsed timing in output\n- MAXPARSEERRORS / MAXINSERTERRORS counting, ERRFILE option parsed\n- Fix ScyllaDriver::execute_prepared to actually bind values (was a stub)\n  via internal_to_scylla_cql() reverse mapping for all 25 types\n- Expose CqlSession::execute_prepared delegation\n- 41 unit tests covering csv_str_to_cql_value, option parsing, types\n- 10 integration test stubs in tests/integration/copy_from_tests.rs\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-03-30T00:42:59+03:00",
+          "tree_id": "71e195fd0eb0e8e699747f24d4b4d4d2dff29391",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/e29ddd0d74995db4c3104dc7b66ec7fdddd06b33"
+        },
+        "date": 1774821908109,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 53481,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 520990,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 5158700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 7085,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 38260,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 362590,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 3680600,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 28634,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 26593,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 63653,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 4028,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 16315,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2806,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 6084,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 43901,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1143,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 96660,
             "unit": "ns"
           }
         ]
