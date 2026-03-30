@@ -21,13 +21,13 @@ jobs:
       actions: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
       # Download artifacts from the failed CI run
       - name: Download test results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: test-results
           run-id: ${{ github.event.workflow_run.id }}
@@ -36,7 +36,7 @@ jobs:
         continue-on-error: true
 
       - name: Download clippy results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: clippy-results
           run-id: ${{ github.event.workflow_run.id }}
@@ -45,7 +45,7 @@ jobs:
         continue-on-error: true
 
       - name: Download build results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: build-results
           run-id: ${{ github.event.workflow_run.id }}
@@ -54,7 +54,7 @@ jobs:
         continue-on-error: true
 
       - name: Download fmt results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: fmt-results
           run-id: ${{ github.event.workflow_run.id }}
@@ -100,7 +100,7 @@ jobs:
       # Post or update PR comment
       - name: Post failure summary comment
         if: steps.pr.outputs.number != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const body = `${{ steps.analyze.outputs.comment }}`;
