@@ -227,10 +227,70 @@ jobs:
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
+      - name: Generate release notes
+        id: notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Get the previous tag for changelog range
+          PREV_TAG=$(git tag --sort=-v:refname | grep '^v' | sed -n '2p')
+          if [ -z "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" "${PREV_TAG}..HEAD")
+          fi
+
+          # Build checksums table
+          CHECKSUMS=$(cd release && cat SHA256SUMS.txt | while read hash file; do
+            echo "| \`${file}\` | \`${hash}\` |"
+          done)
+
+          cat > release-notes.md << NOTES_EOF
+          ## Installation
+
+          ### Pre-built binaries
+
+          Download the appropriate binary for your platform from the assets below.
+
+          ### Homebrew (macOS)
+
+          \`\`\`bash
+          brew tap fruch/cqlsh-rs
+          brew install cqlsh-rs
+          \`\`\`
+
+          ### Cargo
+
+          \`\`\`bash
+          cargo install cqlsh-rs --version ${VERSION}
+          \`\`\`
+
+          ### Docker
+
+          \`\`\`bash
+          docker pull ghcr.io/fruch/cqlsh-rs:${VERSION}
+          docker run --rm -it ghcr.io/fruch/cqlsh-rs:${VERSION} <host> <port>
+          \`\`\`
+
+          Supported platforms: \`linux/amd64\`, \`linux/arm64\`
+
+          ## What's Changed
+
+          ${CHANGELOG}
+
+          ## Checksums (SHA256)
+
+          | File | SHA256 |
+          |------|--------|
+          ${CHECKSUMS}
+          NOTES_EOF
+
+          # Strip leading whitespace from heredoc indentation
+          sed -i 's/^          //' release-notes.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          body_path: release-notes.md
           files: |
             release/*
         env:
