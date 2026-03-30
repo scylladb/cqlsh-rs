@@ -1,0 +1,22 @@
+[book]
+title = "cqlsh-rs Documentation"
+authors = ["cqlsh-rs contributors"]
+description = "Documentation for cqlsh-rs — the Rust implementation of the Apache Cassandra CQL shell"
+language = "en"
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/fruch/cqlsh-rs"
+edit-url-template = "https://github.com/fruch/cqlsh-rs/edit/main/docs/book/{path}"
+site-url = "/cqlsh-rs/"
+no-section-label = false
+
+[output.html.search]
+enable = true
+limit-results = 30
+boost-hierarchy = 2

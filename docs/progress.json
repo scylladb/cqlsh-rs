@@ -1,6 +1,6 @@
 {
   "project": "cqlsh-rs",
-  "last_updated": "2026-03-30",
+  "last_updated": "2026-03-31",
   "velocity": {
     "started_date": "2026-03-01",
     "merged_prs": 24,
@@ -20,7 +20,8 @@
       { "date": "2026-03-30", "tasks_done": 3, "phase": 5, "pr": "SP19-p6" },
       { "date": "2026-03-30", "tasks_done": 10, "phase": 4, "pr": "SP08-copy-from" },
       { "date": "2026-03-30", "tasks_done": 5, "phase": 5, "pr": "SP10-ci-matrix" },
-      { "date": "2026-03-30", "tasks_done": 10, "phase": 6, "pr": "SP12-release" }
+      { "date": "2026-03-30", "tasks_done": 10, "phase": 6, "pr": "SP12-release" },
+      { "date": "2026-03-31", "tasks_done": 5, "phase": 6, "pr": "SP14-docs" }
     ]
   },
   "phases": [
