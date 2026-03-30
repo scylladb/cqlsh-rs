@@ -128,7 +128,8 @@ fn test_describe_materialized_view() {
 
     if !mv_output.status.success() {
         let stderr = String::from_utf8_lossy(&mv_output.stderr);
-        if stderr.contains("Materialized views are not enabled")
+        if stderr.contains("Materialized views are disabled")
+            || stderr.contains("Materialized views are not enabled")
             || stderr.contains("materialized_views_enabled")
             || stderr.contains("not yet supported")
         {

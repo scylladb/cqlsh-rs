@@ -125,11 +125,11 @@ jobs:
           - db_name: cassandra-4.1
             db_image: cassandra:4.1
             db_args: ""
-            db_env: "-e CASSANDRA_DC=datacenter1 -e JVM_EXTRA_OPTS=-Dcassandra.materialized_views_enabled=true"
+            db_env: "-e CASSANDRA_DC=datacenter1 -e JVM_EXTRA_OPTS=-Dcassandra.enable_materialized_views=true"
           - db_name: cassandra-5.0
             db_image: cassandra:5.0
             db_args: ""
-            db_env: "-e CASSANDRA_DC=datacenter1 -e JVM_EXTRA_OPTS=-Dcassandra.materialized_views_enabled=true"
+            db_env: "-e CASSANDRA_DC=datacenter1 -e JVM_EXTRA_OPTS=-Dcassandra.enable_materialized_views=true"
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
