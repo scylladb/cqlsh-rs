@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774908700615,
+  "lastUpdate": 1774908805584,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -4121,6 +4121,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 151260,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "02ba3ab95fdafeea1e1a384c04a9807027e0246f",
+          "message": "docs: facelift README with community-standard style\n\nAdd badges (CI, crates.io, license, Docker), feature highlights,\nquickstart section, and structured installation methods (Homebrew,\nCargo, Docker, pre-built binaries, from source). Update project\nstructure to reflect current 19-file layout. Collapse benchmarks\nand testing into details sections. Add contributing section.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-03-31T00:52:40+03:00",
+          "tree_id": "4e83d6d19919cbdfbf0fc95ec7dda0e7fd8c5fa6",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/02ba3ab95fdafeea1e1a384c04a9807027e0246f"
+        },
+        "date": 1774908805125,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 72594,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 704560,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7085400,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 8336,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 54069,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 520179,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 5359300,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 33370,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 35118,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 89355,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7233,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 5,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 26430,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3623,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9071,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 60793,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1186,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 134500,
             "unit": "ns"
           }
         ]
