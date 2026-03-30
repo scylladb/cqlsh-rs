@@ -120,6 +120,10 @@ pub struct CliArgs {
     /// Generate shell completion script for the given shell (bash, zsh, fish, elvish, powershell)
     #[arg(long = "completions", value_name = "SHELL")]
     pub completions: Option<Shell>,
+
+    /// Generate man page to stdout (hidden, used by release pipeline)
+    #[arg(long = "generate-man", hide = true)]
+    pub generate_man: bool,
 }
 
 impl CliArgs {

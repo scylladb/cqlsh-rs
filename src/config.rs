@@ -781,6 +781,7 @@ max_trace_wait = 10.0
             disable_history: false,
             secure_connect_bundle: None,
             completions: None,
+            generate_man: false,
         }
     }
 

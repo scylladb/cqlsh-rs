@@ -19,7 +19,8 @@
       { "date": "2026-03-29", "tasks_done": 6, "phase": 4, "pr": null },
       { "date": "2026-03-30", "tasks_done": 3, "phase": 5, "pr": "SP19-p6" },
       { "date": "2026-03-30", "tasks_done": 10, "phase": 4, "pr": "SP08-copy-from" },
-      { "date": "2026-03-30", "tasks_done": 5, "phase": 5, "pr": "SP10-ci-matrix" }
+      { "date": "2026-03-30", "tasks_done": 5, "phase": 5, "pr": "SP10-ci-matrix" },
+      { "date": "2026-03-30", "tasks_done": 10, "phase": 6, "pr": "SP12-release" }
     ]
   },
   "phases": [
@@ -78,10 +79,10 @@
       "name": "Polish & Release",
       "description": "Releases, packaging, docs, migration",
       "total_tasks": 10,
-      "completed_tasks": 0,
-      "status": "not_started",
-      "started_date": null,
-      "completed_date": null
+      "completed_tasks": 10,
+      "status": "completed",
+      "started_date": "2026-03-30",
+      "completed_date": "2026-03-30"
     }
   ]
 }

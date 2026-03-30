@@ -3,7 +3,7 @@
 use std::io::{self, IsTerminal, Write};
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 
 use cqlsh_rs::cli::CliArgs;
 use cqlsh_rs::colorizer::CqlColorizer;
@@ -22,6 +22,14 @@ async fn main() -> Result<()> {
     // Handle shell completion generation if requested
     if let Some(shell) = cli.completions {
         shell_completions::generate(shell);
+        return Ok(());
+    }
+
+    // Handle man page generation (used by release pipeline)
+    if cli.generate_man {
+        let cmd = CliArgs::command();
+        let man = clap_mangen::Man::new(cmd);
+        man.render(&mut io::stdout())?;
         return Ok(());
     }
 
