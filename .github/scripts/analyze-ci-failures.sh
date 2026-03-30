@@ -270,7 +270,8 @@ main() {
   local class_label
   class_label=$(build_class_label)
 
-  # Assemble the comment
+  # Assemble the comment — marker used by the workflow to find & update this comment
+  echo "<!-- cqlsh-rs-ci-summary -->"
   echo "## CI Failure Summary"
   echo ""
   echo "**Status:** ${FAILED_JOBS} of ${TOTAL_JOBS} jobs failed | **Classification:** ${class_label}"
