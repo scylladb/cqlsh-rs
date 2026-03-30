@@ -1,0 +1,309 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CARGO_TERM_COLOR: always
+  BINARY_NAME: cqlsh-rs
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build matrix: compile release binaries for all targets
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            cross: false
+            artifact: cqlsh-rs
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            cross: true
+            artifact: cqlsh-rs
+          - target: x86_64-apple-darwin
+            os: macos-13
+            cross: false
+            artifact: cqlsh-rs
+          - target: aarch64-apple-darwin
+            os: macos-14
+            cross: false
+            artifact: cqlsh-rs
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            cross: false
+            artifact: cqlsh-rs.exe
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      # Install musl tools for Linux static builds
+      - name: Install musl-tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      # Install cross-rs for cross-compilation targets
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      # Build with cross or cargo
+      - name: Build release binary
+        run: |
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+        shell: bash
+
+      # Run unit tests (not integration — those need Docker/ScyllaDB)
+      - name: Run unit tests
+        if: "!matrix.cross"
+        run: cargo test --release --target ${{ matrix.target }}
+        shell: bash
+
+      # Package the binary
+      - name: Package binary
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ARCHIVE_NAME="${BINARY_NAME}-${VERSION}-${{ matrix.target }}"
+
+          mkdir -p "staging/${ARCHIVE_NAME}"
+          cp "target/${{ matrix.target }}/release/${{ matrix.artifact }}" "staging/${ARCHIVE_NAME}/"
+          cp README.md LICENSE staging/${ARCHIVE_NAME}/ 2>/dev/null || true
+
+          cd staging
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a "../${ARCHIVE_NAME}.zip" "${ARCHIVE_NAME}"
+            echo "ASSET_PATH=${ARCHIVE_NAME}.zip" >> "$GITHUB_ENV"
+          else
+            tar czf "../${ARCHIVE_NAME}.tar.gz" "${ARCHIVE_NAME}"
+            echo "ASSET_PATH=${ARCHIVE_NAME}.tar.gz" >> "$GITHUB_ENV"
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ env.ASSET_PATH }}
+          retention-days: 5
+
+  # ---------------------------------------------------------------------------
+  # Integration tests on Linux x86_64 (Docker available)
+  # ---------------------------------------------------------------------------
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Start ScyllaDB
+        run: |
+          docker run -d --name scylladb \
+            -p 9042:9042 \
+            scylladb/scylla:6.2 \
+            --smp 1 --memory 512M --overprovisioned 1 --skip-wait-for-gossip-to-settle 0
+          echo "Waiting for ScyllaDB to be ready..."
+          for i in $(seq 1 30); do
+            if docker exec scylladb cqlsh -e "SELECT now() FROM system.local;" 2>/dev/null; then
+              echo "ScyllaDB ready after ${i} attempt(s)"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "ScyllaDB failed to become ready"
+              docker logs scylladb
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Run integration tests
+        env:
+          SCYLLA_TEST_HOST: localhost
+          SCYLLA_TEST_PORT: "9042"
+        run: cargo test --test integration -- --ignored --test-threads=1
+        timeout-minutes: 15
+
+  # ---------------------------------------------------------------------------
+  # Generate man pages and shell completions
+  # ---------------------------------------------------------------------------
+  generate-assets:
+    name: Generate Assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build binary
+        run: cargo build --release
+
+      - name: Generate man page
+        run: |
+          mkdir -p assets
+          ./target/release/cqlsh-rs --generate-man > assets/cqlsh-rs.1
+
+      - name: Generate shell completions
+        run: |
+          mkdir -p assets/completions
+          ./target/release/cqlsh-rs --completions bash > assets/completions/cqlsh-rs.bash
+          ./target/release/cqlsh-rs --completions zsh > assets/completions/_cqlsh-rs
+          ./target/release/cqlsh-rs --completions fish > assets/completions/cqlsh-rs.fish
+
+      - name: Package assets
+        run: |
+          tar czf assets.tar.gz -C assets .
+
+      - name: Upload assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: assets
+          path: assets.tar.gz
+          retention-days: 5
+
+  # ---------------------------------------------------------------------------
+  # Create GitHub Release with all binaries, checksums, and assets
+  # ---------------------------------------------------------------------------
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build, integration-test, generate-assets]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          # Move all platform archives into release/
+          for dir in artifacts/x86_64-unknown-linux-musl \
+                     artifacts/aarch64-unknown-linux-musl \
+                     artifacts/x86_64-apple-darwin \
+                     artifacts/aarch64-apple-darwin \
+                     artifacts/x86_64-pc-windows-msvc; do
+            if [ -d "$dir" ]; then
+              cp "$dir"/* release/
+            fi
+          done
+          # Extract and include assets (man page, completions)
+          mkdir -p release/assets
+          tar xzf artifacts/assets/assets.tar.gz -C release/assets
+          cd release
+          tar czf cqlsh-rs-man-and-completions.tar.gz -C assets .
+          rm -rf assets
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd release
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Publish to crates.io
+  # ---------------------------------------------------------------------------
+  publish-crate:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: [integration-test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish to crates.io
+        run: cargo publish --token "${{ secrets.CARGO_REGISTRY_TOKEN }}"
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Build and push Docker image
+  # ---------------------------------------------------------------------------
+  docker:
+    name: Docker Image
+    runs-on: ubuntu-latest
+    needs: [build, integration-test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Linux x86_64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: x86_64-unknown-linux-musl
+          path: docker-build
+
+      - name: Extract binary
+        run: |
+          cd docker-build
+          tar xzf *.tar.gz
+          # Find the binary in the extracted directory
+          find . -name "cqlsh-rs" -type f -exec cp {} ./cqlsh-rs-binary \;
+          chmod +x cqlsh-rs-binary
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BINARY_PATH=docker-build/cqlsh-rs-binary

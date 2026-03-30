@@ -36,6 +36,7 @@ comfy-table = { version = "7", features = ["custom_styling"] }
 crossterm = "0.28"
 sapling-streampager = "0.12"
 csv = "1"
+clap_mangen = "0.2"
 
 [lib]
 name = "cqlsh_rs"
@@ -74,3 +75,11 @@ harness = false
 [[bench]]
 name = "completion"
 harness = false
+
+[profile.release]
+lto = "thin"
+strip = true
+opt-level = "z"
+codegen-units = 1
+panic = "abort"
+
