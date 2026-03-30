@@ -75,7 +75,6 @@ jobs:
             --verbose
             --no-progress
             --accept 200,204,301,302,429
-            --exclude-mail
             --exclude 'github\.com/.*/edit/'
             --exclude 'localhost'
             docs/book/book
