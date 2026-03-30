@@ -53,18 +53,15 @@ jobs:
           retention-days: 5
 
   test:
-    name: Tests (${{ matrix.os }}, ${{ matrix.rust }})
+    name: Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        rust: [stable, beta]
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
       - name: Run tests
@@ -76,23 +73,20 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: test-results-${{ matrix.os }}-${{ matrix.rust }}
+          name: test-results-${{ matrix.os }}
           path: test-output.log
           retention-days: 5
 
   build:
-    name: Build (${{ matrix.os }}, ${{ matrix.rust }})
+    name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        rust: [stable, beta]
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Build release
         shell: bash
@@ -103,7 +97,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: build-results-${{ matrix.os }}-${{ matrix.rust }}
+          name: build-results-${{ matrix.os }}
           path: build-output.json
           retention-days: 5
 
