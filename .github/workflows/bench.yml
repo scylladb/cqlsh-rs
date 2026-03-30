@@ -104,8 +104,8 @@ jobs:
       - name: Store results & track history
         uses: benchmark-action/github-action-benchmark@v1
         with:
-          tool: 'criterion'
-          output-file-path: bench_output.txt
+          tool: 'customSmallerIsBetter'
+          output-file-path: output.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # Only push historical data on main merges (not PRs/schedule)
           auto-push: ${{ github.event_name == 'push' }}
