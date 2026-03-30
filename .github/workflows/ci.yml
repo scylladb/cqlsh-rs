@@ -117,15 +117,19 @@ jobs:
           - db_name: scylladb-2026.1
             db_image: scylladb/scylla:2026.1
             db_args: "--smp 1 --memory 512M --overprovisioned 1 --skip-wait-for-gossip-to-settle 0"
+            db_env: ""
           - db_name: scylladb-2025.1
             db_image: scylladb/scylla:2025.1
             db_args: "--smp 1 --memory 512M --overprovisioned 1 --skip-wait-for-gossip-to-settle 0"
+            db_env: ""
           - db_name: cassandra-4.1
             db_image: cassandra:4.1
             db_args: ""
+            db_env: "-e CASSANDRA_DC=datacenter1 -e JVM_EXTRA_OPTS=-Dcassandra.materialized_views_enabled=true"
           - db_name: cassandra-5.0
             db_image: cassandra:5.0
             db_args: ""
+            db_env: "-e CASSANDRA_DC=datacenter1 -e JVM_EXTRA_OPTS=-Dcassandra.materialized_views_enabled=true"
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -139,6 +143,7 @@ jobs:
         run: |
           docker run -d --name testdb \
             -p 9042:9042 \
+            ${{ matrix.db_env }} \
             ${{ matrix.db_image }} \
             ${{ matrix.db_args }}
           echo "Waiting for ${{ matrix.db_name }} to be ready..."
