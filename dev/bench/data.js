@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774821908411,
+  "lastUpdate": 1774906404816,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -3764,6 +3764,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 96660,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "ee928b4e53701b96a57c3a8ed2f4090e612abc56",
+          "message": "fix(ci): restore customSmallerIsBetter tool for benchmark action\n\nThe Node.js 24 upgrade commit (3728dc6) regressed the benchmark-action\ntool from 'customSmallerIsBetter' back to 'criterion', which is no\nlonger a valid value in github-action-benchmark@v1.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-03-31T00:11:18+03:00",
+          "tree_id": "78d16d2587c5bdf0f4d07b82ed81c8b9bc6a09ce",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/ee928b4e53701b96a57c3a8ed2f4090e612abc56"
+        },
+        "date": 1774906404547,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 83749,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 797700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7946500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9982,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 60226,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 565950,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 5751700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 38152,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 36431,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 98889,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 10238,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28925,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3546,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9257,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64556,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1218,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153560,
             "unit": "ns"
           }
         ]
