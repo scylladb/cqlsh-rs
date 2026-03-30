@@ -1,0 +1,336 @@
+# cqlsh-rs — Complete Reference
+
+> Rust-based replacement for Python cqlsh — the CQL shell for Apache Cassandra and ScyllaDB.
+> This file contains comprehensive documentation for LLM consumption.
+
+## Overview
+
+cqlsh-rs is a ground-up Rust re-implementation of the Python `cqlsh` — the official interactive CQL shell for Apache Cassandra and compatible databases (ScyllaDB, Amazon Keyspaces, Astra DB). It provides 100% CLI and configuration compatibility with the original Python cqlsh, delivered as a single static binary.
+
+Key advantages:
+- Single static binary (no Python runtime needed)
+- ~50x faster startup (~30ms vs ~1.5s)
+- Same CLI flags, cqlshrc format, and shell commands
+- Modern features: syntax highlighting, async I/O, built-in pager
+
+---
+
+## CLI Reference
+
+### Synopsis
+
+```
+cqlsh-rs [OPTIONS] [host] [port]
+```
+
+### Positional arguments
+
+- `host` — Contact point hostname or IP (default: 127.0.0.1)
+- `port` — Native transport port (default: 9042)
+
+### Connection flags
+
+- `--ssl` — Enable SSL/TLS
+- `--connect-timeout SECONDS` — Connection timeout (default: 5)
+- `--request-timeout SECONDS` — Per-request timeout (default: 10)
+- `--protocol-version VERSION` — Native protocol version 1-6 (default: auto)
+- `-b, --secure-connect-bundle BUNDLE` — Astra DB connect bundle
+
+### Authentication flags
+
+- `-u, --username USERNAME` — Username
+- `-p, --password PASSWORD` — Password
+
+### Execution flags
+
+- `-e, --execute STATEMENT` — Execute statement and exit
+- `-f, --file FILE` — Execute statements from file
+- `-k, --keyspace KEYSPACE` — Initial keyspace
+
+Note: -e and -f are mutually exclusive.
+
+### Display flags
+
+- `-C, --color` — Force colored output
+- `--no-color` — Disable colored output
+- `--encoding ENCODING` — Character encoding (default: utf-8)
+- `-t, --tty` — Force TTY mode
+
+### Configuration flags
+
+- `--cqlshrc FILE` — Config file path (default: ~/.cassandra/cqlshrc)
+- `--cqlversion VERSION` — CQL version
+- `--consistency-level LEVEL` — Initial consistency level
+- `--serial-consistency-level LEVEL` — Initial serial consistency level
+
+### Behavior flags
+
+- `--no-file-io` — Disable COPY, SOURCE, CAPTURE
+- `--no_compact` — Disable compact storage
+- `--disable-history` — Don't save history
+- `--debug` — Debug output
+
+### Utility flags
+
+- `--completions SHELL` — Generate shell completions (bash/zsh/fish/elvish/powershell)
+- `--version` — Show version
+- `--help` — Show help
+
+### Environment variables
+
+- `CQLSH_HOST` — Default hostname
+- `CQLSH_PORT` — Default port
+- `SSL_CERTFILE` — SSL certificate path
+- `SSL_VALIDATE` — Certificate validation
+- `CQLSH_DEFAULT_CONNECT_TIMEOUT_SECONDS` — Connect timeout
+- `CQLSH_DEFAULT_REQUEST_TIMEOUT_SECONDS` — Request timeout
+- `CQL_HISTORY` — History file path
+
+### Precedence: CLI flags > env vars > cqlshrc > defaults
+
+---
+
+## Shell Commands
+
+### CAPTURE
+Capture output to file.
+```
+CAPTURE '<filename>'  -- start capturing
+CAPTURE OFF           -- stop capturing
+CAPTURE               -- show status
+```
+
+### CLEAR / CLS
+Clear terminal screen.
+
+### CONSISTENCY
+Get/set consistency level.
+```
+CONSISTENCY           -- show current
+CONSISTENCY QUORUM    -- set level
+```
+Levels: ANY, ONE, TWO, THREE, QUORUM, ALL, LOCAL_QUORUM, EACH_QUORUM, LOCAL_ONE
+
+### COPY TO
+Export data to CSV.
+```
+COPY [ks.]table [(cols)] TO 'file'|STDOUT [WITH opts]
+```
+Options: DELIMITER, QUOTE, ESCAPE, HEADER, NULL, DATETIMEFORMAT, ENCODING, FLOATPRECISION, DOUBLEPRECISION, DECIMALSEP, THOUSANDSSEP, BOOLSTYLE, PAGESIZE, MAXOUTPUTSIZE
+
+### COPY FROM
+Import CSV data.
+```
+COPY [ks.]table [(cols)] FROM 'file'|STDIN [WITH opts]
+```
+Options: DELIMITER, QUOTE, ESCAPE, HEADER, NULL, CHUNKSIZE, INGESTRATE, MAXBATCHSIZE, MINBATCHSIZE, MAXPARSEERRORS, MAXINSERTERRORS, PREPAREDSTATEMENTS, TTL
+
+### DEBUG
+Toggle debug mode.
+```
+DEBUG ON / DEBUG OFF / DEBUG
+```
+
+### DESCRIBE (DESC)
+Schema introspection.
+```
+DESCRIBE CLUSTER
+DESCRIBE KEYSPACES
+DESCRIBE KEYSPACE [name]
+DESCRIBE TABLES
+DESCRIBE TABLE <name>
+DESCRIBE SCHEMA
+DESCRIBE FULL SCHEMA
+DESCRIBE INDEX <name>
+DESCRIBE MATERIALIZED VIEW <name>
+DESCRIBE TYPES / TYPE <name>
+DESCRIBE FUNCTIONS / FUNCTION <name>
+DESCRIBE AGGREGATES / AGGREGATE <name>
+```
+
+### EXIT / QUIT
+Exit the shell. Ctrl-D also works.
+
+### EXPAND
+Toggle vertical output.
+```
+EXPAND ON / EXPAND OFF / EXPAND
+```
+
+### HELP
+Show help.
+```
+HELP          -- general help
+HELP <topic>  -- topic-specific help
+?             -- same as HELP
+```
+
+### LOGIN
+Re-authenticate.
+```
+LOGIN <username> [<password>]
+```
+
+### PAGING
+Configure pager.
+```
+PAGING ON / PAGING OFF / PAGING / PAGING <N>
+```
+
+### SERIAL CONSISTENCY
+Get/set serial consistency for LWT.
+```
+SERIAL CONSISTENCY
+SERIAL CONSISTENCY LOCAL_SERIAL
+```
+Levels: SERIAL, LOCAL_SERIAL
+
+### SHOW
+Display info.
+```
+SHOW VERSION
+SHOW HOST
+SHOW SESSION <trace-uuid>
+```
+
+### SOURCE
+Execute CQL from file.
+```
+SOURCE '<filename>'
+```
+
+### TRACING
+Toggle request tracing.
+```
+TRACING ON / TRACING OFF / TRACING
+```
+
+### UNICODE
+Show encoding info.
+
+### USE
+Switch keyspace (CQL statement, but updates prompt).
+```
+USE <keyspace>;
+```
+
+---
+
+## Configuration (cqlshrc)
+
+File: ~/.cassandra/cqlshrc (INI format). Override with --cqlshrc.
+
+### [authentication]
+- `username` — Auth username
+- `password` — Auth password
+- `credentials` — Path to credentials file
+- `keyspace` — Default keyspace
+
+### [connection]
+- `hostname` — Contact point (default: 127.0.0.1)
+- `port` — Port (default: 9042)
+- `factory` — Connection factory
+- `timeout` — General timeout
+- `connect_timeout` — Connect timeout (default: 5)
+- `request_timeout` — Request timeout (default: 10)
+- `client_timeout` — Client timeout (default: 120)
+
+### [ssl]
+- `certfile` — CA certificate path
+- `validate` — Validate server cert (default: true)
+- `userkey` — Client private key
+- `usercert` — Client certificate
+- `version` — TLS version (TLSv1_2 or TLSv1_3)
+
+### [certfiles]
+Per-host certificate mapping: `hostname = /path/to/cert.pem`
+
+### [ui]
+- `color` — Colored output (default: on)
+- `datetimeformat` — Timestamp format (default: %Y-%m-%d %H:%M:%S%z)
+- `timezone` — Display timezone
+- `float_precision` — Float digits (default: 5)
+- `double_precision` — Double digits (default: 12)
+- `max_trace_wait` — Trace wait seconds (default: 10.0)
+- `encoding` — Output encoding (default: utf-8)
+- `completekey` — Completion key (default: tab)
+- `browser` — Browser for HELP URLs
+
+### [cql]
+- `version` — CQL version to report
+
+### [csv]
+- `field_size_limit` — Max CSV field size (default: 131072)
+
+### [copy]
+- `numprocesses` — Worker count (default: 4)
+- `maxattempts` — Retry attempts (default: 5)
+- `reportfrequency` — Progress interval seconds
+
+### [copy-to]
+- `pagesize` — Rows per page (default: 1000)
+- `pagetimeout` — Page timeout seconds
+- `begintoken` / `endtoken` — Token range
+- `maxrequests` — Concurrent requests (default: 6)
+- `maxoutputsize` — Max rows (-1 = unlimited)
+- `floatprecision` / `doubleprecision` — Decimal digits
+
+### [copy-from]
+- `chunksize` — Batch size (default: 1000)
+- `ingestrate` — Target rows/sec (default: 100000)
+- `maxbatchsize` / `minbatchsize` — Batch bounds
+- `maxparseerrors` / `maxinserterrors` — Error limits (-1 = unlimited)
+- `preparedstatements` — Use prepared stmts (default: true)
+- `ttl` — Row TTL (-1 = none)
+
+### [tracing]
+- `max_trace_wait` — Trace wait seconds (default: 10.0)
+
+---
+
+## Migration from Python cqlsh
+
+### What stays the same
+- All CLI flags
+- cqlshrc format and sections
+- Shell commands
+- Prompt format (username@cqlsh:keyspace>)
+- History file (~/.cassandra/cql_history)
+- Environment variables
+- Multi-line input with ; termination
+
+### Key differences
+- Single binary (no Python needed)
+- ~50x faster startup
+- Uses rustls (TLS 1.2+ only, no SSLv3/TLSv1.0/1.1)
+- Async COPY instead of multiprocessing
+- Built-in pager instead of less
+
+### Migration steps
+1. Install cqlsh-rs
+2. Test with existing cqlshrc (no changes needed)
+3. Test connection with same flags
+4. Test scripts using -e and -f
+5. Optionally alias cqlsh to cqlsh-rs
+
+---
+
+## Troubleshooting
+
+### Connection refused
+- Verify host/port, check Cassandra is running, check firewalls, increase --connect-timeout
+
+### Authentication failed
+- Verify credentials, check authenticator config in cassandra.yaml
+
+### SSL errors
+- Verify cert files exist and are valid, ensure TLS 1.2+, check validate setting
+
+### COPY timeouts
+- Reduce CHUNKSIZE, reduce INGESTRATE, increase --request-timeout
+
+### Tab completion not working
+- Requires active connection, try DESCRIBE KEYSPACES to refresh schema
+
+### History not saving
+- Check ~/.cassandra/ exists and is writable, check --disable-history flag
