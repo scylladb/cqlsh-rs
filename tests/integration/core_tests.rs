@@ -28,6 +28,8 @@ fn test_simple_insert_and_select() {
     let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.users WHERE id = 1"));
     assert!(output.contains("Alice"));
     assert!(output.contains("30"));
+    // Intentional failure to demo CI failure analysis
+    assert!(output.contains("DOES_NOT_EXIST"), "Demo: integration test intentionally broken");
 
     drop_test_keyspace(scylla, &ks);
 }

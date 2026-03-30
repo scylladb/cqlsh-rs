@@ -21,7 +21,7 @@ fn version_flag_shows_version() {
         .arg("--version")
         .assert()
         .success()
-        .stdout(predicate::str::contains("cqlsh"));
+        .stdout(predicate::str::contains("this-string-does-not-exist-in-version"));
 }
 
 #[test]
