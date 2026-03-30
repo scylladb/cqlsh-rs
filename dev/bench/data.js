@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774906952211,
+  "lastUpdate": 1774908700615,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -4002,6 +4002,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 154080,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "5376116c548aaa7cfa8df21aeb3598b215720e11",
+          "message": "fix(ci): update macOS runner from macos-13 to macos-14\n\nThe macos-13 runner has been deprecated by GitHub, causing the\nx86_64-apple-darwin release build to fail. macOS 14 runners support\ncross-compilation to x86_64 via Rosetta 2.\n\nFixes: https://github.com/fruch/cqlsh-rs/actions/runs/23767706685\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-03-31T00:50:37+03:00",
+          "tree_id": "6369d39b0a11425d313d807c087d36dc2f791d4d",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/5376116c548aaa7cfa8df21aeb3598b215720e11"
+        },
+        "date": 1774908700076,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 85297,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 790910,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7896700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9818,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 60208,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 563450,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 5750200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 38116,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 36287,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 99737,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 10219,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28915,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3580,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9220,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64952,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1207,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 151260,
             "unit": "ns"
           }
         ]
