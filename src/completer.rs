@@ -346,12 +346,18 @@ impl CqlCompleter {
     }
 
     /// Extract table name from the token stream by finding FROM/INTO/UPDATE <table>.
-    fn extract_table_from_tokens(&self, sig: &[&cql_lexer::Token]) -> (Option<String>, Option<String>) {
+    fn extract_table_from_tokens(
+        &self,
+        sig: &[&cql_lexer::Token],
+    ) -> (Option<String>, Option<String>) {
         for (i, tok) in sig.iter().enumerate() {
             let upper = tok.text.to_uppercase();
             if matches!(upper.as_str(), "FROM" | "INTO" | "UPDATE" | "TABLE")
                 && i + 1 < sig.len()
-                && matches!(sig[i + 1].kind, TokenKind::Identifier | TokenKind::QuotedIdentifier)
+                && matches!(
+                    sig[i + 1].kind,
+                    TokenKind::Identifier | TokenKind::QuotedIdentifier
+                )
             {
                 let table = sig[i + 1].text.clone();
                 // Check for qualified name (ks.table)

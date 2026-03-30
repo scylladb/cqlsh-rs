@@ -319,9 +319,15 @@ mod tests {
         let c = CqlColorizer::new(true);
         // KEY and SET after FROM should be identifiers, not keywords
         let output_key = c.colorize_line("SELECT * FROM KEY");
-        assert!(output_key.ends_with("KEY"), "KEY after FROM should not be highlighted");
+        assert!(
+            output_key.ends_with("KEY"),
+            "KEY after FROM should not be highlighted"
+        );
         let output_set = c.colorize_line("SELECT * FROM SET");
-        assert!(output_set.ends_with("SET"), "SET after FROM should not be highlighted");
+        assert!(
+            output_set.ends_with("SET"),
+            "SET after FROM should not be highlighted"
+        );
     }
 
     #[test]
