@@ -107,9 +107,25 @@ jobs:
           path: build-output.json
           retention-days: 5
 
-  integration-scylladb:
-    name: Integration Tests (ScyllaDB 6.0)
+  integration:
+    name: Integration Tests (${{ matrix.db_name }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - db_name: scylladb-2026.1
+            db_image: scylladb/scylla:2026.1
+            db_args: "--smp 1 --memory 512M --overprovisioned 1 --skip-wait-for-gossip-to-settle 0"
+          - db_name: scylladb-2025.1
+            db_image: scylladb/scylla:2025.1
+            db_args: "--smp 1 --memory 512M --overprovisioned 1 --skip-wait-for-gossip-to-settle 0"
+          - db_name: cassandra-4.1
+            db_image: cassandra:4.1
+            db_args: ""
+          - db_name: cassandra-5.0
+            db_image: cassandra:5.0
+            db_args: ""
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
@@ -119,65 +135,21 @@ jobs:
       # failing with "address already in use" when setting up port forwarding.
       # Goal: restore plain `cargo test` with testcontainers once root cause is fixed.
       # Tracked: https://github.com/fruch/cqlsh-rs/issues/TODO
-      - name: Start ScyllaDB
+      - name: Start database (${{ matrix.db_name }})
         run: |
-          docker run -d --name scylladb \
+          docker run -d --name testdb \
             -p 9042:9042 \
-            scylladb/scylla:6.0 \
-            --smp 1 --memory 512M --overprovisioned 1 --skip-wait-for-gossip-to-settle 0
-          echo "Waiting for ScyllaDB to be ready..."
-          for i in $(seq 1 30); do
-            if docker exec scylladb cqlsh -e "SELECT now() FROM system.local;" 2>/dev/null; then
-              echo "ScyllaDB ready after ${i} attempt(s)"
-              break
-            fi
-            if [ "$i" -eq 30 ]; then
-              echo "ScyllaDB failed to become ready"
-              docker logs scylladb
-              exit 1
-            fi
-            sleep 5
-          done
-      - name: Run integration tests
-        env:
-          SCYLLA_TEST_HOST: localhost
-          SCYLLA_TEST_PORT: "9042"
-        run: |
-          set -o pipefail
-          cargo test --test integration -- --ignored --test-threads=1 2>&1 | tee integration-scylladb-output.log
-        timeout-minutes: 15
-      - name: Upload integration test results
-        if: always()
-        uses: actions/upload-artifact@v6
-        with:
-          name: integration-scylladb-results
-          path: integration-scylladb-output.log
-          retention-days: 5
-
-  integration-cassandra:
-    name: Integration Tests (Cassandra 4.1)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: cassandra
-      - name: Start Cassandra 4.1
-        run: |
-          docker run -d --name cassandra \
-            -p 9042:9042 \
-            -e CASSANDRA_CLUSTER_NAME=test_cluster \
-            cassandra:4.1
-          echo "Waiting for Cassandra to be ready (may take up to 5 minutes)..."
+            ${{ matrix.db_image }} \
+            ${{ matrix.db_args }}
+          echo "Waiting for ${{ matrix.db_name }} to be ready..."
           for i in $(seq 1 60); do
-            if docker exec cassandra cqlsh -e "SELECT now() FROM system.local;" 2>/dev/null; then
-              echo "Cassandra ready after ${i} attempt(s)"
+            if docker exec testdb cqlsh -e "SELECT now() FROM system.local;" 2>/dev/null; then
+              echo "${{ matrix.db_name }} ready after ${i} attempt(s)"
               break
             fi
             if [ "$i" -eq 60 ]; then
-              echo "Cassandra failed to become ready"
-              docker logs cassandra
+              echo "${{ matrix.db_name }} failed to become ready"
+              docker logs testdb
               exit 1
             fi
             sleep 5
@@ -188,14 +160,14 @@ jobs:
           SCYLLA_TEST_PORT: "9042"
         run: |
           set -o pipefail
-          cargo test --test integration -- --ignored --test-threads=1 2>&1 | tee integration-cassandra-output.log
+          cargo test --test integration -- --ignored --test-threads=1 2>&1 | tee integration-output.log
         timeout-minutes: 20
       - name: Upload integration test results
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: integration-cassandra-results
-          path: integration-cassandra-output.log
+          name: integration-test-results-${{ matrix.db_name }}
+          path: integration-output.log
           retention-days: 5
 
   coverage:
