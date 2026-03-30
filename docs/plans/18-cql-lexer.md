@@ -3,7 +3,7 @@
 > Parent: [high-level-design.md](high-level-design.md) | Cross-cutting
 >
 > **This is a living document.** Update it as development progresses.
-> **Status: NOT STARTED** — Post-v1 refactor. Current workaround (ad-hoc tokenizers in colorizer/completer/parser) is functional.
+> **Status: COMPLETED** (2026-03-31) — Unified lexer in `src/cql_lexer.rs`, all three consumers migrated.
 
 ## Objective
 
@@ -104,4 +104,11 @@ enum GrammarContext {
 
 ## Status
 
-**Not started.** This is a placeholder for future work. Current workaround: dot-prefix check in colorizer (commit 051427d).
+**COMPLETED** (2026-03-31)
+
+- Task 1: Created `src/cql_lexer.rs` with hand-written state machine tokenizer (112 unit tests)
+- Task 2: Migrated `src/colorizer.rs` to use lexer — fixes false keyword highlights on identifiers (USERS, KEY, SET after FROM/INTO)
+- Task 3: Migrated `src/completer.rs` to use lexer — grammar-aware context detection via `GrammarContext`
+- Task 4: Migrated `src/parser.rs` to use lexer — `strip_comments` delegates to `cql_lexer::strip_comments`
+- Task 5: Removed duplicated comment-stripping code from parser; colorizer keyword list and tokenizer deleted
+- All 441 library tests pass, zero clippy warnings

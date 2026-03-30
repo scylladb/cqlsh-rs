@@ -1,112 +1,15 @@
 //! CQL syntax colorization for the REPL prompt and output.
 //!
-//! Provides a simple tokenizer that applies ANSI colors to CQL keywords,
-//! string literals, numbers, and comments using crossterm styling.
+//! Uses the unified CQL lexer (`cql_lexer`) for context-aware tokenization,
+//! which correctly distinguishes keywords from identifiers based on grammar
+//! position (e.g., USERS after FROM is an identifier, not a keyword).
 //! Also provides output coloring for query result values, headers, and errors
 //! matching Python cqlsh's color scheme.
 
 use crossterm::style::Stylize;
 
+use crate::cql_lexer::{self, TokenKind};
 use crate::driver::types::CqlValue;
-
-/// Set of CQL keywords to highlight (uppercase for matching).
-const KEYWORDS: &[&str] = &[
-    "ADD",
-    "ALTER",
-    "AND",
-    "APPLY",
-    "AS",
-    "ASC",
-    "AUTHORIZE",
-    "BATCH",
-    "BEGIN",
-    "BY",
-    "CALLED",
-    "CLUSTERING",
-    "COLUMN",
-    "COMPACT",
-    "CONTAINS",
-    "COUNT",
-    "CREATE",
-    "CUSTOM",
-    "DELETE",
-    "DESC",
-    "DESCRIBE",
-    "DISTINCT",
-    "DROP",
-    "ENTRIES",
-    "EXECUTE",
-    "EXISTS",
-    "FILTERING",
-    "FROM",
-    "FROZEN",
-    "FULL",
-    "FUNCTION",
-    "GRANT",
-    "IF",
-    "IN",
-    "INDEX",
-    "INSERT",
-    "INTO",
-    "IS",
-    "JSON",
-    "KEY",
-    "KEYSPACE",
-    "KEYSPACES",
-    "LANGUAGE",
-    "LIKE",
-    "LIMIT",
-    "LIST",
-    "LOGIN",
-    "MAP",
-    "MATERIALIZED",
-    "MODIFY",
-    "NAMESPACE",
-    "NOT",
-    "NULL",
-    "OF",
-    "ON",
-    "OR",
-    "ORDER",
-    "PARTITION",
-    "PASSWORD",
-    "PER",
-    "PERMISSION",
-    "PERMISSIONS",
-    "PRIMARY",
-    "RENAME",
-    "REPLACE",
-    "RETURNS",
-    "REVOKE",
-    "SCHEMA",
-    "SELECT",
-    "SET",
-    "STATIC",
-    "STORAGE",
-    "SUPERUSER",
-    "TABLE",
-    "TABLES",
-    "TEXT",
-    "TIMESTAMP",
-    "TO",
-    "TOKEN",
-    "TRIGGER",
-    "TRUNCATE",
-    "TTL",
-    "TUPLE",
-    "TYPE",
-    "UNLOGGED",
-    "UPDATE",
-    "USE",
-    "USER",
-    "USERS",
-    "USING",
-    "VALUES",
-    "VIEW",
-    "WHERE",
-    "WITH",
-    "WRITETIME",
-];
 
 /// CQL syntax colorizer using ANSI escape codes.
 pub struct CqlColorizer {
@@ -293,107 +196,51 @@ impl CqlColorizer {
 
     /// Colorize a line of CQL input for display.
     ///
-    /// Applies colors:
+    /// Uses the unified CQL lexer for context-aware tokenization. Colors:
     /// - CQL keywords → bold blue
-    /// - String literals ('...') → green
+    /// - String literals → green
     /// - Numbers → cyan
-    /// - Comments (-- ...) → dark grey
+    /// - Comments → dark grey
+    /// - Identifiers, operators, punctuation → default (no color)
     pub fn colorize_line(&self, line: &str) -> String {
         if !self.enabled {
             return line.to_string();
         }
 
+        let tokens = cql_lexer::tokenize(line);
         let mut result = String::with_capacity(line.len() * 2);
-        let chars: Vec<char> = line.chars().collect();
-        let len = chars.len();
-        let mut i = 0;
 
-        while i < len {
-            // Comment: -- to end of line
-            if i + 1 < len && chars[i] == '-' && chars[i + 1] == '-' {
-                let rest: String = chars[i..].iter().collect();
-                result.push_str(&format!("{}", rest.dark_grey()));
-                break;
+        for token in &tokens {
+            match token.kind {
+                TokenKind::Keyword => {
+                    result.push_str(&format!("{}", token.text.as_str().blue().bold()));
+                }
+                TokenKind::StringLiteral | TokenKind::DollarStringLiteral => {
+                    result.push_str(&format!("{}", token.text.as_str().green()));
+                }
+                TokenKind::NumberLiteral => {
+                    result.push_str(&format!("{}", token.text.as_str().cyan()));
+                }
+                TokenKind::BlobLiteral => {
+                    result.push_str(&format!("{}", token.text.as_str().dark_magenta()));
+                }
+                TokenKind::UuidLiteral => {
+                    result.push_str(&format!("{}", token.text.as_str().green()));
+                }
+                TokenKind::BooleanLiteral => {
+                    result.push_str(&format!("{}", token.text.as_str().green().bold()));
+                }
+                TokenKind::LineComment | TokenKind::BlockComment => {
+                    result.push_str(&format!("{}", token.text.as_str().dark_grey()));
+                }
+                _ => {
+                    result.push_str(&token.text);
+                }
             }
-
-            // String literal: '...'
-            if chars[i] == '\'' {
-                let start = i;
-                i += 1;
-                while i < len && chars[i] != '\'' {
-                    if chars[i] == '\\' && i + 1 < len {
-                        i += 1; // skip escaped char
-                    }
-                    i += 1;
-                }
-                if i < len {
-                    i += 1; // consume closing quote
-                }
-                let literal: String = chars[start..i].iter().collect();
-                result.push_str(&format!("{}", literal.green()));
-                continue;
-            }
-
-            // Number (simple: digits possibly with dots)
-            if chars[i].is_ascii_digit()
-                || (chars[i] == '-'
-                    && i + 1 < len
-                    && chars[i + 1].is_ascii_digit()
-                    && (i == 0 || !chars[i - 1].is_alphanumeric()))
-            {
-                let start = i;
-                if chars[i] == '-' {
-                    i += 1;
-                }
-                while i < len && (chars[i].is_ascii_digit() || chars[i] == '.') {
-                    i += 1;
-                }
-                // Make sure this isn't part of an identifier
-                if i < len && (chars[i].is_alphanumeric() || chars[i] == '_') {
-                    // It's an identifier like "table1" — don't colorize
-                    let word: String = chars[start..].iter().collect();
-                    let end = word
-                        .find(|c: char| c.is_whitespace() || c == ',' || c == ')' || c == ';')
-                        .unwrap_or(word.len());
-                    result.push_str(&chars[start..start + end].iter().collect::<String>());
-                    i = start + end;
-                } else {
-                    let num: String = chars[start..i].iter().collect();
-                    result.push_str(&format!("{}", num.cyan()));
-                }
-                continue;
-            }
-
-            // Word (potential keyword)
-            if chars[i].is_alphabetic() || chars[i] == '_' {
-                let start = i;
-                while i < len && (chars[i].is_alphanumeric() || chars[i] == '_') {
-                    i += 1;
-                }
-                let word: String = chars[start..i].iter().collect();
-                // Don't highlight as keyword if preceded by '.' (it's a qualified name)
-                let after_dot = start > 0 && chars[start - 1] == '.';
-                if !after_dot && is_keyword(&word) {
-                    result.push_str(&format!("{}", word.blue().bold()));
-                } else {
-                    result.push_str(&word);
-                }
-                continue;
-            }
-
-            // Other characters (whitespace, operators, etc.)
-            result.push(chars[i]);
-            i += 1;
         }
 
         result
     }
-}
-
-/// Check if a word is a CQL keyword (case-insensitive).
-fn is_keyword(word: &str) -> bool {
-    let upper = word.to_uppercase();
-    KEYWORDS.binary_search(&upper.as_str()).is_ok()
 }
 
 #[cfg(test)]
@@ -458,16 +305,31 @@ mod tests {
     }
 
     #[test]
-    fn keyword_list_is_sorted() {
-        // binary_search requires sorted list
-        for window in KEYWORDS.windows(2) {
-            assert!(
-                window[0] < window[1],
-                "KEYWORDS not sorted: {:?} >= {:?}",
-                window[0],
-                window[1]
-            );
-        }
+    fn identifiers_after_from_not_highlighted() {
+        let c = CqlColorizer::new(true);
+        // "users" after FROM should NOT be highlighted as a keyword
+        let output = c.colorize_line("SELECT * FROM users");
+        // Extract the "users" portion — it should not contain ANSI codes
+        // The output is: <colored SELECT> <space> <*> <space> <colored FROM> <space> <users>
+        assert!(output.ends_with("users"));
+    }
+
+    #[test]
+    fn keyword_names_as_identifiers_not_highlighted() {
+        let c = CqlColorizer::new(true);
+        // KEY and SET after FROM should be identifiers, not keywords
+        let output_key = c.colorize_line("SELECT * FROM KEY");
+        assert!(output_key.ends_with("KEY"), "KEY after FROM should not be highlighted");
+        let output_set = c.colorize_line("SELECT * FROM SET");
+        assert!(output_set.ends_with("SET"), "SET after FROM should not be highlighted");
+    }
+
+    #[test]
+    fn qualified_name_after_dot_not_highlighted() {
+        let c = CqlColorizer::new(true);
+        let output = c.colorize_line("SELECT * FROM ks.users");
+        // "users" after dot should not be highlighted
+        assert!(output.ends_with("users"));
     }
 
     // --- Output coloring tests ---

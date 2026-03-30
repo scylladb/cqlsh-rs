@@ -2,6 +2,7 @@
 //!
 //! Implements rustyline's `Completer`, `Helper`, `Hinter`, `Highlighter`, and
 //! `Validator` traits to provide context-aware tab completion in the REPL.
+//! Uses the unified CQL lexer for grammar-aware context detection.
 //! Completions include CQL keywords, shell commands, schema objects (keyspaces,
 //! tables, columns), consistency levels, DESCRIBE sub-commands, and file paths.
 
@@ -17,6 +18,7 @@ use tokio::runtime::Handle;
 use tokio::sync::RwLock;
 
 use crate::colorizer::CqlColorizer;
+use crate::cql_lexer::{self, GrammarContext, TokenKind};
 use crate::schema_cache::SchemaCache;
 
 /// CQL keywords that can start a statement.
@@ -268,120 +270,104 @@ impl CqlCompleter {
     }
 
     /// Detect completion context from the input line up to the cursor position.
+    ///
+    /// Uses the unified CQL lexer for grammar-aware context detection.
     fn detect_context(&self, line: &str, pos: usize) -> CompletionContext {
         let before_cursor = &line[..pos];
-        let tokens: Vec<&str> = before_cursor.split_whitespace().collect();
+        let tokens = cql_lexer::tokenize(before_cursor);
+        let sig: Vec<_> = cql_lexer::significant_tokens(&tokens);
 
-        if tokens.is_empty() {
+        if sig.is_empty() {
             return CompletionContext::Empty;
         }
 
-        let first = tokens[0].to_uppercase();
-
-        // CONSISTENCY <level>
-        if first == "CONSISTENCY" && tokens.len() <= 2 {
-            return if (tokens.len() == 1 && before_cursor.ends_with(' ')) || tokens.len() == 2 {
-                CompletionContext::ConsistencyLevel
-            } else {
-                CompletionContext::Empty
-            };
-        }
-
-        // SERIAL CONSISTENCY <level>
-        if first == "SERIAL" && tokens.len() >= 2 && tokens[1].to_uppercase() == "CONSISTENCY" {
-            return CompletionContext::ConsistencyLevel;
-        }
-
-        // SOURCE / CAPTURE — file path
-        if first == "SOURCE" || first == "CAPTURE" {
+        // Special case: SOURCE/CAPTURE always means file path completion
+        let first_upper = sig[0].text.to_uppercase();
+        if first_upper == "SOURCE" || first_upper == "CAPTURE" {
             return CompletionContext::FilePath;
         }
 
-        // USE <keyspace>
-        if first == "USE" {
-            return CompletionContext::KeyspaceName;
-        }
+        let grammar_ctx = cql_lexer::grammar_context_at_end(before_cursor);
 
-        // DESCRIBE / DESC
-        if first == "DESCRIBE" || first == "DESC" {
-            if tokens.len() == 1 && before_cursor.ends_with(' ') {
-                return CompletionContext::DescribeTarget;
+        match grammar_ctx {
+            GrammarContext::Start => CompletionContext::Empty,
+            GrammarContext::ExpectTable => {
+                // Check if the user is typing a qualified name (ks.)
+                let keyspace = self.extract_qualifying_keyspace(&sig);
+                CompletionContext::TableName { keyspace }
             }
-            if tokens.len() == 2 {
-                let sub = tokens[1].to_uppercase();
-                if before_cursor.ends_with(' ') {
-                    // After sub-command, complete with schema names
-                    return match sub.as_str() {
-                        "KEYSPACE" => CompletionContext::KeyspaceName,
-                        "TABLE" | "INDEX" | "MATERIALIZED" => {
-                            CompletionContext::TableName { keyspace: None }
-                        }
-                        _ => CompletionContext::DescribeTarget,
-                    };
+            GrammarContext::ExpectKeyspace => CompletionContext::KeyspaceName,
+            GrammarContext::ExpectColumn | GrammarContext::ExpectSetClause => {
+                // Find the table name from the token stream
+                let (ks, table) = self.extract_table_from_tokens(&sig);
+                match table {
+                    Some(t) => CompletionContext::ColumnName {
+                        keyspace: ks,
+                        table: t,
+                    },
+                    None => CompletionContext::ClauseKeyword,
                 }
-                return CompletionContext::DescribeTarget;
             }
-            if tokens.len() == 3 {
-                let sub = tokens[1].to_uppercase();
-                return match sub.as_str() {
-                    "KEYSPACE" => CompletionContext::KeyspaceName,
-                    "TABLE" | "INDEX" => CompletionContext::TableName { keyspace: None },
-                    _ => CompletionContext::ClauseKeyword,
-                };
+            GrammarContext::ExpectConsistencyLevel => CompletionContext::ConsistencyLevel,
+            GrammarContext::ExpectDescribeTarget => CompletionContext::DescribeTarget,
+            GrammarContext::ExpectFilePath => CompletionContext::FilePath,
+            GrammarContext::ExpectQualifiedPart => {
+                // After a dot — offer tables from the keyspace before the dot
+                let keyspace = self.extract_qualifying_keyspace(&sig);
+                CompletionContext::TableName { keyspace }
             }
-            return CompletionContext::ClauseKeyword;
+            GrammarContext::ExpectColumnList => {
+                // In SELECT column list — if only first keyword and no space yet, complete keywords
+                if sig.len() == 1 && !before_cursor.ends_with(' ') {
+                    CompletionContext::Empty
+                } else {
+                    CompletionContext::ClauseKeyword
+                }
+            }
+            _ => {
+                // For Start-like contexts: if only one word and still typing, complete keywords
+                if sig.len() == 1 && !before_cursor.ends_with(' ') {
+                    CompletionContext::Empty
+                } else {
+                    CompletionContext::ClauseKeyword
+                }
+            }
         }
+    }
 
-        // Check for FROM/INTO/UPDATE keywords to trigger table name completion
-        let upper_tokens: Vec<String> = tokens.iter().map(|t| t.to_uppercase()).collect();
-        for (i, token) in upper_tokens.iter().enumerate() {
-            if (token == "FROM" || token == "INTO" || token == "UPDATE" || token == "TABLE")
-                && i + 1 >= tokens.len()
-                && before_cursor.ends_with(' ')
+    /// Extract the keyspace qualifier from a dot-qualified name in the token stream.
+    fn extract_qualifying_keyspace(&self, sig: &[&cql_lexer::Token]) -> Option<String> {
+        // Look for pattern: identifier . (at end of tokens)
+        let len = sig.len();
+        if len >= 2 && sig[len - 1].text == "." {
+            return Some(sig[len - 2].text.clone());
+        }
+        None
+    }
+
+    /// Extract table name from the token stream by finding FROM/INTO/UPDATE <table>.
+    fn extract_table_from_tokens(&self, sig: &[&cql_lexer::Token]) -> (Option<String>, Option<String>) {
+        for (i, tok) in sig.iter().enumerate() {
+            let upper = tok.text.to_uppercase();
+            if matches!(upper.as_str(), "FROM" | "INTO" | "UPDATE" | "TABLE")
+                && i + 1 < sig.len()
+                && matches!(sig[i + 1].kind, TokenKind::Identifier | TokenKind::QuotedIdentifier)
             {
-                return CompletionContext::TableName { keyspace: None };
-            }
-            if (token == "FROM" || token == "INTO" || token == "UPDATE" || token == "TABLE")
-                && i + 1 < tokens.len()
-            {
-                let table_token = tokens[i + 1];
-                // Check if partially typing a qualified name (ks.)
-                if table_token.contains('.') && table_token.ends_with('.') {
-                    let ks = table_token.trim_end_matches('.').to_string();
-                    return CompletionContext::TableName { keyspace: Some(ks) };
+                let table = sig[i + 1].text.clone();
+                // Check for qualified name (ks.table)
+                if i + 3 < sig.len() && sig[i + 2].text == "." {
+                    let ks = table;
+                    let tbl = sig[i + 3].text.clone();
+                    return (Some(ks), Some(tbl));
                 }
-                // If we're past the table name, might be column context
-                if i + 2 < tokens.len() || (i + 1 < tokens.len() && before_cursor.ends_with(' ')) {
-                    // Check for WHERE clause
-                    if upper_tokens
-                        .iter()
-                        .skip(i + 2)
-                        .any(|t| t == "WHERE" || t == "SET")
-                    {
-                        let table = tokens[i + 1].to_string();
-                        let ks = tokio::task::block_in_place(|| {
-                            self.rt_handle
-                                .block_on(async { self.current_keyspace.read().await.clone() })
-                        });
-                        return CompletionContext::ColumnName {
-                            keyspace: ks,
-                            table,
-                        };
-                    }
-                }
-                // Still typing the table name
-                if !before_cursor.ends_with(' ') && i + 1 == tokens.len() - 1 {
-                    return CompletionContext::TableName { keyspace: None };
-                }
+                let ks = tokio::task::block_in_place(|| {
+                    self.rt_handle
+                        .block_on(async { self.current_keyspace.read().await.clone() })
+                });
+                return (ks, Some(table));
             }
         }
-
-        // At beginning of line, completing a keyword
-        if tokens.len() == 1 && !before_cursor.ends_with(' ') {
-            return CompletionContext::Empty;
-        }
-
-        CompletionContext::ClauseKeyword
+        (None, None)
     }
 
     /// Generate completions for the detected context.
