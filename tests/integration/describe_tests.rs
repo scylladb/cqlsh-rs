@@ -112,15 +112,32 @@ fn test_describe_materialized_view() {
         &format!("CREATE TABLE {ks}.users (id int PRIMARY KEY, email text)"),
     )
     .success();
-    execute_cql(
-        scylla,
-        &format!(
-            "CREATE MATERIALIZED VIEW {ks}.users_by_email AS \
-             SELECT * FROM {ks}.users WHERE email IS NOT NULL AND id IS NOT NULL \
-             PRIMARY KEY (email, id)"
-        ),
-    )
-    .success();
+    // Try creating MV — skip test if MVs are not supported (e.g. Cassandra 4.1
+    // with materialized_views_enabled=false).
+    let mv_output = cqlsh_cmd(scylla)
+        .args([
+            "-e",
+            &format!(
+                "CREATE MATERIALIZED VIEW {ks}.users_by_email AS \
+                 SELECT * FROM {ks}.users WHERE email IS NOT NULL AND id IS NOT NULL \
+                 PRIMARY KEY (email, id);"
+            ),
+        ])
+        .output()
+        .expect("failed to execute cqlsh-rs");
+
+    if !mv_output.status.success() {
+        let stderr = String::from_utf8_lossy(&mv_output.stderr);
+        if stderr.contains("Materialized views are not enabled")
+            || stderr.contains("materialized_views_enabled")
+            || stderr.contains("not yet supported")
+        {
+            eprintln!("Skipping test_describe_materialized_view: MVs not enabled");
+            drop_test_keyspace(scylla, &ks);
+            return;
+        }
+        panic!("MV creation failed unexpectedly: {stderr}");
+    }
 
     let output = execute_cql_output(
         scylla,
