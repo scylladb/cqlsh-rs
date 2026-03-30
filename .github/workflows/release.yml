@@ -34,7 +34,7 @@ jobs:
             cross: true
             artifact: cqlsh-rs
           - target: x86_64-apple-darwin
-            os: macos-13
+            os: macos-14
             cross: false
             artifact: cqlsh-rs
           - target: aarch64-apple-darwin
