@@ -1,10 +1,10 @@
-FROM alpine:3.20 AS runtime
+FROM alpine:3.20
 
-ARG BINARY_PATH=docker-build/cqlsh-rs-binary
+ARG TARGETARCH
 
 RUN apk add --no-cache ca-certificates tzdata
 
-COPY ${BINARY_PATH} /usr/local/bin/cqlsh-rs
+COPY docker-build/cqlsh-rs-${TARGETARCH} /usr/local/bin/cqlsh-rs
 
 RUN chmod +x /usr/local/bin/cqlsh-rs
 
