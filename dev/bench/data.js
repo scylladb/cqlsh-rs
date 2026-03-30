@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774906404816,
+  "lastUpdate": 1774906952211,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -3883,6 +3883,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 153560,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "00a464f6159b2200737161334fffb3ac2e88a76e",
+          "message": "ci: remove beta toolchain from test and build matrices\n\nDrop the Rust beta toolchain from the CI matrix, keeping only stable.\nThis halves the test and build job count (6 → 3 each) without losing\nmeaningful coverage for this project.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-03-31T00:20:25+03:00",
+          "tree_id": "a189c7987794944537548281fa97af109d38ff03",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/00a464f6159b2200737161334fffb3ac2e88a76e"
+        },
+        "date": 1774906951321,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 83738,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 800840,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7957200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10032,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 60236,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 558920,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 5690000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 37262,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 36423,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 99649,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 10255,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28861,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3664,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9412,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65223,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1234,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 154080,
             "unit": "ns"
           }
         ]
