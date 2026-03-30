@@ -25,48 +25,66 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      # Download artifacts from the failed CI run
+      # Download all CI artifacts using glob patterns (matrix jobs produce suffixed names)
       - name: Download test results
         uses: actions/download-artifact@v7
         with:
-          name: test-results
+          pattern: test-results-*
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ci-artifacts/
+          merge-multiple: true
         continue-on-error: true
 
       - name: Download clippy results
         uses: actions/download-artifact@v7
         with:
-          name: clippy-results
+          pattern: clippy-results*
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ci-artifacts/
+          merge-multiple: true
         continue-on-error: true
 
       - name: Download build results
         uses: actions/download-artifact@v7
         with:
-          name: build-results
+          pattern: build-results-*
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ci-artifacts/
+          merge-multiple: true
         continue-on-error: true
 
       - name: Download fmt results
         uses: actions/download-artifact@v7
         with:
-          name: fmt-results
+          pattern: fmt-results*
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ci-artifacts/
+          merge-multiple: true
         continue-on-error: true
+
+      - name: Download integration test results
+        uses: actions/download-artifact@v7
+        with:
+          pattern: integration-test-results-*
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ci-artifacts/
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: List downloaded artifacts
+        run: find ci-artifacts/ -type f 2>/dev/null || echo "No artifacts downloaded"
 
       # Get the PR number
       - name: Get PR number
         id: pr
         run: |
-          PR_NUMBER=$(gh api repos/${{ github.repository }}/commits/${{ github.event.workflow_run.head_sha }}/pulls --jq '.[0].number')
+          PR_NUMBER=$(gh api "repos/${{ github.repository }}/commits/${{ github.event.workflow_run.head_sha }}/pulls" \
+            --jq '.[0].number // empty')
           echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -77,59 +95,67 @@ jobs:
         run: |
           gh run view ${{ github.event.workflow_run.id }} --json jobs \
             --jq '.jobs[] | select(.conclusion == "failure") | .name' \
-            > failed-jobs.txt
+            > failed-jobs.txt || true
           echo "Failed jobs:"
           cat failed-jobs.txt
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Run the analysis script
+      # Run the analysis script — outputs markdown to a file
       - name: Analyze failures
-        id: analyze
         run: |
-          {
-            echo "comment<<COMMENT_EOF"
-            bash .github/scripts/analyze-ci-failures.sh \
-              ci-artifacts \
-              failed-jobs.txt \
-              "${{ github.repository }}" \
-              "${{ github.event.workflow_run.id }}"
-            echo "COMMENT_EOF"
-          } >> "$GITHUB_OUTPUT"
+          bash .github/scripts/analyze-ci-failures.sh \
+            ci-artifacts \
+            failed-jobs.txt \
+            "${{ github.repository }}" \
+            "${{ github.event.workflow_run.id }}" \
+            > /tmp/ci-comment-body.md
+          echo "Generated comment:"
+          cat /tmp/ci-comment-body.md
 
-      # Post or update PR comment
+      # Post or update PR comment — reads from file to avoid backtick interpolation bugs
       - name: Post failure summary comment
         if: steps.pr.outputs.number != ''
         uses: actions/github-script@v8
         with:
           script: |
-            const body = `${{ steps.analyze.outputs.comment }}`;
+            const fs = require('fs');
+            let body;
+            try {
+              body = fs.readFileSync('/tmp/ci-comment-body.md', 'utf8');
+            } catch (e) {
+              console.log('No comment body file found:', e.message);
+              return;
+            }
+            if (!body || body.trim() === '') {
+              console.log('Empty comment body — skipping');
+              return;
+            }
 
+            const prNumber = ${{ steps.pr.outputs.number }};
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: ${{ steps.pr.outputs.number }}
+              issue_number: prNumber
             });
 
-            const marker = '## CI Failure Summary';
-            const existing = comments.data.find(c =>
-              c.user.type === 'Bot' && c.body.startsWith(marker)
-            );
+            const marker = '<!-- cqlsh-rs-ci-summary -->';
+            const existing = comments.data.find(c => c.body.includes(marker));
 
             if (existing) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: existing.id,
-                body: body
+                body
               });
               console.log(`Updated existing comment ${existing.id}`);
             } else {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: ${{ steps.pr.outputs.number }},
-                body: body
+                issue_number: prNumber,
+                body
               });
               console.log('Created new comment');
             }
