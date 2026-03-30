@@ -6,7 +6,7 @@
 
 - [Getting Started](./getting-started.md)
 - [Installation](./installation.md)
-- [Configuration Reference](./configuration/README.md)
+- [Configuration Reference](./configuration/index.md)
     - [authentication](./configuration/authentication.md)
     - [connection](./configuration/connection.md)
     - [ssl](./configuration/ssl.md)
@@ -16,7 +16,7 @@
     - [copy / copy-to / copy-from](./configuration/copy.md)
     - [tracing](./configuration/tracing.md)
 - [CLI Reference](./cli-reference.md)
-- [Command Reference](./commands/README.md)
+- [Command Reference](./commands/index.md)
     - [CAPTURE](./commands/capture.md)
     - [CLEAR](./commands/clear.md)
     - [CONSISTENCY](./commands/consistency.md)
