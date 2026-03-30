@@ -96,6 +96,6 @@ USE my_keyspace;
 ## Next steps
 
 - [CLI Reference](./cli-reference.md) — all command-line flags
-- [Command Reference](./commands/README.md) — shell commands (DESCRIBE, COPY, etc.)
-- [Configuration Reference](./configuration/README.md) — cqlshrc file format
+- [Command Reference](./commands/index.md) — shell commands (DESCRIBE, COPY, etc.)
+- [Configuration Reference](./configuration/index.md) — cqlshrc file format
 - [Migration Guide](./migration.md) — moving from Python cqlsh

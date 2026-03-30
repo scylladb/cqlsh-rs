@@ -15,5 +15,5 @@
 - **New users**: Start with [Getting Started](./getting-started.md)
 - **Installing**: See [Installation](./installation.md) for all platforms
 - **Migrating from Python cqlsh**: Read the [Migration Guide](./migration.md)
-- **Reference**: Browse [CLI Reference](./cli-reference.md), [Command Reference](./commands/README.md), and [Configuration Reference](./configuration/README.md)
+- **Reference**: Browse [CLI Reference](./cli-reference.md), [Command Reference](./commands/index.md), and [Configuration Reference](./configuration/index.md)
 - **Having issues?**: Check [Troubleshooting](./troubleshooting.md)

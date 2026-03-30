@@ -13,7 +13,6 @@ default-theme = "light"
 preferred-dark-theme = "navy"
 git-repository-url = "https://github.com/fruch/cqlsh-rs"
 edit-url-template = "https://github.com/fruch/cqlsh-rs/edit/main/docs/book/{path}"
-site-url = "/cqlsh-rs/"
 no-section-label = false
 
 [output.html.search]
