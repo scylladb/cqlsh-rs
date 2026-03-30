@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774908805584,
+  "lastUpdate": 1774909689764,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -4240,6 +4240,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 134500,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "f400147df83d08d68cfc1ca259e1f8043e1a3cc3",
+          "message": "fix(docs): fix link checker failures in CI\n\n- Rename README.md to index.md in commands/ and configuration/ dirs\n  (mdBook renders README.md as index.html, causing broken README.html links)\n- Update all internal references to use index.md\n- Remove site-url from book.toml to avoid root-relative link in 404.html\n- Exclude 404.html, font license files, and adobe.com from lychee checks\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-03-31T01:06:45+03:00",
+          "tree_id": "11a47a6046b7f51b0ad77cd983e84611ee02f4ea",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/f400147df83d08d68cfc1ca259e1f8043e1a3cc3"
+        },
+        "date": 1774909688887,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 83506,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 788260,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7890800,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9932,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 59950,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 562700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 5741300,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 38025,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 35987,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 98158,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 10244,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28978,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3684,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9388,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65345,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1215,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 154470,
             "unit": "ns"
           }
         ]
