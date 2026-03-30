@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774909689764,
+  "lastUpdate": 1774910170949,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -4359,6 +4359,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 154470,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "52f4382c6d9dfe856cd62aecb6ddb20fe2131484",
+          "message": "ci: configure Renovate for Rust and GitHub Actions dependency updates\n\nAdds renovate.json with:\n- Grouped automerge for Rust minor/patch updates\n- Separate PRs (no automerge) for Rust major updates\n- Grouped automerge for GitHub Actions updates\n- Lock file maintenance enabled\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-03-31T01:15:14+03:00",
+          "tree_id": "32d392dd9f38a5bd7d782d2b6b3fbebec433f0e7",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/52f4382c6d9dfe856cd62aecb6ddb20fe2131484"
+        },
+        "date": 1774910170523,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 83671,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 791190,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7912300,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9808,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 59877,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 564500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 5751900,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 37322,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 35153,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 98491,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 10216,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29121,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3605,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9359,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65041,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1208,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153500,
             "unit": "ns"
           }
         ]
