@@ -96,24 +96,134 @@ pub enum GrammarContext {
 
 /// Set of CQL keywords and shell commands (uppercase, sorted for binary search).
 const CQL_KEYWORDS: &[&str] = &[
-    "ADD", "AGGREGATE", "ALL", "ALLOW", "ALTER", "AND", "APPLY", "AS", "ASC",
-    "AUTHORIZE", "BATCH", "BEGIN", "BY", "CALLED", "CAPTURE", "CLEAR",
-    "CLS", "CLUSTERING", "COLUMN", "COMPACT", "CONSISTENCY", "CONTAINS",
-    "COPY", "COUNT", "COUNTER", "CREATE", "CUSTOM", "DELETE", "DESC",
-    "DESCRIBE", "DISTINCT", "DROP", "EACH_QUORUM", "ENTRIES", "EXECUTE",
-    "EXISTS", "EXIT", "EXPAND", "FILTERING", "FINALFUNC", "FROM", "FROZEN",
-    "FULL", "FUNCTION", "FUNCTIONS", "GRANT", "HELP", "IF", "IN", "INDEX",
-    "INITCOND", "INPUT", "INSERT", "INTO", "IS", "JSON", "KEY", "KEYSPACE",
-    "KEYSPACES", "LANGUAGE", "LIKE", "LIMIT", "LIST", "LOCAL_ONE",
-    "LOCAL_QUORUM", "LOGIN", "MAP", "MATERIALIZED", "MODIFY", "NAMESPACE",
-    "NORECURSIVE", "NOT", "NULL", "OF", "ON", "ONE", "OR", "ORDER", "PAGING",
-    "PARTITION", "PASSWORD", "PER", "PERMISSION", "PERMISSIONS", "PRIMARY",
-    "QUIT", "QUORUM", "RENAME", "REPLACE", "RETURNS", "REVOKE", "SCHEMA",
-    "SELECT", "SERIAL", "SET", "SFUNC", "SHOW", "SOURCE", "STATIC",
-    "STORAGE", "STYPE", "SUPERUSER", "TABLE", "TABLES", "TEXT", "THREE",
-    "TIMESTAMP", "TO", "TOKEN", "TRACING", "TRIGGER", "TRUNCATE", "TTL",
-    "TUPLE", "TWO", "TYPE", "UNICODE", "UNLOGGED", "UPDATE", "USE", "USER",
-    "USERS", "USING", "VALUES", "VIEW", "WHERE", "WITH", "WRITETIME",
+    "ADD",
+    "AGGREGATE",
+    "ALL",
+    "ALLOW",
+    "ALTER",
+    "AND",
+    "APPLY",
+    "AS",
+    "ASC",
+    "AUTHORIZE",
+    "BATCH",
+    "BEGIN",
+    "BY",
+    "CALLED",
+    "CAPTURE",
+    "CLEAR",
+    "CLS",
+    "CLUSTERING",
+    "COLUMN",
+    "COMPACT",
+    "CONSISTENCY",
+    "CONTAINS",
+    "COPY",
+    "COUNT",
+    "COUNTER",
+    "CREATE",
+    "CUSTOM",
+    "DELETE",
+    "DESC",
+    "DESCRIBE",
+    "DISTINCT",
+    "DROP",
+    "EACH_QUORUM",
+    "ENTRIES",
+    "EXECUTE",
+    "EXISTS",
+    "EXIT",
+    "EXPAND",
+    "FILTERING",
+    "FINALFUNC",
+    "FROM",
+    "FROZEN",
+    "FULL",
+    "FUNCTION",
+    "FUNCTIONS",
+    "GRANT",
+    "HELP",
+    "IF",
+    "IN",
+    "INDEX",
+    "INITCOND",
+    "INPUT",
+    "INSERT",
+    "INTO",
+    "IS",
+    "JSON",
+    "KEY",
+    "KEYSPACE",
+    "KEYSPACES",
+    "LANGUAGE",
+    "LIKE",
+    "LIMIT",
+    "LIST",
+    "LOCAL_ONE",
+    "LOCAL_QUORUM",
+    "LOGIN",
+    "MAP",
+    "MATERIALIZED",
+    "MODIFY",
+    "NAMESPACE",
+    "NORECURSIVE",
+    "NOT",
+    "NULL",
+    "OF",
+    "ON",
+    "ONE",
+    "OR",
+    "ORDER",
+    "PAGING",
+    "PARTITION",
+    "PASSWORD",
+    "PER",
+    "PERMISSION",
+    "PERMISSIONS",
+    "PRIMARY",
+    "QUIT",
+    "QUORUM",
+    "RENAME",
+    "REPLACE",
+    "RETURNS",
+    "REVOKE",
+    "SCHEMA",
+    "SELECT",
+    "SERIAL",
+    "SET",
+    "SFUNC",
+    "SHOW",
+    "SOURCE",
+    "STATIC",
+    "STORAGE",
+    "STYPE",
+    "SUPERUSER",
+    "TABLE",
+    "TABLES",
+    "TEXT",
+    "THREE",
+    "TIMESTAMP",
+    "TO",
+    "TOKEN",
+    "TRACING",
+    "TRIGGER",
+    "TRUNCATE",
+    "TTL",
+    "TUPLE",
+    "TWO",
+    "TYPE",
+    "UNICODE",
+    "UNLOGGED",
+    "UPDATE",
+    "USE",
+    "USER",
+    "USERS",
+    "USING",
+    "VALUES",
+    "VIEW",
+    "WHERE",
+    "WITH",
+    "WRITETIME",
 ];
 
 /// Check if a word is a CQL keyword (case-insensitive).
@@ -301,7 +411,12 @@ pub fn tokenize(input: &str) -> Vec<Token> {
 
         // Number literal: digits, optional dot, optional exponent
         // Also handles negative numbers when preceded by operator context
-        if ch.is_ascii_digit() || (ch == b'-' && i + 1 < len && bytes[i + 1].is_ascii_digit() && is_number_sign_position(&tokens)) {
+        if ch.is_ascii_digit()
+            || (ch == b'-'
+                && i + 1 < len
+                && bytes[i + 1].is_ascii_digit()
+                && is_number_sign_position(&tokens))
+        {
             let start = i;
             if ch == b'-' {
                 i += 1;
@@ -383,7 +498,11 @@ pub fn tokenize(input: &str) -> Vec<Token> {
             let word = &input[start..i];
 
             // UUID check: word of hex chars followed by '-' hex pattern
-            if i < len && bytes[i] == b'-' && word.len() == 8 && word.chars().all(|c| c.is_ascii_hexdigit()) {
+            if i < len
+                && bytes[i] == b'-'
+                && word.len() == 8
+                && word.chars().all(|c| c.is_ascii_hexdigit())
+            {
                 let uuid_end = scan_uuid(input, start);
                 if uuid_end > i {
                     i = uuid_end;
@@ -474,7 +593,12 @@ pub fn context_from_tokens(tokens: &[Token]) -> GrammarContext {
     // Walk backwards through significant tokens to determine context
     let significant: Vec<&Token> = tokens
         .iter()
-        .filter(|t| !matches!(t.kind, TokenKind::Whitespace | TokenKind::LineComment | TokenKind::BlockComment))
+        .filter(|t| {
+            !matches!(
+                t.kind,
+                TokenKind::Whitespace | TokenKind::LineComment | TokenKind::BlockComment
+            )
+        })
         .collect();
 
     if significant.is_empty() {
@@ -488,7 +612,9 @@ pub fn context_from_tokens(tokens: &[Token]) -> GrammarContext {
         let upper = last.text.to_uppercase();
         match upper.as_str() {
             "SELECT" | "DISTINCT" => return GrammarContext::ExpectColumnList,
-            "FROM" | "INTO" | "UPDATE" | "TABLE" | "TRUNCATE" => return GrammarContext::ExpectTable,
+            "FROM" | "INTO" | "UPDATE" | "TABLE" | "TRUNCATE" => {
+                return GrammarContext::ExpectTable
+            }
             "USE" | "KEYSPACE" | "KEYSPACES" => return GrammarContext::ExpectKeyspace,
             "WHERE" | "IF" => return GrammarContext::ExpectColumn,
             "AND" => {
@@ -507,7 +633,9 @@ pub fn context_from_tokens(tokens: &[Token]) -> GrammarContext {
             }
             "ORDER" => return GrammarContext::ExpectOrderBy,
             "BY" => {
-                if significant.len() >= 2 && significant[significant.len() - 2].text.to_uppercase() == "ORDER" {
+                if significant.len() >= 2
+                    && significant[significant.len() - 2].text.to_uppercase() == "ORDER"
+                {
                     return GrammarContext::ExpectOrderByColumn;
                 }
                 return GrammarContext::General;
@@ -541,7 +669,10 @@ pub fn context_from_tokens(tokens: &[Token]) -> GrammarContext {
     if significant.len() >= 2 {
         let second_last = significant[significant.len() - 2];
         let sl_upper = second_last.text.to_uppercase();
-        if matches!(sl_upper.as_str(), "FROM" | "INTO" | "UPDATE" | "TABLE" | "TRUNCATE") {
+        if matches!(
+            sl_upper.as_str(),
+            "FROM" | "INTO" | "UPDATE" | "TABLE" | "TRUNCATE"
+        ) {
             return GrammarContext::General;
         }
         // After SERIAL -> if next is CONSISTENCY
@@ -570,9 +701,7 @@ fn is_strict_identifier_context(ctx: GrammarContext) -> bool {
 
 /// Keywords that remain keywords inside a SELECT column list.
 /// These are clause-level keywords that terminate or modify the column list.
-const COLUMN_LIST_KEYWORDS: &[&str] = &[
-    "AS", "DISTINCT", "FROM", "JSON",
-];
+const COLUMN_LIST_KEYWORDS: &[&str] = &["AS", "DISTINCT", "FROM", "JSON"];
 
 fn is_column_list_keyword(word: &str) -> bool {
     let upper = word.to_uppercase();
@@ -663,7 +792,7 @@ fn advance_context_after_word(word: &str, ctx: GrammarContext) -> GrammarContext
         "DESCRIBE" | "DESC" => GrammarContext::ExpectDescribeTarget,
         "SOURCE" | "CAPTURE" => GrammarContext::ExpectFilePath,
         "INSERT" => GrammarContext::General, // INSERT INTO -> INTO will set ExpectTable
-        "DELETE" => GrammarContext::General,  // DELETE FROM -> FROM will set ExpectTable
+        "DELETE" => GrammarContext::General, // DELETE FROM -> FROM will set ExpectTable
         "CREATE" | "ALTER" | "DROP" => GrammarContext::General,
         "IF" => GrammarContext::ExpectColumn,
         "LIMIT" => GrammarContext::General,
@@ -773,14 +902,14 @@ fn is_operator_char(ch: u8) -> bool {
 }
 
 fn is_two_char_operator(first: u8, second: u8) -> bool {
-    matches!(
-        (first, second),
-        (b'<', b'=') | (b'>', b'=') | (b'!', b'=')
-    )
+    matches!((first, second), (b'<', b'=') | (b'>', b'=') | (b'!', b'='))
 }
 
 fn is_punctuation(ch: u8) -> bool {
-    matches!(ch, b';' | b',' | b'(' | b')' | b'.' | b'*' | b'?' | b'{' | b'}' | b'[' | b']' | b':')
+    matches!(
+        ch,
+        b';' | b',' | b'(' | b')' | b'.' | b'*' | b'?' | b'{' | b'}' | b'[' | b']' | b':'
+    )
 }
 
 /// Get the UTF-8 byte length of the char starting at position `i`.
@@ -804,7 +933,12 @@ fn char_len_at(bytes: &[u8], i: usize) -> usize {
 pub fn significant_tokens(tokens: &[Token]) -> Vec<&Token> {
     tokens
         .iter()
-        .filter(|t| !matches!(t.kind, TokenKind::Whitespace | TokenKind::LineComment | TokenKind::BlockComment))
+        .filter(|t| {
+            !matches!(
+                t.kind,
+                TokenKind::Whitespace | TokenKind::LineComment | TokenKind::BlockComment
+            )
+        })
         .collect()
 }
 
@@ -885,7 +1019,10 @@ mod tests {
     fn identifier_plain() {
         // After FROM, words are identifiers even if they match keywords
         let tokens = tokenize("FROM users");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[0].kind, TokenKind::Keyword);
         assert_eq!(sig[1].kind, TokenKind::Identifier);
         assert_eq!(sig[1].text, "users");
@@ -895,7 +1032,10 @@ mod tests {
     fn identifier_after_from_keyword_name() {
         // USERS after FROM should be identifier, not keyword
         let tokens = tokenize("SELECT * FROM USERS");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[3].text, "USERS");
         assert_eq!(sig[3].kind, TokenKind::Identifier);
     }
@@ -903,7 +1043,10 @@ mod tests {
     #[test]
     fn identifier_key_after_from() {
         let tokens = tokenize("SELECT * FROM KEY");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[3].text, "KEY");
         assert_eq!(sig[3].kind, TokenKind::Identifier);
     }
@@ -911,7 +1054,10 @@ mod tests {
     #[test]
     fn identifier_set_after_from() {
         let tokens = tokenize("SELECT * FROM SET");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[3].text, "SET");
         assert_eq!(sig[3].kind, TokenKind::Identifier);
     }
@@ -919,14 +1065,20 @@ mod tests {
     #[test]
     fn identifier_after_into() {
         let tokens = tokenize("INSERT INTO my_table");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[2].kind, TokenKind::Identifier);
     }
 
     #[test]
     fn identifier_after_update() {
         let tokens = tokenize("UPDATE my_table SET");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[1].kind, TokenKind::Identifier);
         assert_eq!(sig[1].text, "my_table");
     }
@@ -934,20 +1086,26 @@ mod tests {
     #[test]
     fn identifier_after_dot() {
         let tokens = tokenize("ks.my_table");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[0].kind, TokenKind::Identifier); // ks at start is identifier? No, at Start it's not a keyword
-        // Actually "ks" is not a keyword, so it's Identifier
+                                                        // Actually "ks" is not a keyword, so it's Identifier
         assert_eq!(sig[1].kind, TokenKind::Punctuation); // .
-        assert_eq!(sig[2].kind, TokenKind::Identifier);  // my_table
+        assert_eq!(sig[2].kind, TokenKind::Identifier); // my_table
     }
 
     #[test]
     fn keyword_after_dot_is_identifier() {
         // SELECT after a dot should be identifier (qualified name)
         let tokens = tokenize("FROM ks.SELECT");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[2].kind, TokenKind::Punctuation); // .
-        assert_eq!(sig[3].kind, TokenKind::Identifier);  // SELECT as identifier
+        assert_eq!(sig[3].kind, TokenKind::Identifier); // SELECT as identifier
     }
 
     #[test]
@@ -1029,7 +1187,10 @@ mod tests {
     #[test]
     fn number_negative() {
         let tokens = tokenize("= -1");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[1].kind, TokenKind::NumberLiteral);
         assert_eq!(sig[1].text, "-1");
     }
@@ -1044,7 +1205,10 @@ mod tests {
     #[test]
     fn number_not_part_of_identifier() {
         let tokens = tokenize("LIMIT 100");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[1].kind, TokenKind::NumberLiteral);
     }
 
@@ -1119,7 +1283,14 @@ mod tests {
     #[test]
     fn punctuation_parens() {
         let kinds = significant_kinds("(x)");
-        assert_eq!(kinds, vec![TokenKind::Punctuation, TokenKind::Identifier, TokenKind::Punctuation]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::Punctuation,
+                TokenKind::Identifier,
+                TokenKind::Punctuation
+            ]
+        );
     }
 
     #[test]
@@ -1214,7 +1385,11 @@ mod tests {
         assert_eq!(last.end, input.len());
         // Verify no gaps
         for window in tokens.windows(2) {
-            assert_eq!(window[0].end, window[1].start, "gap between {:?} and {:?}", window[0], window[1]);
+            assert_eq!(
+                window[0].end, window[1].start,
+                "gap between {:?} and {:?}",
+                window[0], window[1]
+            );
         }
     }
 
@@ -1225,79 +1400,96 @@ mod tests {
         let kinds = significant_kinds("SELECT * FROM users");
         assert_eq!(
             kinds,
-            vec![TokenKind::Keyword, TokenKind::Punctuation, TokenKind::Keyword, TokenKind::Identifier]
+            vec![
+                TokenKind::Keyword,
+                TokenKind::Punctuation,
+                TokenKind::Keyword,
+                TokenKind::Identifier
+            ]
         );
     }
 
     #[test]
     fn select_with_where() {
         let kinds = significant_kinds("SELECT name FROM users WHERE id = 1");
-        assert_eq!(kinds, vec![
-            TokenKind::Keyword,      // SELECT
-            TokenKind::Identifier,   // name (in column list)
-            TokenKind::Keyword,      // FROM
-            TokenKind::Identifier,   // users
-            TokenKind::Keyword,      // WHERE
-            TokenKind::Identifier,   // id
-            TokenKind::Operator,     // =
-            TokenKind::NumberLiteral, // 1
-        ]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::Keyword,       // SELECT
+                TokenKind::Identifier,    // name (in column list)
+                TokenKind::Keyword,       // FROM
+                TokenKind::Identifier,    // users
+                TokenKind::Keyword,       // WHERE
+                TokenKind::Identifier,    // id
+                TokenKind::Operator,      // =
+                TokenKind::NumberLiteral, // 1
+            ]
+        );
     }
 
     #[test]
     fn insert_statement() {
         let kinds = significant_kinds("INSERT INTO my_table (id, name) VALUES (1, 'hello')");
-        assert_eq!(kinds, vec![
-            TokenKind::Keyword,       // INSERT
-            TokenKind::Keyword,       // INTO
-            TokenKind::Identifier,    // my_table
-            TokenKind::Punctuation,   // (
-            TokenKind::Identifier,    // id
-            TokenKind::Punctuation,   // ,
-            TokenKind::Identifier,    // name
-            TokenKind::Punctuation,   // )
-            TokenKind::Keyword,       // VALUES
-            TokenKind::Punctuation,   // (
-            TokenKind::NumberLiteral, // 1
-            TokenKind::Punctuation,   // ,
-            TokenKind::StringLiteral, // 'hello'
-            TokenKind::Punctuation,   // )
-        ]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::Keyword,       // INSERT
+                TokenKind::Keyword,       // INTO
+                TokenKind::Identifier,    // my_table
+                TokenKind::Punctuation,   // (
+                TokenKind::Identifier,    // id
+                TokenKind::Punctuation,   // ,
+                TokenKind::Identifier,    // name
+                TokenKind::Punctuation,   // )
+                TokenKind::Keyword,       // VALUES
+                TokenKind::Punctuation,   // (
+                TokenKind::NumberLiteral, // 1
+                TokenKind::Punctuation,   // ,
+                TokenKind::StringLiteral, // 'hello'
+                TokenKind::Punctuation,   // )
+            ]
+        );
     }
 
     #[test]
     fn update_statement() {
         let kinds = significant_kinds("UPDATE users SET name = 'Alice' WHERE id = 1");
-        assert_eq!(kinds, vec![
-            TokenKind::Keyword,       // UPDATE
-            TokenKind::Identifier,    // users
-            TokenKind::Keyword,       // SET
-            TokenKind::Identifier,    // name
-            TokenKind::Operator,      // =
-            TokenKind::StringLiteral, // 'Alice'
-            TokenKind::Keyword,       // WHERE
-            TokenKind::Identifier,    // id
-            TokenKind::Operator,      // =
-            TokenKind::NumberLiteral, // 1
-        ]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::Keyword,       // UPDATE
+                TokenKind::Identifier,    // users
+                TokenKind::Keyword,       // SET
+                TokenKind::Identifier,    // name
+                TokenKind::Operator,      // =
+                TokenKind::StringLiteral, // 'Alice'
+                TokenKind::Keyword,       // WHERE
+                TokenKind::Identifier,    // id
+                TokenKind::Operator,      // =
+                TokenKind::NumberLiteral, // 1
+            ]
+        );
     }
 
     #[test]
     fn create_table() {
         let kinds = significant_kinds("CREATE TABLE ks.my_table (id int PRIMARY KEY)");
-        assert_eq!(kinds, vec![
-            TokenKind::Keyword,     // CREATE
-            TokenKind::Keyword,     // TABLE
-            TokenKind::Identifier,  // ks
-            TokenKind::Punctuation, // .
-            TokenKind::Identifier,  // my_table
-            TokenKind::Punctuation, // (
-            TokenKind::Identifier,  // id
-            TokenKind::Identifier,  // int (type name, in general context after column name)
-            TokenKind::Keyword,     // PRIMARY
-            TokenKind::Keyword,     // KEY
-            TokenKind::Punctuation, // )
-        ]);
+        assert_eq!(
+            kinds,
+            vec![
+                TokenKind::Keyword,     // CREATE
+                TokenKind::Keyword,     // TABLE
+                TokenKind::Identifier,  // ks
+                TokenKind::Punctuation, // .
+                TokenKind::Identifier,  // my_table
+                TokenKind::Punctuation, // (
+                TokenKind::Identifier,  // id
+                TokenKind::Identifier,  // int (type name, in general context after column name)
+                TokenKind::Keyword,     // PRIMARY
+                TokenKind::Keyword,     // KEY
+                TokenKind::Punctuation, // )
+            ]
+        );
     }
 
     #[test]
@@ -1322,13 +1514,19 @@ mod tests {
         // 'SELECT FROM' should be one StringLiteral, not keywords
         assert!(kinds.contains(&TokenKind::StringLiteral));
         // Only 3 keywords: INSERT, INTO, VALUES
-        assert_eq!(kinds.iter().filter(|k| **k == TokenKind::Keyword).count(), 3);
+        assert_eq!(
+            kinds.iter().filter(|k| **k == TokenKind::Keyword).count(),
+            3
+        );
     }
 
     #[test]
     fn statement_with_comment() {
         let tokens = tokenize("SELECT 1 -- comment");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig.len(), 3); // SELECT, 1, comment
         assert_eq!(sig[2].kind, TokenKind::LineComment);
     }
@@ -1336,9 +1534,12 @@ mod tests {
     #[test]
     fn statement_with_block_comment() {
         let tokens = tokenize("SELECT /* mid */ 1");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
-        assert_eq!(sig[0].kind, TokenKind::Keyword);      // SELECT
-        assert_eq!(sig[1].kind, TokenKind::BlockComment);  // /* mid */
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
+        assert_eq!(sig[0].kind, TokenKind::Keyword); // SELECT
+        assert_eq!(sig[1].kind, TokenKind::BlockComment); // /* mid */
         assert_eq!(sig[2].kind, TokenKind::NumberLiteral); // 1
     }
 
@@ -1351,72 +1552,114 @@ mod tests {
 
     #[test]
     fn context_after_select() {
-        assert_eq!(grammar_context_at_end("SELECT "), GrammarContext::ExpectColumnList);
+        assert_eq!(
+            grammar_context_at_end("SELECT "),
+            GrammarContext::ExpectColumnList
+        );
     }
 
     #[test]
     fn context_after_from() {
-        assert_eq!(grammar_context_at_end("SELECT * FROM "), GrammarContext::ExpectTable);
+        assert_eq!(
+            grammar_context_at_end("SELECT * FROM "),
+            GrammarContext::ExpectTable
+        );
     }
 
     #[test]
     fn context_after_into() {
-        assert_eq!(grammar_context_at_end("INSERT INTO "), GrammarContext::ExpectTable);
+        assert_eq!(
+            grammar_context_at_end("INSERT INTO "),
+            GrammarContext::ExpectTable
+        );
     }
 
     #[test]
     fn context_after_update() {
-        assert_eq!(grammar_context_at_end("UPDATE "), GrammarContext::ExpectTable);
+        assert_eq!(
+            grammar_context_at_end("UPDATE "),
+            GrammarContext::ExpectTable
+        );
     }
 
     #[test]
     fn context_after_use() {
-        assert_eq!(grammar_context_at_end("USE "), GrammarContext::ExpectKeyspace);
+        assert_eq!(
+            grammar_context_at_end("USE "),
+            GrammarContext::ExpectKeyspace
+        );
     }
 
     #[test]
     fn context_after_where() {
-        assert_eq!(grammar_context_at_end("SELECT * FROM t WHERE "), GrammarContext::ExpectColumn);
+        assert_eq!(
+            grammar_context_at_end("SELECT * FROM t WHERE "),
+            GrammarContext::ExpectColumn
+        );
     }
 
     #[test]
     fn context_after_dot() {
-        assert_eq!(grammar_context_at_end("ks."), GrammarContext::ExpectQualifiedPart);
+        assert_eq!(
+            grammar_context_at_end("ks."),
+            GrammarContext::ExpectQualifiedPart
+        );
     }
 
     #[test]
     fn context_after_table_name() {
-        assert_eq!(grammar_context_at_end("SELECT * FROM users "), GrammarContext::General);
+        assert_eq!(
+            grammar_context_at_end("SELECT * FROM users "),
+            GrammarContext::General
+        );
     }
 
     #[test]
     fn context_after_consistency() {
-        assert_eq!(grammar_context_at_end("CONSISTENCY "), GrammarContext::ExpectConsistencyLevel);
+        assert_eq!(
+            grammar_context_at_end("CONSISTENCY "),
+            GrammarContext::ExpectConsistencyLevel
+        );
     }
 
     #[test]
     fn context_after_describe() {
-        assert_eq!(grammar_context_at_end("DESCRIBE "), GrammarContext::ExpectDescribeTarget);
+        assert_eq!(
+            grammar_context_at_end("DESCRIBE "),
+            GrammarContext::ExpectDescribeTarget
+        );
     }
 
     #[test]
     fn context_after_source() {
-        assert_eq!(grammar_context_at_end("SOURCE "), GrammarContext::ExpectFilePath);
+        assert_eq!(
+            grammar_context_at_end("SOURCE "),
+            GrammarContext::ExpectFilePath
+        );
     }
 
     #[test]
     fn context_after_order_by() {
-        assert_eq!(grammar_context_at_end("SELECT * FROM t ORDER BY "), GrammarContext::ExpectOrderByColumn);
+        assert_eq!(
+            grammar_context_at_end("SELECT * FROM t ORDER BY "),
+            GrammarContext::ExpectOrderByColumn
+        );
     }
 
     #[test]
     fn context_after_values() {
-        assert_eq!(grammar_context_at_end("INSERT INTO t (id) VALUES "), GrammarContext::ExpectValues);
+        assert_eq!(
+            grammar_context_at_end("INSERT INTO t (id) VALUES "),
+            GrammarContext::ExpectValues
+        );
     }
 
     #[test]
     fn context_after_with() {
-        assert_eq!(grammar_context_at_end("CREATE TABLE t (id int) WITH "), GrammarContext::ExpectWithOption);
+        assert_eq!(
+            grammar_context_at_end("CREATE TABLE t (id int) WITH "),
+            GrammarContext::ExpectWithOption
+        );
     }
 
     // ===== Edge Cases =====
@@ -1503,7 +1746,10 @@ mod tests {
     #[test]
     fn negative_number_after_operator() {
         let tokens = tokenize("id = -42");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[2].kind, TokenKind::NumberLiteral);
         assert_eq!(sig[2].text, "-42");
     }
@@ -1511,7 +1757,10 @@ mod tests {
     #[test]
     fn minus_as_operator_after_number() {
         let tokens = tokenize("5 - 3");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[0].kind, TokenKind::NumberLiteral);
         // After a number, - is an operator, not a sign. But the next 3 is a separate number.
         // The '-' here: previous token is whitespace (after 5), so it could be sign.
@@ -1523,7 +1772,10 @@ mod tests {
     #[test]
     fn blob_after_value_context() {
         let tokens = tokenize("INSERT INTO t (b) VALUES (0xDEAD)");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         let blob = sig.iter().find(|t| t.text == "0xDEAD").unwrap();
         assert_eq!(blob.kind, TokenKind::BlobLiteral);
     }
@@ -1531,7 +1783,12 @@ mod tests {
     #[test]
     fn keyword_list_is_sorted() {
         for window in CQL_KEYWORDS.windows(2) {
-            assert!(window[0] < window[1], "CQL_KEYWORDS not sorted: {:?} >= {:?}", window[0], window[1]);
+            assert!(
+                window[0] < window[1],
+                "CQL_KEYWORDS not sorted: {:?} >= {:?}",
+                window[0],
+                window[1]
+            );
         }
     }
 
@@ -1601,7 +1858,10 @@ mod tests {
     #[test]
     fn users_not_keyword_after_from() {
         let tokens = tokenize("SELECT * FROM users");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[3].text, "users");
         assert_eq!(sig[3].kind, TokenKind::Identifier);
     }
@@ -1609,7 +1869,10 @@ mod tests {
     #[test]
     fn key_not_keyword_after_from() {
         let tokens = tokenize("SELECT key FROM my_table WHERE key = 1");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         // "key" after SELECT is in column list -> Identifier
         assert_eq!(sig[1].kind, TokenKind::Identifier);
         // "my_table" after FROM -> Identifier
@@ -1622,7 +1885,10 @@ mod tests {
     fn set_not_keyword_in_column_list() {
         // "set" as a column name in SELECT
         let tokens = tokenize("SELECT set FROM my_table");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         assert_eq!(sig[1].text, "set");
         assert_eq!(sig[1].kind, TokenKind::Identifier);
     }
@@ -1630,7 +1896,10 @@ mod tests {
     #[test]
     fn column_names_after_where_are_identifiers() {
         let tokens = tokenize("SELECT * FROM t WHERE user = 'test' AND key = 1");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
         // user after WHERE
         assert_eq!(sig[5].text, "user");
         assert_eq!(sig[5].kind, TokenKind::Identifier);
@@ -1644,16 +1913,23 @@ mod tests {
     #[test]
     fn select_with_function() {
         let tokens = tokenize("SELECT count(*) FROM users");
-        let sig: Vec<_> = tokens.iter().filter(|t| t.kind != TokenKind::Whitespace).collect();
-        assert_eq!(sig[0].kind, TokenKind::Keyword);   // SELECT
+        let sig: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind != TokenKind::Whitespace)
+            .collect();
+        assert_eq!(sig[0].kind, TokenKind::Keyword); // SELECT
         assert_eq!(sig[1].kind, TokenKind::Identifier); // count (in column list context)
     }
 
     #[test]
     fn batch_statement() {
-        let input = "BEGIN BATCH INSERT INTO t (id) VALUES (1); INSERT INTO t (id) VALUES (2); APPLY BATCH";
+        let input =
+            "BEGIN BATCH INSERT INTO t (id) VALUES (1); INSERT INTO t (id) VALUES (2); APPLY BATCH";
         let tokens = tokenize(input);
-        let keywords: Vec<_> = tokens.iter().filter(|t| t.kind == TokenKind::Keyword).collect();
+        let keywords: Vec<_> = tokens
+            .iter()
+            .filter(|t| t.kind == TokenKind::Keyword)
+            .collect();
         assert!(keywords.iter().any(|t| t.text.to_uppercase() == "BEGIN"));
         assert!(keywords.iter().any(|t| t.text.to_uppercase() == "BATCH"));
         assert!(keywords.iter().any(|t| t.text.to_uppercase() == "APPLY"));
@@ -1662,39 +1938,39 @@ mod tests {
     #[test]
     fn delete_from() {
         let kinds = significant_kinds("DELETE FROM users WHERE id = 1");
-        assert_eq!(kinds[0], TokenKind::Keyword);    // DELETE
-        assert_eq!(kinds[1], TokenKind::Keyword);    // FROM
-        assert_eq!(kinds[2], TokenKind::Identifier);  // users
+        assert_eq!(kinds[0], TokenKind::Keyword); // DELETE
+        assert_eq!(kinds[1], TokenKind::Keyword); // FROM
+        assert_eq!(kinds[2], TokenKind::Identifier); // users
     }
 
     #[test]
     fn describe_table() {
         let kinds = significant_kinds("DESCRIBE TABLE users");
-        assert_eq!(kinds[0], TokenKind::Keyword);    // DESCRIBE
-        assert_eq!(kinds[1], TokenKind::Keyword);    // TABLE
-        assert_eq!(kinds[2], TokenKind::Identifier);  // users
+        assert_eq!(kinds[0], TokenKind::Keyword); // DESCRIBE
+        assert_eq!(kinds[1], TokenKind::Keyword); // TABLE
+        assert_eq!(kinds[2], TokenKind::Identifier); // users
     }
 
     #[test]
     fn truncate_table() {
         let kinds = significant_kinds("TRUNCATE users");
-        assert_eq!(kinds[0], TokenKind::Keyword);    // TRUNCATE
-        assert_eq!(kinds[1], TokenKind::Identifier);  // users
+        assert_eq!(kinds[0], TokenKind::Keyword); // TRUNCATE
+        assert_eq!(kinds[1], TokenKind::Identifier); // users
     }
 
     #[test]
     fn select_distinct() {
         let kinds = significant_kinds("SELECT DISTINCT partition_key FROM t");
-        assert_eq!(kinds[0], TokenKind::Keyword);    // SELECT
-        assert_eq!(kinds[1], TokenKind::Keyword);    // DISTINCT
-        assert_eq!(kinds[2], TokenKind::Identifier);  // partition_key
+        assert_eq!(kinds[0], TokenKind::Keyword); // SELECT
+        assert_eq!(kinds[1], TokenKind::Keyword); // DISTINCT
+        assert_eq!(kinds[2], TokenKind::Identifier); // partition_key
     }
 
     #[test]
     fn consistency_level() {
         let kinds = significant_kinds("CONSISTENCY QUORUM");
-        assert_eq!(kinds[0], TokenKind::Keyword);    // CONSISTENCY
-        assert_eq!(kinds[1], TokenKind::Identifier);  // QUORUM (in consistency level context)
+        assert_eq!(kinds[0], TokenKind::Keyword); // CONSISTENCY
+        assert_eq!(kinds[1], TokenKind::Identifier); // QUORUM (in consistency level context)
     }
 
     #[test]

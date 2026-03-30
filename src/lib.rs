@@ -3,9 +3,9 @@
 pub mod cli;
 pub mod colorizer;
 pub mod completer;
-pub mod cql_lexer;
 pub mod config;
 pub mod copy;
+pub mod cql_lexer;
 pub mod describe;
 pub mod driver;
 pub mod error;
