@@ -1,10 +1,16 @@
 # cqlsh-rs
 
+[![CI](https://github.com/fruch/cqlsh-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/fruch/cqlsh-rs/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/cqlsh-rs.svg)](https://crates.io/crates/cqlsh-rs)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/ghcr.io-cqlsh--rs-blue?logo=docker)](https://ghcr.io/fruch/cqlsh-rs)
+
 A ground-up Rust re-implementation of the Python `cqlsh` — the official interactive CQL shell for [Apache Cassandra](https://cassandra.apache.org/) and compatible databases (ScyllaDB, Amazon Keyspaces, Astra DB).
 
-The goal is **100% command-line and configuration compatibility** with the original Python cqlsh, delivered as a single static binary with zero runtime dependencies.
-
-> **Status:** Early development (Phase 1 — Bootstrap MVP in progress).
+- **Drop-in replacement** — 100% command-line and configuration compatible with Python cqlsh
+- **Single static binary** — no Python, no JVM, no runtime dependencies
+- **Cross-platform** — Linux, macOS, and Windows (x86_64 & ARM64)
+- **Fast** — sub-millisecond startup, async I/O with Tokio
 
 ## Development Progress
 
@@ -23,30 +29,54 @@ python3 scripts/generate_progress_svg.py
 ```
 </details>
 
-## Prerequisites
+## Quickstart
 
-- [Rust](https://www.rust-lang.org/tools/install) 1.70+ (2021 edition)
-- `cargo` (included with Rust)
+```bash
+cargo install cqlsh-rs
+cqlsh-rs                              # connect to localhost:9042
+cqlsh-rs 10.0.0.1 -e "DESCRIBE KEYSPACES"  # one-shot query
+```
 
-## Building from source
+## Installation
+
+### Homebrew (macOS / Linux)
+
+```bash
+brew tap fruch/cqlsh-rs
+brew install cqlsh-rs
+```
+
+### Cargo (from crates.io)
+
+Requires [Rust](https://www.rust-lang.org/tools/install) 1.70+:
+
+```bash
+cargo install cqlsh-rs
+```
+
+### Docker
+
+```bash
+docker run --rm -it ghcr.io/fruch/cqlsh-rs --version
+docker run --rm -it --network host ghcr.io/fruch/cqlsh-rs   # connect to local Cassandra
+```
+
+### Pre-built binaries
+
+Download the latest release for your platform from [GitHub Releases](https://github.com/fruch/cqlsh-rs/releases/latest).
+
+Available for: Linux (x86_64, ARM64), macOS (x86_64, Apple Silicon), Windows (x86_64).
+
+Each release includes SHA256 checksums for verification.
+
+### From source
 
 ```bash
 git clone https://github.com/fruch/cqlsh-rs.git
 cd cqlsh-rs
 cargo build --release
+# binary is at target/release/cqlsh-rs
 ```
-
-The binary is at `target/release/cqlsh-rs`.
-
-## Installation
-
-### From source (via cargo)
-
-```bash
-cargo install --path .
-```
-
-This installs `cqlsh-rs` into `~/.cargo/bin/`.
 
 ## Usage
 
@@ -134,7 +164,34 @@ cqlsh-rs --completions zsh > ~/.zfunc/_cqlsh-rs
 cqlsh-rs --completions fish > ~/.config/fish/completions/cqlsh-rs.fish
 ```
 
-## Benchmarks
+## Project structure
+
+```
+src/
+├── main.rs                # Entry point
+├── lib.rs                 # Library root
+├── cli.rs                 # CLI argument parsing (clap v4)
+├── config.rs              # cqlshrc parsing & merged configuration
+├── error.rs               # Error types (thiserror)
+├── session.rs             # Session management
+├── repl.rs                # Interactive REPL loop
+├── parser.rs              # CQL statement parser
+├── completer.rs           # Tab completion engine
+├── colorizer.rs           # Syntax highlighting
+├── formatter.rs           # Result set formatting (comfy-table)
+├── pager.rs               # Output paging
+├── describe.rs            # DESCRIBE / DESCRIBE commands
+├── copy.rs                # COPY TO / COPY FROM
+├── schema_cache.rs        # Schema metadata cache
+├── shell_completions.rs   # Shell completion generation
+└── driver/                # Database driver abstraction
+    ├── mod.rs
+    ├── scylla_driver.rs   # scylla-rust-driver backend
+    └── types.rs           # CQL type mappings
+```
+
+<details>
+<summary><h2>Benchmarks</h2></summary>
 
 Performance is tracked continuously via CI. Results are available at:
 
@@ -154,7 +211,10 @@ cargo build --release
 scripts/bench_comparison.sh
 ```
 
-## Running tests
+</details>
+
+<details>
+<summary><h2>Running tests</h2></summary>
 
 ```bash
 # Run all tests
@@ -167,19 +227,13 @@ cargo test --lib
 cargo test --test cli_tests
 ```
 
-## Project structure
+</details>
 
-```
-src/
-├── main.rs              # Entry point
-├── cli.rs               # CLI argument parsing (clap v4)
-├── config.rs            # cqlshrc parsing & merged configuration
-└── shell_completions.rs # Shell completion generation
-tests/
-└── cli_tests.rs         # CLI integration tests
-docs/
-└── plans/               # Design documents and sub-plans
-```
+## Contributing
+
+Contributions are welcome! Please open an [issue](https://github.com/fruch/cqlsh-rs/issues) or submit a pull request.
+
+Design documents and implementation plans live in [`docs/plans/`](docs/plans/).
 
 ## License
 
