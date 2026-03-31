@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774937349671,
+  "lastUpdate": 1774958719452,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -4835,6 +4835,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 154650,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "dba42d17f05d0eb8cdc37ae98869fb4fc12e6c72",
+          "message": "fix(ci): fix GitHub Pages docs deployment conflicts\n\nThe docs site at https://fruch.github.io/cqlsh-rs/ wasn't working because\nbench.yml had a competing deploy-pages job that overwrote the mdBook\ndeployment with just benchmark data.\n\nChanges:\n- Remove deploy-pages job from bench.yml (benchmarks still push to\n  gh-pages via auto-push; the docs workflow handles Pages deployment)\n- Add benchmark dashboard merge step to docs.yml so /dev/bench/ is\n  included in the deployed site alongside mdBook and rustdoc\n- Trigger docs.yml on src/** and Cargo.toml changes (for rustdoc updates)\n  and on workflow_dispatch (for manual re-deploy)\n- Add documentation links to README (docs site, API reference, benchmarks)\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-03-31T14:42:36+03:00",
+          "tree_id": "031feb2d1c47f561c398d63defe9b8aa4f7d607b",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/dba42d17f05d0eb8cdc37ae98869fb4fc12e6c72"
+        },
+        "date": 1774958718561,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 83566,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 789230,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7887800,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10123,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 60674,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 567030,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 5727000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 37438,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 37385,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 98009,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 9864,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28995,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3605,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9196,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63235,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1195,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 152820,
             "unit": "ns"
           }
         ]
