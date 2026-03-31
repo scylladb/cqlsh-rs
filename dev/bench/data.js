@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774958719452,
+  "lastUpdate": 1774974406701,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -4954,6 +4954,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 152820,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "00c0cd16a3d829651e7f3e864ba1425ca31d9737",
+          "message": "perf(ci): reduce benchmark CI time by lowering criterion warmup/measurement\n\n- Pass --warm-up-time 1 --measurement-time 1 --sample-size 20 to\n  criterion in CI, reducing per-benchmark time from ~10s to ~2s\n  (83 benchmarks: ~14min → ~3min)\n- Remove unused CRITERION_PROFILE env var (no config existed for it)\n- Replace deprecated criterion::black_box with std::hint::black_box\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-03-31T19:17:45+03:00",
+          "tree_id": "400cebd0337a8511caa6669976b7fd874963b539",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/00c0cd16a3d829651e7f3e864ba1425ca31d9737"
+        },
+        "date": 1774974406042,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29077,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3685,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9162,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 62856,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 860,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 147640,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 9733,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 81679,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 734860,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7330400,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9972,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 50524,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 38932,
             "unit": "ns"
           }
         ]
