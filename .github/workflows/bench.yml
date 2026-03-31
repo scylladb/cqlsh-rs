@@ -1,7 +1,7 @@
 # Benchmark CI — tracks performance across merges and on-demand for PRs.
 #
 # Triggers:
-#   - Every push to main (historical tracking + GitHub Pages deploy)
+#   - Every push to main (historical tracking)
 #   - PRs with the "benchmark" label (regression alerts on every push)
 #   - Weekly Monday 06:00 UTC (catch dependency regressions)
 #   - Manual dispatch
@@ -23,8 +23,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  pages: write
-  id-token: write
 
 jobs:
   benchmark:
@@ -119,31 +117,3 @@ jobs:
           # Historical data location on gh-pages branch
           benchmark-data-dir-path: 'dev/bench'
 
-  # Deploy GitHub Pages dashboard with historical benchmark charts.
-  # Only runs on main pushes (after benchmark data is pushed to gh-pages).
-  deploy-pages:
-    needs: benchmark
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v5
-        with:
-          ref: gh-pages
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v6
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: '.'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5

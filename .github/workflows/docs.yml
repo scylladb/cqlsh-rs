@@ -5,12 +5,15 @@ on:
     branches: [main]
     paths:
       - 'docs/book/**'
+      - 'src/**'
+      - 'Cargo.toml'
       - '.github/workflows/docs.yml'
   pull_request:
     branches: [main]
     paths:
       - 'docs/book/**'
       - '.github/workflows/docs.yml'
+  workflow_dispatch:
 
 # Allow only one concurrent deployment
 concurrency:
@@ -48,6 +51,19 @@ jobs:
         run: |
           cp docs/llms.txt docs/book/book/llms.txt
           cp docs/llms-full.txt docs/book/book/llms-full.txt
+
+      - name: Merge benchmark dashboard from gh-pages
+        run: |
+          git fetch origin gh-pages:gh-pages || true
+          if git rev-parse --verify gh-pages >/dev/null 2>&1; then
+            git show gh-pages:dev/bench/index.html > /dev/null 2>&1 && {
+              mkdir -p docs/book/book/dev/bench
+              git show gh-pages:dev/bench/index.html > docs/book/book/dev/bench/index.html
+              git show gh-pages:dev/bench/data.js > docs/book/book/dev/bench/data.js
+            } || echo "No benchmark data on gh-pages yet"
+          else
+            echo "gh-pages branch not found, skipping benchmark merge"
+          fi
 
       - name: Upload artifact
         if: github.ref == 'refs/heads/main'
