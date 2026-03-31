@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774937243853,
+  "lastUpdate": 1774937349671,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -4716,6 +4716,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 133420,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29139614+renovate[bot]@users.noreply.github.com",
+            "name": "renovate[bot]",
+            "username": "renovate[bot]"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "e732569f03115b8009e241127e4fa053cf02c0e3",
+          "message": "fix(deps): update rust crate rustyline to v18",
+          "timestamp": "2026-03-31T08:46:47+03:00",
+          "tree_id": "6ca0197dca7248802ea11093f48f03e052a08357",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/e732569f03115b8009e241127e4fa053cf02c0e3"
+        },
+        "date": 1774937348774,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 85800,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 806760,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 8023999,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10072,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 59634,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 552310,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 5636500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 37153,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 37146,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 95836,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 9861,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28860,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3584,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9177,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63615,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1219,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 154650,
             "unit": "ns"
           }
         ]
