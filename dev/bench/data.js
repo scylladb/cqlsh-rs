@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774937232381,
+  "lastUpdate": 1774937243853,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -4597,6 +4597,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 154300,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29139614+renovate[bot]@users.noreply.github.com",
+            "name": "renovate[bot]",
+            "username": "renovate[bot]"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "3ed7ab1c123d84000930b78add09bf0219cb342c",
+          "message": "chore(deps): update alpine docker tag to v3.23",
+          "timestamp": "2026-03-31T08:46:28+03:00",
+          "tree_id": "6d095ab2232f1278923e51b7080d80059a9a1673",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/3ed7ab1c123d84000930b78add09bf0219cb342c"
+        },
+        "date": 1774937243452,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 72262,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 711620,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7094200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 8315,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 53965,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 519080,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 5355200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 33256,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 35156,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 89474,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7041,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 5,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 26431,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3368,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 8654,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 60389,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1163,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 133420,
             "unit": "ns"
           }
         ]
