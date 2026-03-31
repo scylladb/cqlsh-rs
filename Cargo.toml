@@ -57,24 +57,9 @@ name = "integration"
 path = "tests/integration/main.rs"
 
 [[bench]]
-name = "startup"
+name = "benchmarks"
 harness = false
-
-[[bench]]
-name = "parser"
-harness = false
-
-[[bench]]
-name = "format"
-harness = false
-
-[[bench]]
-name = "formatter"
-harness = false
-
-[[bench]]
-name = "completion"
-harness = false
+path = "benches/main.rs"
 
 [profile.release]
 lto = "thin"
