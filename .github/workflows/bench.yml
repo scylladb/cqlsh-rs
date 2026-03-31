@@ -51,9 +51,7 @@ jobs:
             ${{ runner.os }}-cargo-bench-
 
       - name: Run benchmarks
-        env:
-          CRITERION_PROFILE: ci
-        run: cargo bench --bench benchmarks 2>&1 | tee bench_output.txt
+        run: cargo bench --bench benchmarks -- --warm-up-time 1 --measurement-time 1 --sample-size 20 2>&1 | tee bench_output.txt
 
       - name: Parse benchmark results
         run: python3 scripts/format_bench_summary.py < bench_output.txt >> "$GITHUB_STEP_SUMMARY" || echo "No benchmark results" >> "$GITHUB_STEP_SUMMARY"

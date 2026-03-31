@@ -9,7 +9,8 @@ use std::fmt::Write as FmtWrite;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::OnceLock;
 
-use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
+use criterion::{criterion_group, BenchmarkId, Criterion};
+use std::hint::black_box;
 
 use cqlsh_rs::colorizer::CqlColorizer;
 use cqlsh_rs::driver::types::{CqlColumn, CqlResult, CqlRow, CqlValue};

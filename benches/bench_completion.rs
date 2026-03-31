@@ -7,7 +7,8 @@
 //!
 //! These benchmarks correspond to SP5 in the benchmarking plan.
 
-use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
+use criterion::{criterion_group, BenchmarkId, Criterion};
+use std::hint::black_box;
 use std::sync::Arc;
 
 use rustyline::completion::Completer;
