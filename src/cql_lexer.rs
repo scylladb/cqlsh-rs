@@ -944,24 +944,116 @@ pub fn significant_tokens(tokens: &[Token]) -> Vec<&Token> {
 
 /// Strip comments from CQL input, replacing block comments with a space
 /// and removing line comments (preserving newlines).
-/// This is used by the parser for comment stripping.
+///
+/// This is a zero-allocation single-pass scanner (no `Vec<Token>` intermediary).
+/// Used by the parser on every `feed_line` call, so performance matters.
 pub fn strip_comments(input: &str) -> String {
-    let tokens = tokenize(input);
     let mut result = String::with_capacity(input.len());
-    for token in &tokens {
-        match token.kind {
-            TokenKind::LineComment => {
-                // preserve the newline if the comment was followed by one
-                // (the newline is not part of the comment token)
+    let bytes = input.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        let ch = bytes[i];
+
+        // Line comment: -- to end of line
+        if ch == b'-' && i + 1 < len && bytes[i + 1] == b'-' {
+            i += 2;
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
             }
-            TokenKind::BlockComment => {
-                result.push(' ');
-            }
-            _ => {
-                result.push_str(&token.text);
-            }
+            // newline itself is NOT part of the comment; the loop will pick it up
+            continue;
         }
+
+        // Block comment: /* ... */ (nested)
+        if ch == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+            let mut depth: usize = 1;
+            i += 2;
+            while i < len && depth > 0 {
+                if bytes[i] == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
+                    depth += 1;
+                    i += 2;
+                } else if bytes[i] == b'*' && i + 1 < len && bytes[i + 1] == b'/' {
+                    depth -= 1;
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+            result.push(' '); // replace block comment with space to avoid token merging
+            continue;
+        }
+
+        // Single-quoted string: skip through, copying verbatim
+        if ch == b'\'' {
+            let start = i;
+            i += 1;
+            loop {
+                if i >= len {
+                    break;
+                }
+                if bytes[i] == b'\'' {
+                    i += 1;
+                    if i < len && bytes[i] == b'\'' {
+                        i += 1; // escaped ''
+                        continue;
+                    }
+                    break;
+                }
+                i += char_len_at(bytes, i);
+            }
+            result.push_str(&input[start..i]);
+            continue;
+        }
+
+        // Double-quoted identifier: skip through, copying verbatim
+        if ch == b'"' {
+            let start = i;
+            i += 1;
+            loop {
+                if i >= len {
+                    break;
+                }
+                if bytes[i] == b'"' {
+                    i += 1;
+                    if i < len && bytes[i] == b'"' {
+                        i += 1; // escaped ""
+                        continue;
+                    }
+                    break;
+                }
+                i += char_len_at(bytes, i);
+            }
+            result.push_str(&input[start..i]);
+            continue;
+        }
+
+        // Dollar-quoted string: $$...$$
+        if ch == b'$' && i + 1 < len && bytes[i + 1] == b'$' {
+            let start = i;
+            i += 2;
+            loop {
+                if i + 1 >= len {
+                    i = len; // unterminated
+                    break;
+                }
+                if bytes[i] == b'$' && bytes[i + 1] == b'$' {
+                    i += 2;
+                    break;
+                }
+                i += 1;
+            }
+            result.push_str(&input[start..i]);
+            continue;
+        }
+
+        // Regular character — copy through
+        let clen = char_len_at(bytes, i);
+        result.push_str(&input[i..i + clen]);
+        i += clen;
     }
+
     result
 }
 
