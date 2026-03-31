@@ -1,0 +1,12 @@
+# Default profile — used for local development
+[default]
+warm_up_time_s = 3
+measurement_time_s = 5
+sample_size = 100
+
+# CI profile — faster, still statistically valid for regression detection.
+# Activate with: CRITERION_PROFILE=ci cargo bench
+[ci]
+warm_up_time_s = 1
+measurement_time_s = 2
+sample_size = 20

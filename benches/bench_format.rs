@@ -1,12 +1,15 @@
 //! Output formatting benchmarks for cqlsh-rs.
 //!
-//! Measures the performance of tabular and expanded result formatting across
-//! various result set sizes and CQL data types.
+//! Measures the performance of tabular, expanded, JSON, and CSV result formatting
+//! across various result set sizes and CQL data types.
 //!
 //! These benchmarks correspond to SP6 + SP9 in the benchmarking plan.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use std::fmt::Write as FmtWrite;
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::OnceLock;
+
+use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
 
 use cqlsh_rs::colorizer::CqlColorizer;
 use cqlsh_rs::driver::types::{CqlColumn, CqlResult, CqlRow, CqlValue};
@@ -156,6 +159,38 @@ fn make_all_types_result() -> CqlResult {
         tracing_id: None,
         warnings: vec![],
     }
+}
+
+fn make_wide_result(num_cols: usize, num_rows: usize) -> CqlResult {
+    let columns: Vec<CqlColumn> = (0..num_cols)
+        .map(|i| CqlColumn {
+            name: format!("column_{i}"),
+            type_name: "text".to_string(),
+        })
+        .collect();
+
+    let rows: Vec<CqlRow> = (0..num_rows)
+        .map(|r| CqlRow {
+            values: (0..num_cols)
+                .map(|c| CqlValue::Text(format!("row{r}_col{c}_value")))
+                .collect(),
+        })
+        .collect();
+
+    CqlResult {
+        columns,
+        rows,
+        has_rows: true,
+        tracing_id: None,
+        warnings: vec![],
+    }
+}
+
+// Pre-built result for JSON/CSV benchmarks — built once, reused across iters.
+static RESULT_100: OnceLock<CqlResult> = OnceLock::new();
+
+fn result_100() -> &'static CqlResult {
+    RESULT_100.get_or_init(|| make_mixed_result(100))
 }
 
 // ---------------------------------------------------------------------------
@@ -349,29 +384,78 @@ fn bench_format_edge_cases(c: &mut Criterion) {
     group.finish();
 }
 
-fn make_wide_result(num_cols: usize, num_rows: usize) -> CqlResult {
-    let columns: Vec<CqlColumn> = (0..num_cols)
-        .map(|i| CqlColumn {
-            name: format!("column_{i}"),
-            type_name: "text".to_string(),
-        })
-        .collect();
+// ---------------------------------------------------------------------------
+// Benchmarks: JSON serialization baseline
+// ---------------------------------------------------------------------------
 
-    let rows: Vec<CqlRow> = (0..num_rows)
-        .map(|r| CqlRow {
-            values: (0..num_cols)
-                .map(|c| CqlValue::Text(format!("row{r}_col{c}_value")))
-                .collect(),
-        })
-        .collect();
+fn format_json(result: &CqlResult) -> String {
+    let col_names: Vec<&str> = result.columns.iter().map(|c| c.name.as_str()).collect();
+    let capacity = result.rows.len() * col_names.len() * 20;
+    let mut out = String::with_capacity(capacity);
 
-    CqlResult {
-        columns,
-        rows,
-        has_rows: true,
-        tracing_id: None,
-        warnings: vec![],
+    out.push('[');
+    for (ri, row) in result.rows.iter().enumerate() {
+        if ri > 0 {
+            out.push(',');
+        }
+        out.push('{');
+        for (ci, val) in row.values.iter().enumerate() {
+            if ci > 0 {
+                out.push(',');
+            }
+            // key
+            write!(out, "\"{}\": ", col_names[ci]).unwrap();
+            // value — strings quoted, everything else bare
+            match val {
+                CqlValue::Ascii(s) | CqlValue::Text(s) => {
+                    let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
+                    write!(out, "\"{escaped}\"").unwrap();
+                }
+                CqlValue::Null | CqlValue::Unset => out.push_str("null"),
+                CqlValue::Boolean(b) => out.push_str(if *b { "true" } else { "false" }),
+                other => write!(out, "{other}").unwrap(),
+            }
+        }
+        out.push('}');
     }
+    out.push(']');
+    out
+}
+
+fn bench_format_json_100(c: &mut Criterion) {
+    let result = result_100();
+
+    c.bench_function("format_json_100", |b| {
+        b.iter(|| format_json(black_box(result)))
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Benchmarks: CSV serialization baseline
+// ---------------------------------------------------------------------------
+
+fn format_csv(result: &CqlResult) -> Vec<u8> {
+    let mut wtr = csv::Writer::from_writer(Vec::with_capacity(result.rows.len() * 40));
+
+    // Header
+    let headers: Vec<&str> = result.columns.iter().map(|c| c.name.as_str()).collect();
+    wtr.write_record(&headers).unwrap();
+
+    // Data rows
+    for row in &result.rows {
+        let record: Vec<String> = row.values.iter().map(|v| v.to_string()).collect();
+        wtr.write_record(&record).unwrap();
+    }
+
+    wtr.into_inner().unwrap()
+}
+
+fn bench_format_csv_100(c: &mut Criterion) {
+    let result = result_100();
+
+    c.bench_function("format_csv_100", |b| {
+        b.iter(|| format_csv(black_box(result)))
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -386,6 +470,6 @@ criterion_group!(
     bench_format_each_type,
     bench_cqlvalue_display,
     bench_format_edge_cases,
+    bench_format_json_100,
+    bench_format_csv_100,
 );
-
-criterion_main!(format_benches);

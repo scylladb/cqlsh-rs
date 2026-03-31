@@ -17,7 +17,7 @@
 //! Together these two flows represent the entire cold-start critical path.
 //! Target: cold startup < 50 ms (vs Python cqlsh ~800 ms).
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
 
 use cqlsh_rs::cli::CliArgs;
 use cqlsh_rs::config::{CqlshrcConfig, EnvConfig, MergedConfig};
@@ -481,5 +481,3 @@ criterion_group!(
     bench_cqlshrc_load_file,
     bench_end_to_end_startup,
 );
-
-criterion_main!(cli_benches, config_benches);

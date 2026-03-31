@@ -6,7 +6,7 @@
 //!
 //! These benchmarks correspond to SP4 in the benchmarking plan.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
 
 use cqlsh_rs::parser::{classify_input, parse_batch, StatementParser};
 
@@ -206,5 +206,3 @@ criterion_group!(
     bench_parse_batch,
     bench_classify_input,
 );
-
-criterion_main!(parser_benches);
