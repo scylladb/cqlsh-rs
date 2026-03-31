@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774910170949,
+  "lastUpdate": 1774937232381,
   "repoUrl": "https://github.com/fruch/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -4478,6 +4478,125 @@ window.BENCHMARK_DATA = {
           {
             "name": "end_to_end_startup/full",
             "value": 153500,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "29139614+renovate[bot]@users.noreply.github.com",
+            "name": "renovate[bot]",
+            "username": "renovate[bot]"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "4194ad9c1a43e179cfec1198343ecee128db33ae",
+          "message": "chore(deps): update dependency python to 3.14",
+          "timestamp": "2026-03-31T08:46:12+03:00",
+          "tree_id": "f2475f4f8a190fd3b0ad8ffb64ebc0bd5d4611e9",
+          "url": "https://github.com/fruch/cqlsh-rs/commit/4194ad9c1a43e179cfec1198343ecee128db33ae"
+        },
+        "date": 1774937232111,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "format_table/rows/10",
+            "value": 84580,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 785620,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7866600,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10093,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/10",
+            "value": 59477,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/100",
+            "value": 557600,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/1000",
+            "value": 5709700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 38810,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 35532,
+            "unit": "ns"
+          },
+          {
+            "name": "format_each_type",
+            "value": 98139,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 10215,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28643,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3621,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9375,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65122,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1175,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 154300,
             "unit": "ns"
           }
         ]
