@@ -12,6 +12,8 @@ A ground-up Rust re-implementation of the Python `cqlsh` — the official intera
 - **Cross-platform** — Linux, macOS, and Windows (x86_64 & ARM64)
 - **Fast** — sub-millisecond startup, async I/O with Tokio
 
+**[Documentation](https://fruch.github.io/cqlsh-rs/)** | **[API Reference](https://fruch.github.io/cqlsh-rs/api/cqlsh_rs/)** | **[Benchmarks](https://fruch.github.io/cqlsh-rs/dev/bench/)**
+
 ## Development Progress
 
 <p align="center">
