@@ -6,7 +6,8 @@
 //!
 //! These benchmarks correspond to SP4 in the benchmarking plan.
 
-use criterion::{black_box, criterion_group, BenchmarkId, Criterion};
+use criterion::{criterion_group, BenchmarkId, Criterion};
+use std::hint::black_box;
 
 use cqlsh_rs::parser::{classify_input, parse_batch, StatementParser};
 
