@@ -12,7 +12,7 @@ This guide walks you through installing cqlsh-rs and connecting to your first Ca
 The fastest way to get started:
 
 ```bash
-cargo install --git https://github.com/fruch/cqlsh-rs.git
+cargo install --git https://github.com/scylladb/cqlsh-rs.git
 ```
 
 See [Installation](./installation.md) for more options (Homebrew, Docker, pre-built binaries).

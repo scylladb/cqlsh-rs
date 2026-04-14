@@ -6,17 +6,17 @@ cqlsh-rs is a ground-up Rust re-implementation that provides 100% CLI and config
 
 ## Docs
 
-- [Getting Started](https://fruch.github.io/cqlsh-rs/getting-started.html): Installation and first connection
-- [Installation](https://fruch.github.io/cqlsh-rs/installation.html): All installation methods (cargo, brew, docker, binary)
-- [CLI Reference](https://fruch.github.io/cqlsh-rs/cli-reference.html): All command-line flags and environment variables
-- [Command Reference](https://fruch.github.io/cqlsh-rs/commands/index.html): Shell commands (DESCRIBE, COPY, CONSISTENCY, etc.)
-- [Configuration Reference](https://fruch.github.io/cqlsh-rs/configuration/index.html): cqlshrc file format and all sections
-- [COPY Guide](https://fruch.github.io/cqlsh-rs/copy-guide.html): Import/export data with COPY TO/FROM
-- [Migration Guide](https://fruch.github.io/cqlsh-rs/migration.html): Moving from Python cqlsh to cqlsh-rs
-- [API Docs](https://fruch.github.io/cqlsh-rs/api/cqlsh_rs/): Rust API documentation
+- [Getting Started](https://scylladb.github.io/cqlsh-rs/getting-started.html): Installation and first connection
+- [Installation](https://scylladb.github.io/cqlsh-rs/installation.html): All installation methods (cargo, brew, docker, binary)
+- [CLI Reference](https://scylladb.github.io/cqlsh-rs/cli-reference.html): All command-line flags and environment variables
+- [Command Reference](https://scylladb.github.io/cqlsh-rs/commands/index.html): Shell commands (DESCRIBE, COPY, CONSISTENCY, etc.)
+- [Configuration Reference](https://scylladb.github.io/cqlsh-rs/configuration/index.html): cqlshrc file format and all sections
+- [COPY Guide](https://scylladb.github.io/cqlsh-rs/copy-guide.html): Import/export data with COPY TO/FROM
+- [Migration Guide](https://scylladb.github.io/cqlsh-rs/migration.html): Moving from Python cqlsh to cqlsh-rs
+- [API Docs](https://scylladb.github.io/cqlsh-rs/api/cqlsh_rs/): Rust API documentation
 
 ## Optional
 
-- [Known Divergences](https://fruch.github.io/cqlsh-rs/divergences.html): Differences from Python cqlsh
-- [Troubleshooting](https://fruch.github.io/cqlsh-rs/troubleshooting.html): Common issues and solutions
-- [Performance](https://fruch.github.io/cqlsh-rs/performance.html): Benchmark comparisons with Python cqlsh
+- [Known Divergences](https://scylladb.github.io/cqlsh-rs/divergences.html): Differences from Python cqlsh
+- [Troubleshooting](https://scylladb.github.io/cqlsh-rs/troubleshooting.html): Common issues and solutions
+- [Performance](https://scylladb.github.io/cqlsh-rs/performance.html): Benchmark comparisons with Python cqlsh

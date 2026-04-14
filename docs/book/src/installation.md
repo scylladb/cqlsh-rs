@@ -6,10 +6,10 @@ Requires [Rust](https://www.rust-lang.org/tools/install) 1.70+.
 
 ```bash
 # Install from the repository
-cargo install --git https://github.com/fruch/cqlsh-rs.git
+cargo install --git https://github.com/scylladb/cqlsh-rs.git
 
 # Or clone and install locally
-git clone https://github.com/fruch/cqlsh-rs.git
+git clone https://github.com/scylladb/cqlsh-rs.git
 cd cqlsh-rs
 cargo install --path .
 ```
@@ -18,7 +18,7 @@ The binary is installed to `~/.cargo/bin/cqlsh-rs`.
 
 ## Pre-built binaries
 
-Download pre-built binaries from [GitHub Releases](https://github.com/fruch/cqlsh-rs/releases):
+Download pre-built binaries from [GitHub Releases](https://github.com/scylladb/cqlsh-rs/releases):
 
 | Platform | Architecture | Archive |
 |----------|-------------|---------|
@@ -30,7 +30,7 @@ Download pre-built binaries from [GitHub Releases](https://github.com/fruch/cqls
 
 ```bash
 # Example: Linux x86_64
-curl -LO https://github.com/fruch/cqlsh-rs/releases/latest/download/cqlsh-rs-x86_64-unknown-linux-gnu.tar.gz
+curl -LO https://github.com/scylladb/cqlsh-rs/releases/latest/download/cqlsh-rs-x86_64-unknown-linux-gnu.tar.gz
 tar xzf cqlsh-rs-x86_64-unknown-linux-gnu.tar.gz
 sudo mv cqlsh-rs /usr/local/bin/
 ```
@@ -38,26 +38,26 @@ sudo mv cqlsh-rs /usr/local/bin/
 ## Homebrew (macOS/Linux)
 
 ```bash
-brew install fruch/tap/cqlsh-rs
+brew install scylladb/tap/cqlsh-rs
 ```
 
 ## Docker
 
 ```bash
 # Run interactively
-docker run --rm -it ghcr.io/fruch/cqlsh-rs:latest
+docker run --rm -it ghcr.io/scylladb/cqlsh-rs:latest
 
 # Connect to a specific host
-docker run --rm -it ghcr.io/fruch/cqlsh-rs:latest 10.0.0.1
+docker run --rm -it ghcr.io/scylladb/cqlsh-rs:latest 10.0.0.1
 
 # Execute a statement
-docker run --rm ghcr.io/fruch/cqlsh-rs:latest -e "SELECT * FROM system.local" 10.0.0.1
+docker run --rm ghcr.io/scylladb/cqlsh-rs:latest -e "SELECT * FROM system.local" 10.0.0.1
 ```
 
 ## Building from source
 
 ```bash
-git clone https://github.com/fruch/cqlsh-rs.git
+git clone https://github.com/scylladb/cqlsh-rs.git
 cd cqlsh-rs
 cargo build --release
 ```

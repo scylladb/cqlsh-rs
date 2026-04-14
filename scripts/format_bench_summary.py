@@ -85,7 +85,7 @@ def to_markdown(results):
             lines.append(f"| {bench} | {humanize_ns(ns)} |")
         lines.append("")
 
-    lines.append("> Historical trends: https://fruch.github.io/cqlsh-rs/dev/bench/")
+    lines.append("> Historical trends: https://scylladb.github.io/cqlsh-rs/dev/bench/")
     return "\n".join(lines)
 
 

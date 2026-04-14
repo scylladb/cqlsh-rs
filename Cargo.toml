@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "A Rust re-implementation of the Apache Cassandra cqlsh shell"
 license = "MIT"
-repository = "https://github.com/fruch/cqlsh-rs"
+repository = "https://github.com/scylladb/cqlsh-rs"
 keywords = ["cassandra", "cql", "cqlsh", "scylladb", "database"]
 categories = ["command-line-utilities", "database"]
 

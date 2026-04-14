@@ -1,9 +1,9 @@
 # cqlsh-rs
 
-[![CI](https://github.com/fruch/cqlsh-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/fruch/cqlsh-rs/actions/workflows/ci.yml)
+[![CI](https://github.com/scylladb/cqlsh-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/scylladb/cqlsh-rs/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/cqlsh-rs.svg)](https://crates.io/crates/cqlsh-rs)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Docker](https://img.shields.io/badge/ghcr.io-cqlsh--rs-blue?logo=docker)](https://ghcr.io/fruch/cqlsh-rs)
+[![Docker](https://img.shields.io/badge/ghcr.io-cqlsh--rs-blue?logo=docker)](https://ghcr.io/scylladb/cqlsh-rs)
 
 A ground-up Rust re-implementation of the Python `cqlsh` — the official interactive CQL shell for [Apache Cassandra](https://cassandra.apache.org/) and compatible databases (ScyllaDB, Amazon Keyspaces, Astra DB).
 
@@ -12,7 +12,7 @@ A ground-up Rust re-implementation of the Python `cqlsh` — the official intera
 - **Cross-platform** — Linux, macOS, and Windows (x86_64 & ARM64)
 - **Fast** — sub-millisecond startup, async I/O with Tokio
 
-**[Documentation](https://fruch.github.io/cqlsh-rs/)** | **[API Reference](https://fruch.github.io/cqlsh-rs/api/cqlsh_rs/)** | **[Benchmarks](https://fruch.github.io/cqlsh-rs/dev/bench/)**
+**[Documentation](https://scylladb.github.io/cqlsh-rs/)** | **[API Reference](https://scylladb.github.io/cqlsh-rs/api/cqlsh_rs/)** | **[Benchmarks](https://scylladb.github.io/cqlsh-rs/dev/bench/)**
 
 ## Development Progress
 
@@ -44,7 +44,7 @@ cqlsh-rs 10.0.0.1 -e "DESCRIBE KEYSPACES"  # one-shot query
 ### Homebrew (macOS / Linux)
 
 ```bash
-brew tap fruch/cqlsh-rs
+brew tap scylladb/cqlsh-rs
 brew install cqlsh-rs
 ```
 
@@ -59,13 +59,13 @@ cargo install cqlsh-rs
 ### Docker
 
 ```bash
-docker run --rm -it ghcr.io/fruch/cqlsh-rs --version
-docker run --rm -it --network host ghcr.io/fruch/cqlsh-rs   # connect to local Cassandra
+docker run --rm -it ghcr.io/scylladb/cqlsh-rs --version
+docker run --rm -it --network host ghcr.io/scylladb/cqlsh-rs   # connect to local Cassandra
 ```
 
 ### Pre-built binaries
 
-Download the latest release for your platform from [GitHub Releases](https://github.com/fruch/cqlsh-rs/releases/latest).
+Download the latest release for your platform from [GitHub Releases](https://github.com/scylladb/cqlsh-rs/releases/latest).
 
 Available for: Linux (x86_64, ARM64), macOS (x86_64, Apple Silicon), Windows (x86_64).
 
@@ -74,7 +74,7 @@ Each release includes SHA256 checksums for verification.
 ### From source
 
 ```bash
-git clone https://github.com/fruch/cqlsh-rs.git
+git clone https://github.com/scylladb/cqlsh-rs.git
 cd cqlsh-rs
 cargo build --release
 # binary is at target/release/cqlsh-rs
@@ -197,9 +197,9 @@ src/
 
 Performance is tracked continuously via CI. Results are available at:
 
-- **[Historical Dashboard](https://fruch.github.io/cqlsh-rs/dev/bench/)** — Interactive commit-over-commit charts (updated on every merge to main)
-- **[Benchmark Workflow Runs](https://github.com/fruch/cqlsh-rs/actions/workflows/bench.yml)** — Grouped benchmark tables and Criterion artifacts posted to each CI run's summary page
-- **[Criterion Reports](https://github.com/fruch/cqlsh-rs/actions/workflows/bench.yml)** — Detailed HTML reports uploaded as artifacts on each run (retained 90 days)
+- **[Historical Dashboard](https://scylladb.github.io/cqlsh-rs/dev/bench/)** — Interactive commit-over-commit charts (updated on every merge to main)
+- **[Benchmark Workflow Runs](https://github.com/scylladb/cqlsh-rs/actions/workflows/bench.yml)** — Grouped benchmark tables and Criterion artifacts posted to each CI run's summary page
+- **[Criterion Reports](https://github.com/scylladb/cqlsh-rs/actions/workflows/bench.yml)** — Detailed HTML reports uploaded as artifacts on each run (retained 90 days)
 - **Rust vs Python** — Hyperfine startup comparison included in each benchmark run's job summary
 
 To run benchmarks locally:
@@ -233,7 +233,7 @@ cargo test --test cli_tests
 
 ## Contributing
 
-Contributions are welcome! Please open an [issue](https://github.com/fruch/cqlsh-rs/issues) or submit a pull request.
+Contributions are welcome! Please open an [issue](https://github.com/scylladb/cqlsh-rs/issues) or submit a pull request.
 
 Design documents and implementation plans live in [`docs/plans/`](docs/plans/).
 
