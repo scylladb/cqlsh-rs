@@ -17,8 +17,8 @@ Measured with [hyperfine](https://github.com/sharkdp/hyperfine) on Linux x86_64.
 
 Performance is tracked continuously via CI. See the live results:
 
-- **[Historical Dashboard](https://fruch.github.io/cqlsh-rs/dev/bench/)** — Interactive commit-over-commit charts
-- **[Benchmark Workflow Runs](https://github.com/fruch/cqlsh-rs/actions/workflows/bench.yml)** — Grouped tables and Criterion artifacts
+- **[Historical Dashboard](https://scylladb.github.io/cqlsh-rs/dev/bench/)** — Interactive commit-over-commit charts
+- **[Benchmark Workflow Runs](https://github.com/scylladb/cqlsh-rs/actions/workflows/bench.yml)** — Grouped tables and Criterion artifacts
 
 ### Running benchmarks locally
 

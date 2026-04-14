@@ -93,6 +93,6 @@ A CLI flag always overrides a cqlshrc value.
 
 ## Getting help
 
-- File an issue: [github.com/fruch/cqlsh-rs/issues](https://github.com/fruch/cqlsh-rs/issues)
+- File an issue: [github.com/scylladb/cqlsh-rs/issues](https://github.com/scylladb/cqlsh-rs/issues)
 - Check existing issues for known problems
 - Include `cqlsh-rs --version` output and `--debug` output when reporting issues

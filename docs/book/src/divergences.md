@@ -42,4 +42,4 @@ These features from Python cqlsh are not yet implemented but are planned:
 
 ## Reporting divergences
 
-If you find a behavior difference not listed here, please [open an issue](https://github.com/fruch/cqlsh-rs/issues).
+If you find a behavior difference not listed here, please [open an issue](https://github.com/scylladb/cqlsh-rs/issues).

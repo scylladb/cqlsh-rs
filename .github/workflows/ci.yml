@@ -132,7 +132,7 @@ jobs:
       # GitHub Actions (Ubuntu 24.04 / Docker 27) due to Docker networking driver
       # failing with "address already in use" when setting up port forwarding.
       # Goal: restore plain `cargo test` with testcontainers once root cause is fixed.
-      # Tracked: https://github.com/fruch/cqlsh-rs/issues/TODO
+      # Tracked: https://github.com/scylladb/cqlsh-rs/issues/TODO
       - name: Start database (${{ matrix.db_name }})
         run: |
           docker run -d --name testdb \

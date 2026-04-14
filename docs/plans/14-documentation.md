@@ -248,7 +248,7 @@ version: 1.0
 domain: databases/cassandra
 author: cqlsh-rs project
 license: MIT
-source: https://github.com/fruch/cqlsh-rs
+source: https://github.com/scylladb/cqlsh-rs
 
 ## Description
 Expert knowledge of the CQL shell (cqlsh/cqlsh-rs) for Apache Cassandra

@@ -11,8 +11,8 @@ build-dir = "book"
 [output.html]
 default-theme = "light"
 preferred-dark-theme = "navy"
-git-repository-url = "https://github.com/fruch/cqlsh-rs"
-edit-url-template = "https://github.com/fruch/cqlsh-rs/edit/main/docs/book/{path}"
+git-repository-url = "https://github.com/scylladb/cqlsh-rs"
+edit-url-template = "https://github.com/scylladb/cqlsh-rs/edit/main/docs/book/{path}"
 no-section-label = false
 
 [output.html.search]

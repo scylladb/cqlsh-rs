@@ -7,7 +7,7 @@
 #   - Manual dispatch
 #
 # Historical dashboard deployed to GitHub Pages at:
-#   https://fruch.github.io/cqlsh-rs/dev/bench/
+#   https://scylladb.github.io/cqlsh-rs/dev/bench/
 
 name: Benchmarks
 
