@@ -452,6 +452,11 @@ impl CqlDriver for ScyllaDriver {
             builder = builder.tls_context(Some(tls_config));
         }
 
+        // NOTE: config.protocol_version is accepted for CLI compatibility but
+        // scylla-rust-driver 1.5.0 auto-negotiates the native protocol version.
+        // SessionBuilder has no method to force a specific protocol version.
+        // Similarly, the driver hardcodes CQL_VERSION="4.0.0" in the STARTUP frame.
+
         let session = builder.build().await.context("connecting to cluster")?;
 
         Ok(ScyllaDriver {
