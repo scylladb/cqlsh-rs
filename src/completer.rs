@@ -25,7 +25,8 @@ const CQL_KEYWORDS: &[&str] = &[
     "LIST", "REVOKE", "SELECT", "TRUNCATE", "UPDATE", "USE",
 ];
 
-/// CQL clause keywords used within statements.
+/// CQL clause keywords used within statements (kept for reference / future use).
+#[allow(dead_code)]
 const CQL_CLAUSE_KEYWORDS: &[&str] = &[
     "ADD",
     "AGGREGATE",
@@ -215,16 +216,144 @@ const CQL_TYPES: &[&str] = &[
     "varint",
 ];
 
+// ── Statement-specific keyword lists ─────────────────────────────────────────
+
+/// Suggestions right after `SELECT ` (before the column list).
+const SELECT_CLAUSE_KEYWORDS: &[&str] = &["*", "DISTINCT", "JSON", "COUNT("];
+
+/// Suggestions after `SELECT … FROM <table> ` (post-FROM position).
+const SELECT_POST_FROM_KEYWORDS: &[&str] = &[
+    "WHERE",
+    "ORDER BY",
+    "LIMIT",
+    "ALLOW FILTERING",
+    "PER PARTITION LIMIT",
+    "GROUP BY",
+];
+
+/// Suggestions right after `INSERT `.
+const INSERT_CLAUSE_KEYWORDS: &[&str] = &["INTO"];
+
+/// Suggestions after `INSERT INTO … VALUES (…) `.
+const INSERT_POST_VALUES_KEYWORDS: &[&str] = &["IF NOT EXISTS", "USING"];
+
+/// Targets for `CREATE `.
+const CREATE_TARGETS: &[&str] = &[
+    "TABLE",
+    "KEYSPACE",
+    "INDEX",
+    "TYPE",
+    "FUNCTION",
+    "AGGREGATE",
+    "MATERIALIZED VIEW",
+    "ROLE",
+    "USER",
+    "TRIGGER",
+    "CUSTOM INDEX",
+];
+
+/// Targets for `ALTER `.
+const ALTER_TARGETS: &[&str] = &[
+    "TABLE",
+    "KEYSPACE",
+    "TYPE",
+    "ROLE",
+    "USER",
+    "MATERIALIZED VIEW",
+];
+
+/// Targets for `DROP `.
+const DROP_TARGETS: &[&str] = &[
+    "TABLE",
+    "KEYSPACE",
+    "INDEX",
+    "TYPE",
+    "FUNCTION",
+    "AGGREGATE",
+    "MATERIALIZED VIEW",
+    "ROLE",
+    "USER",
+    "TRIGGER",
+];
+
+/// Suggestions after `DELETE … FROM <table> `.
+const DELETE_POST_FROM_KEYWORDS: &[&str] = &["WHERE", "USING TIMESTAMP", "IF"];
+
+/// Suggestions right after `UPDATE <table> `.
+const UPDATE_CLAUSE_KEYWORDS: &[&str] = &["SET", "USING"];
+
+/// Suggestions after `UPDATE … SET … ` (can extend with WHERE / IF).
+const UPDATE_POST_SET_KEYWORDS: &[&str] = &["WHERE", "IF"];
+
+/// Suggestions after `BEGIN `.
+const BATCH_TYPE_KEYWORDS: &[&str] = &["BATCH", "UNLOGGED BATCH", "COUNTER BATCH"];
+
+/// Permission keywords for `GRANT` / `REVOKE`.
+const GRANT_REVOKE_KEYWORDS: &[&str] = &[
+    "ALL",
+    "ALTER",
+    "AUTHORIZE",
+    "CREATE",
+    "DESCRIBE",
+    "DROP",
+    "EXECUTE",
+    "MODIFY",
+    "SELECT",
+];
+
+/// Generic clause keywords — small fallback set for unrecognised statement types.
+const GENERIC_CLAUSE_KEYWORDS: &[&str] = &[
+    "WHERE",
+    "AND",
+    "SET",
+    "VALUES",
+    "FROM",
+    "INTO",
+    "USING",
+    "IF",
+    "WITH",
+    "LIMIT",
+    "ORDER BY",
+    "GROUP BY",
+    "ALLOW FILTERING",
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /// Detected completion context based on the input up to the cursor.
 #[derive(Debug, PartialEq)]
 enum CompletionContext {
     /// At the start of input — complete with statement keywords and shell commands.
     Empty,
-    /// After a statement keyword — complete with clause keywords.
-    ClauseKeyword,
+    /// After `SELECT ` — suggest column list starters.
+    SelectClause,
+    /// After `SELECT … FROM <table> ` — suggest WHERE / ORDER BY / LIMIT etc.
+    SelectPostFrom,
+    /// After `INSERT ` — suggest INTO.
+    InsertClause,
+    /// After `INSERT INTO … VALUES (…) ` — suggest IF NOT EXISTS / USING.
+    InsertPostValues,
+    /// After `CREATE ` — suggest object types.
+    CreateTarget,
+    /// After `ALTER ` — suggest object types.
+    AlterTarget,
+    /// After `DROP ` — suggest object types.
+    DropTarget,
+    /// After `DELETE … FROM <table> ` — suggest WHERE / USING TIMESTAMP / IF.
+    DeletePostFrom,
+    /// After `UPDATE <table> ` — suggest SET / USING.
+    UpdateClause,
+    /// After `UPDATE … SET … ` — suggest WHERE / IF.
+    UpdatePostSet,
+    /// After `BEGIN ` — suggest BATCH variants.
+    BatchType,
+    /// After `GRANT` / `REVOKE` — suggest permission names.
+    GrantRevoke,
+    /// Fallback for unrecognised statement types.
+    GenericClause,
     /// After FROM, INTO, UPDATE, etc. — complete with table names.
     TableName { keyspace: Option<String> },
-    /// After SELECT ... FROM table WHERE — complete with column names.
+    /// After SELECT … FROM table WHERE — complete with column names.
     ColumnName {
         keyspace: Option<String>,
         table: String,
@@ -326,10 +455,10 @@ impl CqlCompleter {
                 return match sub.as_str() {
                     "KEYSPACE" => CompletionContext::KeyspaceName,
                     "TABLE" | "INDEX" => CompletionContext::TableName { keyspace: None },
-                    _ => CompletionContext::ClauseKeyword,
+                    _ => CompletionContext::GenericClause,
                 };
             }
-            return CompletionContext::ClauseKeyword;
+            return CompletionContext::GenericClause;
         }
 
         // Check for FROM/INTO/UPDATE keywords to trigger table name completion
@@ -381,7 +510,100 @@ impl CqlCompleter {
             return CompletionContext::Empty;
         }
 
-        CompletionContext::ClauseKeyword
+        // ── Statement-specific context detection ─────────────────────────────
+
+        // Only enter statement-specific logic when we have a space after the first
+        // token (i.e. statement keyword has been fully typed).
+        if !tokens.is_empty() && before_cursor.ends_with(' ') || tokens.len() >= 2 {
+            match first.as_str() {
+                "SELECT" => {
+                    // After SELECT, if FROM has been seen and we are past the table name →
+                    // SelectPostFrom.  Otherwise suggest column starters.
+                    if upper_tokens.iter().any(|t| t == "FROM") {
+                        // FROM has been seen — fall through to SelectPostFrom only when
+                        // we are past the table token (handled above by TableName context
+                        // for the immediate post-FROM position).
+                        // If we reach here the table name was already provided and the
+                        // cursor is after a space → SelectPostFrom.
+                        if before_cursor.ends_with(' ') {
+                            return CompletionContext::SelectPostFrom;
+                        }
+                    }
+                    if tokens.len() == 1 && before_cursor.ends_with(' ') {
+                        return CompletionContext::SelectClause;
+                    }
+                    if tokens.len() >= 2 && !upper_tokens.iter().any(|t| t == "FROM") {
+                        return CompletionContext::SelectClause;
+                    }
+                    return CompletionContext::SelectPostFrom;
+                }
+                "INSERT" => {
+                    // After INSERT (space) → suggest INTO
+                    if tokens.len() == 1 && before_cursor.ends_with(' ') {
+                        return CompletionContext::InsertClause;
+                    }
+                    // After VALUES (…) space → InsertPostValues
+                    if upper_tokens.iter().any(|t| t == "VALUES") && before_cursor.ends_with(' ') {
+                        return CompletionContext::InsertPostValues;
+                    }
+                    return CompletionContext::InsertClause;
+                }
+                "CREATE" => {
+                    if tokens.len() == 1 && before_cursor.ends_with(' ') {
+                        return CompletionContext::CreateTarget;
+                    }
+                    if tokens.len() >= 2 {
+                        return CompletionContext::CreateTarget;
+                    }
+                }
+                "ALTER" => {
+                    if tokens.len() == 1 && before_cursor.ends_with(' ') {
+                        return CompletionContext::AlterTarget;
+                    }
+                    if tokens.len() >= 2 {
+                        return CompletionContext::AlterTarget;
+                    }
+                }
+                "DROP" => {
+                    if tokens.len() == 1 && before_cursor.ends_with(' ') {
+                        return CompletionContext::DropTarget;
+                    }
+                    if tokens.len() >= 2 {
+                        return CompletionContext::DropTarget;
+                    }
+                }
+                "DELETE" => {
+                    // After DELETE … FROM <table> space → DeletePostFrom
+                    // (The FROM + table TableName context is handled above; if we reach
+                    // here FROM has been seen and we are past the table.)
+                    if upper_tokens.iter().any(|t| t == "FROM") && before_cursor.ends_with(' ') {
+                        return CompletionContext::DeletePostFrom;
+                    }
+                    return CompletionContext::GenericClause;
+                }
+                "UPDATE" => {
+                    if upper_tokens.iter().any(|t| t == "SET") && before_cursor.ends_with(' ') {
+                        return CompletionContext::UpdatePostSet;
+                    }
+                    if tokens.len() >= 2 && before_cursor.ends_with(' ') {
+                        return CompletionContext::UpdateClause;
+                    }
+                    return CompletionContext::GenericClause;
+                }
+                "BEGIN" => {
+                    if tokens.len() == 1 && before_cursor.ends_with(' ') {
+                        return CompletionContext::BatchType;
+                    }
+                    return CompletionContext::BatchType;
+                }
+                "GRANT" | "REVOKE" => {
+                    return CompletionContext::GrantRevoke;
+                }
+                _ => {}
+            }
+        }
+
+        CompletionContext::GenericClause
     }
 
     /// Generate completions for the detected context.
@@ -395,8 +617,44 @@ impl CqlCompleter {
                 candidates.extend_from_slice(SHELL_COMMANDS);
                 filter_candidates(&candidates, &prefix_upper, true)
             }
-            CompletionContext::ClauseKeyword => {
-                filter_candidates(CQL_CLAUSE_KEYWORDS, &prefix_upper, true)
+            CompletionContext::SelectClause => {
+                filter_candidates(SELECT_CLAUSE_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::SelectPostFrom => {
+                filter_candidates(SELECT_POST_FROM_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::InsertClause => {
+                filter_candidates(INSERT_CLAUSE_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::InsertPostValues => {
+                filter_candidates(INSERT_POST_VALUES_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::CreateTarget => {
+                filter_candidates(CREATE_TARGETS, &prefix_upper, true)
+            }
+            CompletionContext::AlterTarget => {
+                filter_candidates(ALTER_TARGETS, &prefix_upper, true)
+            }
+            CompletionContext::DropTarget => {
+                filter_candidates(DROP_TARGETS, &prefix_upper, true)
+            }
+            CompletionContext::DeletePostFrom => {
+                filter_candidates(DELETE_POST_FROM_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::UpdateClause => {
+                filter_candidates(UPDATE_CLAUSE_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::UpdatePostSet => {
+                filter_candidates(UPDATE_POST_SET_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::BatchType => {
+                filter_candidates(BATCH_TYPE_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::GrantRevoke => {
+                filter_candidates(GRANT_REVOKE_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::GenericClause => {
+                filter_candidates(GENERIC_CLAUSE_KEYWORDS, &prefix_upper, true)
             }
             CompletionContext::ConsistencyLevel => {
                 filter_candidates(CONSISTENCY_LEVELS, &prefix_upper, true)
@@ -639,6 +897,8 @@ mod tests {
         CqlCompleter::new(cache, current_ks, rt.handle().clone(), false)
     }
 
+    // ── Existing tests (must remain passing) ─────────────────────────────────
+
     #[test]
     fn completer_can_be_created() {
         let _c = make_completer();
@@ -766,6 +1026,118 @@ mod tests {
         // Should return entries — exact count varies
         assert!(
             !pairs.is_empty() || std::fs::read_dir("/tmp").map(|d| d.count()).unwrap_or(0) == 0
+        );
+    }
+
+    // ── New statement-specific context tests ─────────────────────────────────
+
+    #[test]
+    fn detect_select_clause() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("SELECT ", 7),
+            CompletionContext::SelectClause
+        );
+    }
+
+    #[test]
+    fn detect_select_post_from() {
+        let c = make_completer();
+        // After table name and trailing space
+        assert_eq!(
+            c.detect_context("SELECT * FROM users ", 20),
+            CompletionContext::SelectPostFrom
+        );
+    }
+
+    #[test]
+    fn detect_insert_clause() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("INSERT ", 7),
+            CompletionContext::InsertClause
+        );
+    }
+
+    #[test]
+    fn detect_create_target() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("CREATE ", 7),
+            CompletionContext::CreateTarget
+        );
+    }
+
+    #[test]
+    fn detect_alter_target() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("ALTER ", 6),
+            CompletionContext::AlterTarget
+        );
+    }
+
+    #[test]
+    fn detect_drop_target() {
+        let c = make_completer();
+        assert_eq!(c.detect_context("DROP ", 5), CompletionContext::DropTarget);
+    }
+
+    #[test]
+    fn detect_delete_post_from() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("DELETE FROM users ", 18),
+            CompletionContext::DeletePostFrom
+        );
+    }
+
+    #[test]
+    fn detect_update_clause() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("UPDATE users ", 13),
+            CompletionContext::UpdateClause
+        );
+    }
+
+    #[test]
+    fn detect_batch_type() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("BEGIN ", 6),
+            CompletionContext::BatchType
+        );
+    }
+
+    #[test]
+    fn detect_grant_permissions() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("GRANT ", 6),
+            CompletionContext::GrantRevoke
+        );
+    }
+
+    // ── Negative tests — wrong keywords must NOT appear ───────────────────────
+
+    #[test]
+    fn select_does_not_suggest_drop() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(&CompletionContext::SelectClause, "");
+        assert!(
+            !pairs.iter().any(|p| p.replacement == "DROP"),
+            "SelectClause should not suggest DROP"
+        );
+    }
+
+    #[test]
+    fn create_does_not_suggest_where() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(&CompletionContext::CreateTarget, "");
+        assert!(
+            !pairs.iter().any(|p| p.replacement == "WHERE"),
+            "CreateTarget should not suggest WHERE"
         );
     }
 }
