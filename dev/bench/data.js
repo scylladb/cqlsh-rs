@@ -1,6 +1,6 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774974406701,
-  "repoUrl": "https://github.com/fruch/cqlsh-rs",
+  "lastUpdate": 1776369192969,
+  "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
       {
@@ -5053,6 +5053,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 38932,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "198982749+Copilot@users.noreply.github.com",
+            "name": "copilot-swe-agent[bot]",
+            "username": "Copilot"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "b469875c787251c263f928812f5a5b5e4d11b01b",
+          "message": "fix(ci): exclude benchmark dashboard URL from link checker\n\nThe benchmark dashboard at scylladb.github.io/cqlsh-rs/dev/bench/ is\ndeployed separately by the benchmark workflow and may not exist until\nthat workflow runs on main. Exclude it from lychee link checking to\nprevent false 404 failures.\n\nAgent-Logs-Url: https://github.com/scylladb/cqlsh-rs/sessions/8f4ddcab-f2a3-4270-bc8a-5af5827d66e1\n\nCo-authored-by: fruch <340979+fruch@users.noreply.github.com>",
+          "timestamp": "2026-04-16T22:43:00+03:00",
+          "tree_id": "fc71201dd421da5f11c591fa38ce9f1e5341ea35",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/b469875c787251c263f928812f5a5b5e4d11b01b"
+        },
+        "date": 1776369191945,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29057,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 4556,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 10110,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63839,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 971,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153520,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 9808,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 7,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85957,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 793350,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7884200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9585,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 47009,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39647,
             "unit": "ns"
           }
         ]
