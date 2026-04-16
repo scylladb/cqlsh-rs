@@ -366,11 +366,16 @@ async fn execute_single_statement(
         return true;
     }
 
+    // Handle CLEAR/CLS in non-interactive mode by emitting ANSI escape sequences
+    // (matches Python cqlsh behavior expected by dtest test_clear)
+    if upper == "CLEAR" || upper == "CLS" {
+        print!("\x1B[2J\x1B[1;1H");
+        return true;
+    }
+
     // Skip commands that don't make sense in non-interactive mode
     if upper == "QUIT"
         || upper == "EXIT"
-        || upper == "CLEAR"
-        || upper == "CLS"
         || upper == "HELP"
         || upper == "?"
         || upper.starts_with("HELP ")
