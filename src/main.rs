@@ -88,6 +88,23 @@ async fn main() -> Result<()> {
         print_banner(&session);
     }
 
+    // Warn about driver limitations for compatibility-only flags
+    if let Some(ref requested) = config.cqlversion {
+        let actual = session.cql_version.as_deref().unwrap_or("unknown");
+        if requested != actual {
+            eprintln!(
+                "Warning: --cqlversion {requested} requested, but the server reports CQL spec {actual}. \
+                 The scylla driver does not support overriding the CQL version."
+            );
+        }
+    }
+    if config.protocol_version.is_some() {
+        eprintln!(
+            "Warning: --protocol-version is accepted for CLI compatibility but the scylla \
+             driver auto-negotiates the native protocol version."
+        );
+    }
+
     if config.execute.is_some() || config.file.is_some() {
         // Non-interactive execution mode (-e or -f)
         let exit_code = execute_noninteractive(&mut session, &config).await;
