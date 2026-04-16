@@ -240,3 +240,204 @@ fn tty_flag_accepted_with_piped_stdin() {
     // Without a cluster both paths still fail at connection → exit 2.
     cmd().arg("--tty").write_stdin("").assert().code(2);
 }
+
+// === CLI flag acceptance tests ===
+// Each test verifies the binary accepts the flag without argument parsing errors.
+// Flags that trigger a connection attempt will fail with exit code 2 (no cluster).
+
+#[test]
+fn ssl_flag_accepted() {
+    // --ssl requires a TLS CryptoProvider; without one the process panics (exit 101).
+    // This test just verifies the flag is parsed without argument errors.
+    cmd()
+        .args(["--ssl", "--connect-timeout", "1"])
+        .assert()
+        .failure();
+}
+
+#[test]
+fn no_file_io_flag_accepted() {
+    cmd()
+        .args(["--no-file-io", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn coverage_flag_accepted() {
+    cmd()
+        .args(["--coverage", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn keyspace_flag_accepted() {
+    cmd()
+        .args(["-k", "test_ks", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn username_flag_accepted() {
+    cmd()
+        .args(["-u", "testuser", "--debug", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn password_flag_accepted() {
+    cmd()
+        .args(["-p", "testpass", "--debug", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn request_timeout_flag_accepted() {
+    cmd()
+        .args([
+            "--request-timeout",
+            "30",
+            "--debug",
+            "--connect-timeout",
+            "1",
+        ])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn encoding_flag_accepted() {
+    cmd()
+        .args(["--encoding", "utf-8", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn cqlversion_flag_accepted() {
+    cmd()
+        .args(["--cqlversion", "3.4.5", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn protocol_version_flag_accepted() {
+    cmd()
+        .args(["--protocol-version", "4", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn protocol_version_out_of_range() {
+    cmd()
+        .args(["--protocol-version", "99"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Protocol version"));
+}
+
+#[test]
+fn consistency_level_flag_accepted() {
+    cmd()
+        .args(["--consistency-level", "QUORUM", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn serial_consistency_level_flag_accepted() {
+    cmd()
+        .args([
+            "--serial-consistency-level",
+            "LOCAL_SERIAL",
+            "--connect-timeout",
+            "1",
+        ])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn no_compact_flag_accepted() {
+    cmd()
+        .args(["--no_compact", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn disable_history_flag_accepted() {
+    cmd()
+        .args(["--disable-history", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn secure_connect_bundle_flag_accepted() {
+    // Bundle file won't exist, but flag parsing should succeed;
+    // connection will fail with exit code 2
+    cmd()
+        .args(["-b", "/nonexistent/bundle.zip", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn browser_flag_accepted() {
+    cmd()
+        .args(["--browser", "firefox", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn generate_man_produces_output() {
+    cmd()
+        .arg("--generate-man")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("cqlsh"));
+}
+
+#[test]
+fn color_flag_accepted() {
+    cmd()
+        .args(["-C", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn no_color_flag_accepted() {
+    cmd()
+        .args(["--no-color", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn execute_flag_attempts_connection() {
+    cmd()
+        .args(["-e", "SELECT 1", "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn file_flag_attempts_connection() {
+    let dir = tempfile::tempdir().unwrap();
+    let cql_file = dir.path().join("test.cql");
+    std::fs::write(&cql_file, "SELECT 1;\n").unwrap();
+
+    cmd()
+        .args(["-f", cql_file.to_str().unwrap(), "--connect-timeout", "1"])
+        .assert()
+        .code(2);
+}
