@@ -204,3 +204,341 @@ jobs:
           name: coverage-report
           path: coverage/
           retention-days: 30
+
+  # ===========================================================================
+  # Automated release pipeline
+  #
+  # Similar to scylladb/coodie's release automation (PR #220), this uses
+  # release-plz to detect version bumps from conventional commits and
+  # automate tagging, changelog, crates.io publishing, cross-platform
+  # binary builds, and Docker image publishing.
+  #
+  # Flow:
+  #   1. release-plz release-pr  → creates/updates a "Release vX.Y.Z" PR
+  #   2. Maintainer merges the release PR (bumps Cargo.toml + CHANGELOG.md)
+  #   3. release-plz release     → creates git tag, GitHub Release, publishes
+  #      to crates.io
+  #   4. Downstream jobs build cross-platform binaries, upload them to the
+  #      GitHub Release, and push a multi-arch Docker image.
+  # ===========================================================================
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [fmt, clippy, test, build]
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    concurrency:
+      group: release-${{ github.ref_name }}
+      cancel-in-progress: false
+
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      version: ${{ steps.extract.outputs.version }}
+      tag: ${{ steps.extract.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Create/update a release PR with version bump + CHANGELOG
+      - name: Release PR
+        uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      # If Cargo.toml version > latest tag, create tag + GitHub Release + publish to crates.io
+      - name: Release
+        id: release
+        uses: release-plz/action@v0.5
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Extract release info
+        id: extract
+        if: steps.release.outputs.releases_created == 'true'
+        run: |
+          TAG=$(echo '${{ steps.release.outputs.releases }}' | jq -r '.[0].tag')
+          VERSION=$(echo '${{ steps.release.outputs.releases }}' | jq -r '.[0].version')
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "::notice::Released ${TAG} (${VERSION})"
+
+  # ---------------------------------------------------------------------------
+  # Build matrix: cross-compile release binaries for all targets.
+  # Only runs when a new version is released.
+  # ---------------------------------------------------------------------------
+  build-release-binaries:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    if: needs.release.outputs.releases_created == 'true'
+    needs: [release]
+
+    env:
+      # Override workflow-level RUSTFLAGS — release cross-compilation targets
+      # may produce different warnings than the CI build targets.
+      RUSTFLAGS: ""
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            cross: false
+            artifact: cqlsh-rs
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            cross: true
+            artifact: cqlsh-rs
+          - target: x86_64-apple-darwin
+            os: macos-14
+            cross: false
+            artifact: cqlsh-rs
+          - target: aarch64-apple-darwin
+            os: macos-14
+            cross: false
+            artifact: cqlsh-rs
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            cross: false
+            artifact: cqlsh-rs.exe
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
+
+      - name: Install musl-tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build release binary
+        shell: bash
+        run: |
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+
+      - name: Package binary
+        shell: bash
+        run: |
+          VERSION="${{ needs.release.outputs.version }}"
+          ARCHIVE_NAME="cqlsh-rs-${VERSION}-${{ matrix.target }}"
+
+          mkdir -p "staging/${ARCHIVE_NAME}"
+          cp "target/${{ matrix.target }}/release/${{ matrix.artifact }}" "staging/${ARCHIVE_NAME}/"
+          cp README.md LICENSE "staging/${ARCHIVE_NAME}/" 2>/dev/null || true
+
+          cd staging
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a "../${ARCHIVE_NAME}.zip" "${ARCHIVE_NAME}"
+            echo "ASSET_PATH=${ARCHIVE_NAME}.zip" >> "$GITHUB_ENV"
+          else
+            tar czf "../${ARCHIVE_NAME}.tar.gz" "${ARCHIVE_NAME}"
+            echo "ASSET_PATH=${ARCHIVE_NAME}.tar.gz" >> "$GITHUB_ENV"
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.target }}
+          path: ${{ env.ASSET_PATH }}
+          retention-days: 5
+
+  # ---------------------------------------------------------------------------
+  # Generate man pages and shell completions for the release
+  # ---------------------------------------------------------------------------
+  generate-release-assets:
+    name: Generate Release Assets
+    runs-on: ubuntu-latest
+    if: needs.release.outputs.releases_created == 'true'
+    needs: [release]
+
+    env:
+      RUSTFLAGS: ""
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.release.outputs.tag }}
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build binary
+        run: cargo build --release
+
+      - name: Generate man page
+        run: |
+          mkdir -p assets
+          ./target/release/cqlsh-rs --generate-man > assets/cqlsh-rs.1
+
+      - name: Generate shell completions
+        run: |
+          mkdir -p assets/completions
+          ./target/release/cqlsh-rs --completions bash > assets/completions/cqlsh-rs.bash
+          ./target/release/cqlsh-rs --completions zsh > assets/completions/_cqlsh-rs
+          ./target/release/cqlsh-rs --completions fish > assets/completions/cqlsh-rs.fish
+
+      - name: Package assets
+        run: tar czf assets.tar.gz -C assets .
+
+      - name: Upload assets
+        uses: actions/upload-artifact@v6
+        with:
+          name: assets
+          path: assets.tar.gz
+          retention-days: 5
+
+  # ---------------------------------------------------------------------------
+  # Upload release artifacts (binaries + checksums) to the GitHub Release
+  # created by release-plz
+  # ---------------------------------------------------------------------------
+  upload-release-artifacts:
+    name: Upload Release Artifacts
+    runs-on: ubuntu-latest
+    if: needs.release.outputs.releases_created == 'true'
+    needs: [release, build-release-binaries, generate-release-assets]
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          for dir in artifacts/x86_64-unknown-linux-musl \
+                     artifacts/aarch64-unknown-linux-musl \
+                     artifacts/x86_64-apple-darwin \
+                     artifacts/aarch64-apple-darwin \
+                     artifacts/x86_64-pc-windows-msvc; do
+            if [ -d "$dir" ]; then
+              cp "$dir"/* release/
+            fi
+          done
+          # Extract and include assets (man page, completions)
+          mkdir -p release/assets
+          tar xzf artifacts/assets/assets.tar.gz -C release/assets
+          cd release
+          tar czf cqlsh-rs-man-and-completions.tar.gz -C assets .
+          rm -rf assets
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd release
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release.outputs.tag }}
+          files: release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Build and push multi-arch Docker image
+  # ---------------------------------------------------------------------------
+  docker-release:
+    name: Docker Image (multi-arch)
+    runs-on: ubuntu-latest
+    if: needs.release.outputs.releases_created == 'true'
+    needs: [release, build-release-binaries]
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download Linux x86_64 binary
+        uses: actions/download-artifact@v6
+        with:
+          name: x86_64-unknown-linux-musl
+          path: artifacts/amd64
+
+      - name: Download Linux aarch64 binary
+        uses: actions/download-artifact@v6
+        with:
+          name: aarch64-unknown-linux-musl
+          path: artifacts/arm64
+
+      - name: Extract binaries
+        run: |
+          mkdir -p docker-build
+          cd artifacts/amd64
+          tar xzf *.tar.gz
+          find . -name "cqlsh-rs" -type f -exec cp {} ../../docker-build/cqlsh-rs-amd64 \;
+          cd ../arm64
+          tar xzf *.tar.gz
+          find . -name "cqlsh-rs" -type f -exec cp {} ../../docker-build/cqlsh-rs-arm64 \;
+          cd ../..
+          chmod +x docker-build/cqlsh-rs-*
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=${{ needs.release.outputs.version }}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
