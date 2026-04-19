@@ -1,9 +1,19 @@
-name: Release
+name: Release (Manual)
 
+# Manual fallback for creating releases. The primary release pipeline is
+# automated via release-plz in ci.yml (see the "release" job).
+#
+# Use this workflow when you need to:
+#   - Rebuild and re-upload binaries for an existing tag
+#   - Create a release from a manually pushed tag
+#   - Debug release issues in isolation
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing git tag to release (e.g., v1.0.0)'
+        required: true
+        type: string
 
 env:
   CARGO_TERM_COLOR: always
@@ -48,6 +58,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -87,7 +99,8 @@ jobs:
       - name: Package binary
         shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${{ inputs.tag }}"
+          VERSION="${VERSION#v}"
           ARCHIVE_NAME="${BINARY_NAME}-${VERSION}-${{ matrix.target }}"
 
           mkdir -p "staging/${ARCHIVE_NAME}"
@@ -119,6 +132,8 @@ jobs:
     needs: [build]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
@@ -157,6 +172,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
 
@@ -195,6 +212,9 @@ jobs:
     needs: [build, integration-test, generate-assets]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -230,7 +250,8 @@ jobs:
       - name: Generate release notes
         id: notes
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${{ inputs.tag }}"
+          VERSION="${VERSION#v}"
           # Get the previous tag for changelog range
           PREV_TAG=$(git tag --sort=-v:refname | grep '^v' | sed -n '2p')
           if [ -z "$PREV_TAG" ]; then
@@ -290,6 +311,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag }}
           body_path: release-notes.md
           files: |
             release/*
@@ -305,6 +327,8 @@ jobs:
     needs: [integration-test]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Publish to crates.io
@@ -321,6 +345,8 @@ jobs:
     needs: [build, integration-test]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
 
       - name: Download Linux x86_64 binary
         uses: actions/download-artifact@v4
@@ -367,9 +393,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=match,pattern=v(.*),group=1,value=${{ inputs.tag }}
             type=raw,value=latest
 
       - name: Build and push Docker image
