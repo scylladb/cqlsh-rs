@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776598769947,
+  "lastUpdate": 1776598791850,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -6241,6 +6241,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 34091,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "851673ee4f3e2bf1cf98c258558d006aff5fc20c",
+          "message": "feat: add --cqlversion and --protocol-version compatibility warnings\n\nThe scylla-rust-driver auto-negotiates protocol version and hardcodes\nCQL_VERSION=4.0.0 in the STARTUP frame. Both flags are accepted for CLI\ncompatibility with Python cqlsh but emit warnings explaining the driver\nlimitations.\n\n- --cqlversion: warns when requested version differs from server's CQL spec\n- --protocol-version: warns that the driver auto-negotiates\n- Add CLI tests for both flags\n- Add integration-output.log to .gitignore",
+          "timestamp": "2026-04-19T14:29:53+03:00",
+          "tree_id": "dd04d6a4c027bd3c670f132373d2a6c0cbc67210",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/851673ee4f3e2bf1cf98c258558d006aff5fc20c"
+        },
+        "date": 1776598791538,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29322,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3477,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9109,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 62437,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 824,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 152350,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7011,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 7,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85082,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 772990,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7737300,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10578,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46811,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39762,
             "unit": "ns"
           }
         ]
