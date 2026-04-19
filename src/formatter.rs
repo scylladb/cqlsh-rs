@@ -58,7 +58,9 @@ pub fn print_tabular(result: &CqlResult, colorizer: &CqlColorizer, writer: &mut 
     }
 
     writeln!(writer).ok();
-    writeln!(writer, "{table}").ok();
+    for line in format!("{table}").lines() {
+        writeln!(writer, "{}", line.trim_end()).ok();
+    }
     writeln!(writer).ok();
     let row_count = result.rows.len();
     writeln!(

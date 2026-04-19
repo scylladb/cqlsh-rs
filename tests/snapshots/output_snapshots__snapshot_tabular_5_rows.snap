@@ -1,15 +1,14 @@
 ---
 source: tests/output_snapshots.rs
-assertion_line: 127
 expression: capture_tabular(&result)
 ---
 
- id | name  
+ id | name
 ----+-------
-  1 | User1 
-  2 | User2 
-  3 | User3 
-  4 | User4 
-  5 | User5 
+  1 | User1
+  2 | User2
+  3 | User3
+  4 | User4
+  5 | User5
 
 (5 rows)

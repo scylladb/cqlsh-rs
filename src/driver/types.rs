@@ -167,7 +167,7 @@ impl fmt::Display for CqlValue {
                 }
                 write!(f, "}}")
             }
-            CqlValue::Null => write!(f, "null"),
+            CqlValue::Null => Ok(()),
             CqlValue::Unset => write!(f, "<unset>"),
         }
     }
@@ -340,7 +340,7 @@ mod tests {
 
     #[test]
     fn cql_value_display_null() {
-        assert_eq!(CqlValue::Null.to_string(), "null");
+        assert_eq!(CqlValue::Null.to_string(), "");
     }
 
     #[test]

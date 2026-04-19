@@ -1,6 +1,5 @@
 ---
 source: tests/output_snapshots.rs
-assertion_line: 155
 expression: capture_expanded(&result)
 ---
 
@@ -29,7 +28,7 @@ expression: capture_expanded(&result)
   score | 4.5
  active | False
   token | 00000000-0000-0000-0000-000000000000
-   note | null
+   note | 
 
 @ Row 4
 ----------------
