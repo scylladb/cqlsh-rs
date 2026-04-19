@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776582755681,
+  "lastUpdate": 1776589896882,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -5350,6 +5350,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 38589,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "f902ff4a1862aeb14dfd77c8ec6078cc86f9bbe0",
+          "message": "fix: use microsecond precision (6 digits) for timestamp formatting\n\nAligns timestamp output with Python cqlsh by using 6-digit microsecond\nprecision. Also fixes clippy useless_conversion warnings in copy.rs and\ndescribe.rs.",
+          "timestamp": "2026-04-19T12:02:53+03:00",
+          "tree_id": "d48ab7dae75bc18885ec5d8b5b16a5d2579c6917",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/f902ff4a1862aeb14dfd77c8ec6078cc86f9bbe0"
+        },
+        "date": 1776589896110,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 22799,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2785,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 7308,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 49662,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 678,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 112200,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 5425,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 63140,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 571040,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 5722000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 7706,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 36184,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 29799,
             "unit": "ns"
           }
         ]
