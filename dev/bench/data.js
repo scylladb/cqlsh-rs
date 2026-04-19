@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776597071385,
+  "lastUpdate": 1776597086375,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -6043,6 +6043,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 38875,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "762b13689c541c33ec972e442194eefa431d831a",
+          "message": "test: add integration tests for all remaining CLI flags\n\nAdd 22 new integration tests covering every previously untested CLI flag:\n--ssl, --no-file-io, --coverage, -k, -u, -p, --request-timeout,\n--encoding, --cqlversion, --protocol-version, --consistency-level,\n--serial-consistency-level, --no_compact, --disable-history, -b,\n--browser, --generate-man, -C, --no-color, -e, -f, and\nprotocol version out-of-range validation.\n\nTotal CLI integration tests: 22 → 44.",
+          "timestamp": "2026-04-19T14:02:08+03:00",
+          "tree_id": "c48c86ac9e3e61f06b60b6a9745e17eb85344066",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/762b13689c541c33ec972e442194eefa431d831a"
+        },
+        "date": 1776597086080,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28716,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3660,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9473,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65281,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 825,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 154320,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7415,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 82796,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 744390,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7483900,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10055,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 49402,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 37750,
             "unit": "ns"
           }
         ]
