@@ -226,8 +226,6 @@ mod tests {
                 .collect(),
             partition_key: vec![],
             clustering_key: vec![],
-            clustering_order: vec![],
-            properties: std::collections::BTreeMap::new(),
         }
     }
 
