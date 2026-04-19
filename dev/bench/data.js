@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776595812797,
+  "lastUpdate": 1776595855912,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -5746,6 +5746,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 38347,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "47e5295767aae56dcadeaac2cf54ba7fafc2aa80",
+          "message": "fix: include tables and indexes in DESCRIBE KEYSPACE output\n\nDESCRIBE KEYSPACE previously only returned the CREATE KEYSPACE statement.\nNow it also outputs CREATE TABLE and CREATE INDEX statements for all\nobjects within the keyspace, matching Python cqlsh behavior.\n\nAlso updates DESCRIBE SCHEMA / DESCRIBE FULL SCHEMA to include indexes\nafter each table definition.\n\nCloses #63",
+          "timestamp": "2026-04-19T13:41:31+03:00",
+          "tree_id": "61caa1bf621be73a4e12b686398e110249f01d9f",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/47e5295767aae56dcadeaac2cf54ba7fafc2aa80"
+        },
+        "date": 1776595855631,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28548,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3724,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9443,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63316,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 841,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 152560,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7210,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 82752,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 743510,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7599900,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 48570,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 37795,
             "unit": "ns"
           }
         ]
