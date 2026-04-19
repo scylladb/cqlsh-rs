@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776589896882,
+  "lastUpdate": 1776589942001,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -5449,6 +5449,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 29799,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "1380f7aca3fa8563902544a5e07f4be875229798",
+          "message": "fix: print connect/request timeout and ssl in --debug mode\n\nDisplay connection timeout, request timeout, and SSL status in the\ndebug output when --debug flag is passed, matching Python cqlsh behavior.\n\nCloses #65",
+          "timestamp": "2026-04-19T12:03:09+03:00",
+          "tree_id": "b7bb310d6f6f95b1c2a791b45f568a79ef18f9db",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/1380f7aca3fa8563902544a5e07f4be875229798"
+        },
+        "date": 1776589941598,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29712,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3421,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9038,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63320,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 851,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 152890,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6752,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 7,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 83460,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 760280,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7591700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9660,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 44043,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 38863,
             "unit": "ns"
           }
         ]
