@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776581615015,
+  "lastUpdate": 1776582755681,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -5251,6 +5251,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 37690,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "6e3bc131cf0511d22503d33d0cf063a13df0af5b",
+          "message": "perf(cql_lexer): replace tokenize-based strip_comments with zero-alloc scanner\n\nThe previous strip_comments delegated to tokenize(), which allocates a\nVec<Token> with String copies per token. The parse_multiline/6_lines\nbenchmark regressed from ~10µs to ~25µs (2.4x) as a result.\n\nReplace with a dedicated single-pass scanner that copies input slices\ndirectly into the result String with no intermediate allocations.\nFixes the perf regression while keeping the logic in cql_lexer.\n\nCo-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-04-19T10:03:13+03:00",
+          "tree_id": "bce673a2228c1c6cb5cad72825866b311f32cab0",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/6e3bc131cf0511d22503d33d0cf063a13df0af5b"
+        },
+        "date": 1776582754773,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29377,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3458,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9012,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63029,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 860,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 154200,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6761,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 7,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 83207,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 763140,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7607800,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9800,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 45899,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 38589,
             "unit": "ns"
           }
         ]
