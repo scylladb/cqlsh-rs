@@ -223,7 +223,7 @@ fn format_timestamp(f: &mut fmt::Formatter<'_>, millis: i64) -> fmt::Result {
     match dt {
         Some(dt) => {
             let utc: DateTime<Utc> = dt;
-            write!(f, "{}", utc.format("%Y-%m-%d %H:%M:%S%.3f%z"))
+            write!(f, "{}", utc.format("%Y-%m-%d %H:%M:%S%.6f%z"))
         }
         None => write!(f, "<invalid timestamp: {millis}>"),
     }
