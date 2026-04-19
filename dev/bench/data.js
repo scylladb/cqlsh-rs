@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776369192969,
+  "lastUpdate": 1776581615015,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -5152,6 +5152,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39647,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "198982749+Copilot@users.noreply.github.com",
+            "name": "copilot-swe-agent[bot]",
+            "username": "Copilot"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "d72fc9e6a524db6a84d2df5d01dbed1a56eb1dcd",
+          "message": "fix: remove unnecessary .into_iter() calls to fix clippy warnings\n\nRemove redundant .into_iter() calls that trigger clippy::useless_conversion\nlint errors on Rust 1.95.0:\n- src/copy.rs:1433 - futures::stream::iter() accepts IntoIterator directly\n- src/describe.rs:591 - Iterator::zip() accepts IntoIterator directly\n\nAgent-Logs-Url: https://github.com/scylladb/cqlsh-rs/sessions/e302ef36-eb5c-4061-9320-f9ae7bacb9e4\n\nCo-authored-by: fruch <340979+fruch@users.noreply.github.com>",
+          "timestamp": "2026-04-19T09:44:14+03:00",
+          "tree_id": "31e764502f1b9947d82a8c44cb91bbb2266d9e0b",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/d72fc9e6a524db6a84d2df5d01dbed1a56eb1dcd"
+        },
+        "date": 1776581614753,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28950,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3590,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9029,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63741,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 833,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 146460,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 9860,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 82643,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 740780,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7450900,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9533,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46020,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 37690,
             "unit": "ns"
           }
         ]
