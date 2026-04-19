@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776589961975,
+  "lastUpdate": 1776595812797,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -5647,6 +5647,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 37880,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "3eff998e18b6f2e723efe20cbc669c8b575e438f",
+          "message": "fix: display null values as blank and trim trailing whitespace\n\nMatches Python cqlsh behavior where null column values display as\nempty cells rather than the literal text 'null'. Also trims trailing\nwhitespace from tabular output lines.\n\nCloses #71",
+          "timestamp": "2026-04-19T13:40:53+03:00",
+          "tree_id": "a665dc559125c2ce96252b6541b57f1836d216fb",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/3eff998e18b6f2e723efe20cbc669c8b575e438f"
+        },
+        "date": 1776595812523,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28158,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3572,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9160,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63412,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 834,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 144910,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7257,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 83585,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 748820,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7453500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10495,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 49566,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 38347,
             "unit": "ns"
           }
         ]
