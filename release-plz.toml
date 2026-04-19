@@ -2,14 +2,13 @@
 # See: https://release-plz.dev/docs/config
 #
 # Release flow:
-#   1. Merge feat:/fix: commits to main
-#   2. release-plz creates/updates a release PR (Cargo.toml bump + CHANGELOG)
-#   3. Maintainer merges the release PR
-#   4. release-plz detects the version bump, creates a git tag + GitHub Release,
-#      and publishes to crates.io
+#   1. Maintainer bumps version in Cargo.toml and updates CHANGELOG.md
+#   2. On merge to main, CI runs `release-plz release` which detects
+#      the version bump, creates a git tag + GitHub Release, and
+#      publishes to crates.io
 
 [workspace]
-# Update CHANGELOG.md when creating release PRs
+# Include CHANGELOG.md changes in releases
 changelog_update = true
 # Create GitHub Releases
 git_release_enable = true
