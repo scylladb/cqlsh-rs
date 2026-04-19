@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776598791850,
+  "lastUpdate": 1776598823331,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -6340,6 +6340,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39762,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "f4b376f62bb4c46831c17f2c5c6125502e95ddf6",
+          "message": "fix: gracefully skip SSL tests when TLS container fails to start",
+          "timestamp": "2026-04-19T14:30:17+03:00",
+          "tree_id": "c1913676c7a016ba951d08104f510998e8c968c0",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/f4b376f62bb4c46831c17f2c5c6125502e95ddf6"
+        },
+        "date": 1776598822885,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29706,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3404,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9294,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63049,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 823,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153690,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7061,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 7,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85104,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 783580,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7745700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10037,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46512,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39581,
             "unit": "ns"
           }
         ]
