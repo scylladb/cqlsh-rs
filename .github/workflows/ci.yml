@@ -208,18 +208,16 @@ jobs:
   # ===========================================================================
   # Automated release pipeline
   #
-  # Similar to scylladb/coodie's release automation (PR #220), this uses
-  # release-plz to detect version bumps from conventional commits and
-  # automate tagging, changelog, crates.io publishing, cross-platform
-  # binary builds, and Docker image publishing.
+  # Uses release-plz to detect version bumps and automate tagging,
+  # crates.io publishing, cross-platform binary builds, and Docker
+  # image publishing.
   #
   # Flow:
-  #   1. release-plz release-pr  → creates/updates a "Release vX.Y.Z" PR
-  #   2. Maintainer merges the release PR (bumps Cargo.toml + CHANGELOG.md)
-  #   3. release-plz release     → creates git tag, GitHub Release, publishes
-  #      to crates.io
-  #   4. Downstream jobs build cross-platform binaries, upload them to the
-  #      GitHub Release, and push a multi-arch Docker image.
+  #   1. Maintainer bumps version in Cargo.toml + updates CHANGELOG.md
+  #   2. On merge to main, release-plz release detects the version bump,
+  #      creates a git tag + GitHub Release, and publishes to crates.io
+  #   3. Downstream jobs build cross-platform binaries, upload them to
+  #      the GitHub Release, and push a multi-arch Docker image.
   # ===========================================================================
   release:
     name: Release
@@ -229,7 +227,6 @@ jobs:
 
     permissions:
       contents: write
-      pull-requests: write
 
     concurrency:
       group: release-${{ github.ref_name }}
@@ -246,17 +243,6 @@ jobs:
           fetch-depth: 0
 
       - uses: dtolnay/rust-toolchain@stable
-
-      # Create/update a release PR with version bump + CHANGELOG.
-      # continue-on-error: the repo may not allow GITHUB_TOKEN to create PRs
-      # (HTTP 403). This is non-critical — don't block the release step.
-      - name: Release PR
-        continue-on-error: true
-        uses: release-plz/action@v0.5
-        with:
-          command: release-pr
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # If Cargo.toml version > latest tag, create tag + GitHub Release + publish to crates.io
       - name: Release
