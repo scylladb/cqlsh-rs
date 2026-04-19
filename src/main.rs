@@ -41,9 +41,13 @@ async fn main() -> Result<()> {
     let config = load_config(&cli)?;
 
     if cli.debug {
+        eprintln!("Using CQL driver: scylla-rust-driver");
+        eprintln!("Using connect timeout: {} seconds", config.connect_timeout);
+        eprintln!("Using request timeout: {} seconds", config.request_timeout);
+        eprintln!("Using '{}' encoding", config.encoding);
+        eprintln!("Using ssl: {}", config.ssl);
         eprintln!("Debug: resolved host={}, port={}", config.host, config.port);
         eprintln!("Debug: cqlshrc path={}", config.cqlshrc_path.display());
-        eprintln!("Debug: encoding={}", config.encoding);
         if let Some(ref v) = config.cqlversion {
             eprintln!("Debug: cqlversion={v}");
         }
