@@ -319,7 +319,7 @@ fn format_timestamp(millis: i64, options: &CopyOptions) -> String {
             let utc: DateTime<Utc> = dt;
             match &options.datetime_format {
                 Some(fmt) => utc.format(fmt).to_string(),
-                None => utc.format("%Y-%m-%d %H:%M:%S%.3f%z").to_string(),
+                None => utc.format("%Y-%m-%d %H:%M:%S%.6f%z").to_string(),
             }
         }
         None => format!("<invalid timestamp: {millis}>"),
@@ -1085,7 +1085,7 @@ fn cql_value_to_insert_literal(v: &CqlValue) -> String {
             match DateTime::from_timestamp_millis(*ms) {
                 Some(dt) => {
                     let utc: DateTime<Utc> = dt;
-                    format!("'{}'", utc.format("%Y-%m-%d %H:%M:%S%.3f+0000"))
+                    format!("'{}'", utc.format("%Y-%m-%d %H:%M:%S%.6f+0000"))
                 }
                 None => format!("{ms}"),
             }
