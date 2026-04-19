@@ -110,7 +110,7 @@ fn ui_encoding_from_cqlshrc() {
         .args(["--cqlshrc", cqlshrc.to_str().unwrap(), "--debug"])
         .assert()
         .failure()
-        .stderr(predicate::str::contains("encoding=latin-1"));
+        .stderr(predicate::str::contains("Using 'latin-1' encoding"));
 }
 
 #[test]
