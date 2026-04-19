@@ -672,7 +672,7 @@ fn dispatch_input<'a>(
                 }
 
                 // Print trace info if tracing is enabled
-                if session.is_tracing_enabled() {
+                if session.is_tracing_enabled() && !upper_stmt.contains("SYSTEM_TRACES") {
                     if let Some(trace_id) = result.tracing_id {
                         // Brief delay to allow trace data to propagate
                         tokio::time::sleep(std::time::Duration::from_millis(500)).await;

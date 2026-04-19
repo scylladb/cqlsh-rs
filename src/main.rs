@@ -417,7 +417,7 @@ async fn execute_single_statement(
             }
 
             // Print trace info if tracing is enabled
-            if session.is_tracing_enabled() {
+            if session.is_tracing_enabled() && !upper.contains("SYSTEM_TRACES") {
                 if let Some(trace_id) = result.tracing_id {
                     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                     match session.get_trace_session(trace_id).await {
