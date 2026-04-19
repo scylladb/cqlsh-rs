@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776589942001,
+  "lastUpdate": 1776589961975,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -5548,6 +5548,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 38863,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "adc9af0cdda50bf58bb87c3bc7b53a3d35ee3be8",
+          "message": "fix: emit ANSI clear sequences for CLEAR/CLS in non-interactive mode\n\nCLEAR/CLS was silently ignored in non-interactive mode, but Python cqlsh\nemits ANSI escape sequences (\\x1B[2J\\x1B[1;1H) which dtests assert on.\nMove CLEAR/CLS handling before the ignore block to match Python behavior.\n\nCloses #66",
+          "timestamp": "2026-04-19T12:03:23+03:00",
+          "tree_id": "cd9f34192397b054b9432e3ac0a6881e479137b9",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/adc9af0cdda50bf58bb87c3bc7b53a3d35ee3be8"
+        },
+        "date": 1776589961707,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28613,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3595,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9339,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64799,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 843,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 144660,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6833,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 8,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 83709,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 739780,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7460100,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9646,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46907,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 37880,
             "unit": "ns"
           }
         ]
