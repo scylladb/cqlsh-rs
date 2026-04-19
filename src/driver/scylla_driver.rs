@@ -679,128 +679,54 @@ impl CqlDriver for ScyllaDriver {
     }
 
     async fn get_tables(&self, keyspace: &str) -> Result<Vec<TableMetadata>> {
-        let ks_escaped = keyspace.replace('\'', "''");
-
         let result = self
             .execute_unpaged(&format!(
-                "SELECT table_name FROM system_schema.tables WHERE keyspace_name = '{ks_escaped}'"
+                "SELECT table_name FROM system_schema.tables WHERE keyspace_name = '{}'",
+                keyspace.replace('\'', "''")
             ))
             .await?;
 
         let mut tables = Vec::new();
         for row in &result.rows {
             let table_name = row.get(0).and_then(cql_value_to_string).unwrap_or_default();
-            let tbl_escaped = table_name.replace('\'', "''");
 
             let col_result = self
                 .execute_unpaged(&format!(
-                    "SELECT column_name, type, kind, position, clustering_order \
+                    "SELECT column_name, type, kind \
                      FROM system_schema.columns \
-                     WHERE keyspace_name = '{ks_escaped}' AND table_name = '{tbl_escaped}'"
+                     WHERE keyspace_name = '{}' AND table_name = '{}'",
+                    keyspace.replace('\'', "''"),
+                    table_name.replace('\'', "''")
                 ))
                 .await?;
 
-            let mut pk_cols: Vec<(i32, String, String)> = Vec::new();
-            let mut ck_cols: Vec<(i32, String, String, String)> = Vec::new();
-            let mut regular_cols: Vec<(String, String)> = Vec::new();
+            let mut columns = Vec::new();
+            let mut partition_key = Vec::new();
+            let mut clustering_key = Vec::new();
 
             for col_row in &col_result.rows {
                 let col_name = col_row
-                    .get_by_name("column_name", &col_result.columns)
-                    .map(|v| v.to_string())
+                    .get(0)
+                    .and_then(cql_value_to_string)
                     .unwrap_or_default();
                 let col_type = col_row
-                    .get_by_name("type", &col_result.columns)
-                    .map(|v| v.to_string())
+                    .get(1)
+                    .and_then(cql_value_to_string)
                     .unwrap_or_default();
                 let kind = col_row
-                    .get_by_name("kind", &col_result.columns)
-                    .map(|v| v.to_string())
+                    .get(2)
+                    .and_then(cql_value_to_string)
                     .unwrap_or_default();
-                let position = col_row
-                    .get_by_name("position", &col_result.columns)
-                    .and_then(|v| v.to_string().parse::<i32>().ok())
-                    .unwrap_or(0);
-                let clustering_order = col_row
-                    .get_by_name("clustering_order", &col_result.columns)
-                    .map(|v| v.to_string())
-                    .unwrap_or_else(|| "none".to_string());
+
+                columns.push(ColumnMetadata {
+                    name: col_name.clone(),
+                    type_name: col_type,
+                });
 
                 match kind.as_str() {
-                    "partition_key" => pk_cols.push((position, col_name, col_type)),
-                    "clustering" => ck_cols.push((position, col_name, col_type, clustering_order)),
-                    _ => regular_cols.push((col_name, col_type)),
-                }
-            }
-
-            pk_cols.sort_by_key(|c| c.0);
-            ck_cols.sort_by_key(|c| c.0);
-
-            let partition_key: Vec<String> = pk_cols.iter().map(|c| c.1.clone()).collect();
-            let clustering_key: Vec<String> = ck_cols.iter().map(|c| c.1.clone()).collect();
-            let clustering_order: Vec<String> = ck_cols
-                .iter()
-                .map(|c| {
-                    let order = c.3.to_uppercase();
-                    if order == "NONE" || order.is_empty() {
-                        "ASC".to_string()
-                    } else {
-                        order
-                    }
-                })
-                .collect();
-
-            let mut columns: Vec<ColumnMetadata> = Vec::new();
-            for (_, name, typ) in &pk_cols {
-                columns.push(ColumnMetadata {
-                    name: name.clone(),
-                    type_name: typ.clone(),
-                });
-            }
-            for (_, name, typ, _) in &ck_cols {
-                columns.push(ColumnMetadata {
-                    name: name.clone(),
-                    type_name: typ.clone(),
-                });
-            }
-            for (name, typ) in &regular_cols {
-                columns.push(ColumnMetadata {
-                    name: name.clone(),
-                    type_name: typ.clone(),
-                });
-            }
-
-            let props_result = self
-                .execute_unpaged(&format!(
-                    "SELECT bloom_filter_fp_chance, caching, comment, compaction, compression, \
-                     crc_check_chance, default_time_to_live, gc_grace_seconds, \
-                     max_index_interval, memtable_flush_period_in_ms, min_index_interval, \
-                     speculative_retry \
-                     FROM system_schema.tables \
-                     WHERE keyspace_name = '{ks_escaped}' AND table_name = '{tbl_escaped}'"
-                ))
-                .await?;
-
-            let mut properties = std::collections::BTreeMap::new();
-            if let Some(props_row) = props_result.rows.first() {
-                let prop_names = [
-                    "bloom_filter_fp_chance",
-                    "caching",
-                    "comment",
-                    "compaction",
-                    "compression",
-                    "crc_check_chance",
-                    "default_time_to_live",
-                    "gc_grace_seconds",
-                    "max_index_interval",
-                    "memtable_flush_period_in_ms",
-                    "min_index_interval",
-                    "speculative_retry",
-                ];
-                for prop_name in &prop_names {
-                    if let Some(val) = props_row.get_by_name(prop_name, &props_result.columns) {
-                        properties.insert(prop_name.to_string(), val.to_string());
-                    }
+                    "partition_key" => partition_key.push(col_name),
+                    "clustering" => clustering_key.push(col_name),
+                    _ => {}
                 }
             }
 
@@ -810,8 +736,6 @@ impl CqlDriver for ScyllaDriver {
                 columns,
                 partition_key,
                 clustering_key,
-                clustering_order,
-                properties,
             });
         }
 

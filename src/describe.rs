@@ -229,8 +229,6 @@ async fn describe_keyspace(
         write_table_indexes(session, ks_name, &table.name, writer).await?;
     }
 
-    write_keyspace_materialized_views(session, ks_name, writer).await?;
-
     writeln!(writer)?;
     Ok(())
 }
@@ -870,60 +868,7 @@ fn write_create_table(writer: &mut dyn Write, meta: &crate::driver::TableMetadat
         }
     }
 
-    writeln!(writer, ")")?;
-
-    let mut first_with = true;
-
-    if !meta.clustering_key.is_empty() {
-        let order_parts: Vec<String> = meta
-            .clustering_key
-            .iter()
-            .enumerate()
-            .map(|(i, name)| {
-                let order = meta
-                    .clustering_order
-                    .get(i)
-                    .map(|s| s.as_str())
-                    .unwrap_or("ASC");
-                format!("{} {}", quote_if_needed(name), order)
-            })
-            .collect();
-        write!(
-            writer,
-            " WITH CLUSTERING ORDER BY ({})",
-            order_parts.join(", ")
-        )?;
-        first_with = false;
-    }
-
-    let prop_order = [
-        "bloom_filter_fp_chance",
-        "caching",
-        "comment",
-        "compaction",
-        "compression",
-        "crc_check_chance",
-        "default_time_to_live",
-        "gc_grace_seconds",
-        "max_index_interval",
-        "memtable_flush_period_in_ms",
-        "min_index_interval",
-        "speculative_retry",
-    ];
-
-    for prop_name in &prop_order {
-        if let Some(value) = meta.properties.get(*prop_name) {
-            let formatted_value = format_property_value(prop_name, value);
-            if first_with {
-                write!(writer, " WITH {} = {}", prop_name, formatted_value)?;
-                first_with = false;
-            } else {
-                write!(writer, "\n    AND {} = {}", prop_name, formatted_value)?;
-            }
-        }
-    }
-
-    writeln!(writer, ";")?;
+    writeln!(writer, ");")?;
     Ok(())
 }
 
@@ -965,28 +910,6 @@ async fn write_table_indexes(
             quote_if_needed(&tbl_name),
             target
         )?;
-    }
-
-    Ok(())
-}
-
-async fn write_keyspace_materialized_views(
-    session: &CqlSession,
-    keyspace: &str,
-    writer: &mut dyn Write,
-) -> Result<()> {
-    let query = format!(
-        "SELECT view_name FROM system_schema.views WHERE keyspace_name = '{}'",
-        keyspace.replace('\'', "''")
-    );
-    let result = session.execute_query(&query).await?;
-
-    for row in &result.rows {
-        if let Some(view_name) = row.get(0) {
-            let view_name = view_name.to_string();
-            writeln!(writer)?;
-            describe_materialized_view(session, &format!("{keyspace}.{view_name}"), writer).await?;
-        }
     }
 
     Ok(())
@@ -1072,14 +995,6 @@ fn extract_map_value(map_str: &str, key: &str) -> Option<String> {
         }
     }
     None
-}
-
-fn format_property_value(name: &str, value: &str) -> String {
-    match name {
-        "comment" | "speculative_retry" => format!("'{}'", value.replace('\'', "''")),
-        "caching" | "compaction" | "compression" => value.to_string(),
-        _ => value.to_string(),
-    }
 }
 
 /// Check if a keyspace is a system keyspace.
@@ -1374,8 +1289,6 @@ mod tests {
             ],
             partition_key: vec!["id".to_string()],
             clustering_key: vec![],
-            clustering_order: vec![],
-            properties: std::collections::BTreeMap::new(),
         };
 
         let mut buf = Vec::new();
@@ -1410,18 +1323,12 @@ mod tests {
             ],
             partition_key: vec!["user_id".to_string()],
             clustering_key: vec!["event_time".to_string()],
-            clustering_order: vec!["ASC".to_string()],
-            properties: std::collections::BTreeMap::new(),
         };
 
         let mut buf = Vec::new();
         write_create_table(&mut buf, &meta).unwrap();
         let output = String::from_utf8(buf).unwrap();
         assert!(output.contains("PRIMARY KEY (user_id, event_time)"));
-        assert!(
-            output.contains("WITH CLUSTERING ORDER BY (event_time ASC)"),
-            "expected CLUSTERING ORDER BY: {output}"
-        );
     }
 
     #[test]
@@ -1451,8 +1358,6 @@ mod tests {
             ],
             partition_key: vec!["host".to_string(), "metric".to_string()],
             clustering_key: vec!["ts".to_string()],
-            clustering_order: vec!["ASC".to_string()],
-            properties: std::collections::BTreeMap::new(),
         };
 
         let mut buf = Vec::new();

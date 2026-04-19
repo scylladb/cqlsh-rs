@@ -82,11 +82,6 @@ pub struct TableMetadata {
     pub columns: Vec<ColumnMetadata>,
     pub partition_key: Vec<String>,
     pub clustering_key: Vec<String>,
-    /// Clustering order for each clustering column (e.g., "ASC" or "DESC").
-    /// Parallel to `clustering_key`.
-    pub clustering_order: Vec<String>,
-    /// Table properties from system_schema.tables (e.g., bloom_filter_fp_chance, compaction, etc.).
-    pub properties: std::collections::BTreeMap<String, String>,
 }
 
 /// Metadata about a user-defined type (UDT).
