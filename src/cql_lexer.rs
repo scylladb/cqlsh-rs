@@ -664,6 +664,15 @@ pub fn context_from_tokens(tokens: &[Token]) -> GrammarContext {
         return GrammarContext::ExpectQualifiedPart;
     }
 
+    // After SELECT * → still in column list (expecting FROM or comma-separated columns)
+    if last.kind == TokenKind::Punctuation
+        && last.text == "*"
+        && significant.len() >= 2
+        && significant[significant.len() - 2].text.to_uppercase() == "SELECT"
+    {
+        return GrammarContext::ExpectColumnList;
+    }
+
     // After FROM table_name — we're in general clause context
     // Check if two tokens back is a table-expecting keyword
     if significant.len() >= 2 {

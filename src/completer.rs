@@ -27,6 +27,17 @@ const CQL_KEYWORDS: &[&str] = &[
     "LIST", "REVOKE", "SELECT", "TRUNCATE", "UPDATE", "USE",
 ];
 
+/// Keywords valid in a SELECT column list (after SELECT, before FROM).
+const SELECT_COLUMN_KEYWORDS: &[&str] = &[
+    "*",
+    "COUNT(",
+    "DISTINCT",
+    "FROM",
+    "JSON",
+    "TTL(",
+    "WRITETIME(",
+];
+
 /// CQL clause keywords used within statements.
 const CQL_CLAUSE_KEYWORDS: &[&str] = &[
     "ADD",
@@ -224,6 +235,8 @@ enum CompletionContext {
     Empty,
     /// After a statement keyword — complete with clause keywords.
     ClauseKeyword,
+    /// In SELECT column list — complete with SELECT-specific keywords (*, FROM, DISTINCT, etc.).
+    SelectColumnList,
     /// After FROM, INTO, UPDATE, etc. — complete with table names.
     TableName { keyspace: Option<String> },
     /// After SELECT ... FROM table WHERE — complete with column names.
@@ -287,18 +300,27 @@ impl CqlCompleter {
             return CompletionContext::FilePath;
         }
 
-        let grammar_ctx = cql_lexer::grammar_context_at_end(before_cursor);
+        // Mid-word context fix: when the user is typing a partial word (no trailing
+        // space), strip it and get grammar context from everything BEFORE it.
+        // e.g. "SELECT * F" → context of "SELECT * " → ExpectColumnList
+        // e.g. "SELECT * FROM system.h" → context of "SELECT * FROM system." → ExpectQualifiedPart
+        let grammar_ctx = if !before_cursor.ends_with(' ') && sig.len() > 1 {
+            let last_token = sig.last().unwrap();
+            cql_lexer::grammar_context_at_end(&before_cursor[..last_token.start])
+        } else if !before_cursor.ends_with(' ') && sig.len() == 1 {
+            GrammarContext::Start
+        } else {
+            cql_lexer::grammar_context_at_end(before_cursor)
+        };
 
         match grammar_ctx {
             GrammarContext::Start => CompletionContext::Empty,
             GrammarContext::ExpectTable => {
-                // Check if the user is typing a qualified name (ks.)
                 let keyspace = self.extract_qualifying_keyspace(&sig);
                 CompletionContext::TableName { keyspace }
             }
             GrammarContext::ExpectKeyspace => CompletionContext::KeyspaceName,
             GrammarContext::ExpectColumn | GrammarContext::ExpectSetClause => {
-                // Find the table name from the token stream
                 let (ks, table) = self.extract_table_from_tokens(&sig);
                 match table {
                     Some(t) => CompletionContext::ColumnName {
@@ -312,35 +334,24 @@ impl CqlCompleter {
             GrammarContext::ExpectDescribeTarget => CompletionContext::DescribeTarget,
             GrammarContext::ExpectFilePath => CompletionContext::FilePath,
             GrammarContext::ExpectQualifiedPart => {
-                // After a dot — offer tables from the keyspace before the dot
                 let keyspace = self.extract_qualifying_keyspace(&sig);
                 CompletionContext::TableName { keyspace }
             }
-            GrammarContext::ExpectColumnList => {
-                // In SELECT column list — if only first keyword and no space yet, complete keywords
-                if sig.len() == 1 && !before_cursor.ends_with(' ') {
-                    CompletionContext::Empty
-                } else {
-                    CompletionContext::ClauseKeyword
-                }
-            }
-            _ => {
-                // For Start-like contexts: if only one word and still typing, complete keywords
-                if sig.len() == 1 && !before_cursor.ends_with(' ') {
-                    CompletionContext::Empty
-                } else {
-                    CompletionContext::ClauseKeyword
-                }
-            }
+            GrammarContext::ExpectColumnList => CompletionContext::SelectColumnList,
+            _ => CompletionContext::ClauseKeyword,
         }
     }
 
     /// Extract the keyspace qualifier from a dot-qualified name in the token stream.
     fn extract_qualifying_keyspace(&self, sig: &[&cql_lexer::Token]) -> Option<String> {
-        // Look for pattern: identifier . (at end of tokens)
         let len = sig.len();
+        // Pattern: identifier . (dot is last token)
         if len >= 2 && sig[len - 1].text == "." {
             return Some(sig[len - 2].text.clone());
+        }
+        // Pattern: identifier . partial_name (user typing after dot)
+        if len >= 3 && sig[len - 2].text == "." {
+            return Some(sig[len - 3].text.clone());
         }
         None
     }
@@ -389,6 +400,9 @@ impl CqlCompleter {
             }
             CompletionContext::ClauseKeyword => {
                 filter_candidates(CQL_CLAUSE_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::SelectColumnList => {
+                filter_candidates(SELECT_COLUMN_KEYWORDS, &prefix_upper, true)
             }
             CompletionContext::ConsistencyLevel => {
                 filter_candidates(CONSISTENCY_LEVELS, &prefix_upper, true)
@@ -758,6 +772,39 @@ mod tests {
         // Should return entries — exact count varies
         assert!(
             !pairs.is_empty() || std::fs::read_dir("/tmp").map(|d| d.count()).unwrap_or(0) == 0
+        );
+    }
+
+    #[test]
+    fn midword_select_star_f_gives_select_column_list() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("SELECT * F", 10),
+            CompletionContext::SelectColumnList
+        );
+        let pairs = c.complete_for_context(&CompletionContext::SelectColumnList, "F");
+        assert!(pairs.iter().any(|p| p.replacement == "FROM"));
+        assert!(!pairs.iter().any(|p| p.replacement == "FILTERING"));
+        assert!(!pairs.iter().any(|p| p.replacement == "FUNCTION"));
+    }
+
+    #[test]
+    fn midword_qualified_table_name() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("SELECT * FROM system.h", 22),
+            CompletionContext::TableName {
+                keyspace: Some("system".to_string())
+            }
+        );
+    }
+
+    #[test]
+    fn select_space_gives_select_column_list() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("SELECT ", 7),
+            CompletionContext::SelectColumnList
         );
     }
 }
