@@ -1430,7 +1430,7 @@ pub async fn execute_copy_from(
         }
 
         // --- Insert phase: execute chunk concurrently ---
-        let insert_results: Vec<Result<()>> = futures::stream::iter(chunk.into_iter())
+        let insert_results: Vec<Result<()>> = futures::stream::iter(chunk)
             .map(|values| {
                 let ts = table_spec.as_str();
                 let cl = col_list.as_str();

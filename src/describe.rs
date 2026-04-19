@@ -588,7 +588,7 @@ async fn describe_type(
     let fields: Vec<(String, String)> = field_names
         .into_iter()
         .take(field_count)
-        .zip(field_types.into_iter())
+        .zip(field_types)
         .collect();
     write!(
         writer,
