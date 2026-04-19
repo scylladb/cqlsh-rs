@@ -165,7 +165,7 @@ async fn describe_keyspaces(session: &CqlSession, writer: &mut dyn Write) -> Res
     Ok(())
 }
 
-/// DESCRIBE KEYSPACE [name] — show CREATE KEYSPACE statement.
+/// DESCRIBE KEYSPACE [name] — show CREATE KEYSPACE and all objects within it.
 async fn describe_keyspace(
     session: &CqlSession,
     keyspace: Option<&str>,
@@ -220,6 +220,15 @@ async fn describe_keyspace(
         writer,
         "CREATE KEYSPACE {ks_name} WITH replication = {replication_str} AND durable_writes = {durable_writes};"
     )?;
+
+    // Print all tables and their indexes in this keyspace
+    let tables = session.get_tables(ks_name).await?;
+    for table in &tables {
+        writeln!(writer)?;
+        write_create_table(writer, table)?;
+        write_table_indexes(session, ks_name, &table.name, writer).await?;
+    }
+
     writeln!(writer)?;
     Ok(())
 }
@@ -336,6 +345,7 @@ async fn describe_schema_inner(
         for table in &tables {
             writeln!(writer)?;
             write_create_table(writer, table)?;
+            write_table_indexes(session, &ks.name, &table.name, writer).await?;
         }
     }
 
@@ -859,6 +869,49 @@ fn write_create_table(writer: &mut dyn Write, meta: &crate::driver::TableMetadat
     }
 
     writeln!(writer, ");")?;
+    Ok(())
+}
+
+/// Fetch indexes for a table from system_schema.indexes and write CREATE INDEX statements.
+async fn write_table_indexes(
+    session: &CqlSession,
+    keyspace: &str,
+    table_name: &str,
+    writer: &mut dyn Write,
+) -> Result<()> {
+    let query = format!(
+        "SELECT index_name, table_name, kind, options FROM system_schema.indexes WHERE keyspace_name = '{}' AND table_name = '{}'",
+        keyspace.replace('\'', "''"),
+        table_name.replace('\'', "''"),
+    );
+    let result = session.execute_query(&query).await?;
+
+    for row in &result.rows {
+        let idx_name = row
+            .get_by_name("index_name", &result.columns)
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        let tbl_name = row
+            .get_by_name("table_name", &result.columns)
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        let options = row
+            .get_by_name("options", &result.columns)
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+
+        let target = extract_map_value(&options, "target").unwrap_or_else(|| "unknown".to_string());
+
+        writeln!(
+            writer,
+            "CREATE INDEX {} ON {}.{} ({});",
+            quote_if_needed(&idx_name),
+            quote_if_needed(keyspace),
+            quote_if_needed(&tbl_name),
+            target
+        )?;
+    }
+
     Ok(())
 }
 
