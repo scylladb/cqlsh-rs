@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776601604728,
+  "lastUpdate": 1776610444654,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -6835,6 +6835,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 37730,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "198982749+Copilot@users.noreply.github.com",
+            "name": "copilot-swe-agent[bot]",
+            "username": "Copilot"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "defec268b1f36be972f219d142e14562d6807b51",
+          "message": "fix(ci): use RELEASE_PLZ_TOKEN for release-pr step\n\nThe default GITHUB_TOKEN is not permitted to create PRs in this\nrepo (HTTP 403). Instead of removing the release-pr step (which\nwould break CHANGELOG.md auto-updates), use a dedicated PAT\nstored as the RELEASE_PLZ_TOKEN secret.\n\nSetup required:\n  1. Create a fine-grained PAT with Contents + Pull Requests\n     read/write scopes for scylladb/cqlsh-rs\n  2. Add it as a repository secret named RELEASE_PLZ_TOKEN\n\nAgent-Logs-Url: https://github.com/scylladb/cqlsh-rs/sessions/2416f025-e3cf-49d5-81ae-3b9ad67e8c01\n\nCo-authored-by: fruch <340979+fruch@users.noreply.github.com>",
+          "timestamp": "2026-04-19T17:45:16+03:00",
+          "tree_id": "cf94ba69cd07b91d2e473ceb2789eaad44331265",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/defec268b1f36be972f219d142e14562d6807b51"
+        },
+        "date": 1776610444356,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29320,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3634,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9234,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64247,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 827,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 147050,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7011,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 13,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 82875,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 744020,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7455800,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9837,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 45830,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 37913,
             "unit": "ns"
           }
         ]
