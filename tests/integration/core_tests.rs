@@ -420,7 +420,15 @@ fn test_null_values() {
         scylla,
         &format!("SELECT * FROM {ks}.null_test WHERE id = 1"),
     );
-    assert!(output.contains("null"));
+    // Null values display as blank (empty), matching Python cqlsh
+    assert!(
+        !output.contains("null"),
+        "Null should display as blank, not 'null': {output}"
+    );
+    assert!(
+        output.contains(" 1 "),
+        "Row with id=1 should be present: {output}"
+    );
 
     drop_test_keyspace(scylla, &ks);
 }

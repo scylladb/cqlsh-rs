@@ -236,7 +236,15 @@ fn test_null_output() {
     execute_cql(scylla, &format!("INSERT INTO {ks}.nulls (id) VALUES (1)")).success();
 
     let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.nulls WHERE id = 1"));
-    assert!(output.contains("null"), "Expected null display: {output}");
+    // Null values display as blank (empty), matching Python cqlsh
+    assert!(
+        !output.contains("null"),
+        "Null should display as blank, not 'null': {output}"
+    );
+    assert!(
+        output.contains(" 1 "),
+        "Row with id=1 should be present: {output}"
+    );
 
     drop_test_keyspace(scylla, &ks);
 }

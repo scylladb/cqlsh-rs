@@ -107,9 +107,7 @@ impl CqlColorizer {
             CqlValue::Blob(_) => {
                 format!("{}", value.to_string().dark_magenta())
             }
-            CqlValue::Null => {
-                format!("{}", "null".red().bold())
-            }
+            CqlValue::Null => String::new(),
             CqlValue::Unset => {
                 format!("{}", "<unset>".red().bold())
             }
@@ -357,11 +355,10 @@ mod tests {
     }
 
     #[test]
-    fn colorize_null_value_red() {
+    fn colorize_null_value_empty() {
         let c = CqlColorizer::new(true);
         let output = c.colorize_value(&CqlValue::Null);
-        assert!(output.contains("\x1b["), "should contain ANSI codes");
-        assert!(output.contains("null"));
+        assert_eq!(output, "");
     }
 
     #[test]
