@@ -237,6 +237,8 @@ Contributions are welcome! Please open an [issue](https://github.com/scylladb/cq
 
 Design documents and implementation plans live in [`docs/plans/`](docs/plans/).
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, release process, and crates.io publishing details.
+
 ## License
 
 [MIT](LICENSE)
