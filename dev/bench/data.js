@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776598848081,
+  "lastUpdate": 1776598867163,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -6637,6 +6637,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 36677,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "8503f56e381a8a42b7e2d06d37634b5b5d4be253",
+          "message": "fix: handle SOURCE command client-side in non-interactive mode\n\nProcess SOURCE commands locally by reading and executing the referenced\nCQL file, instead of sending SOURCE as a CQL query to the server.\n\nCloses #67",
+          "timestamp": "2026-04-19T14:31:04+03:00",
+          "tree_id": "a65c3c5f69f4a06e94ed36be40f5f453540e9e41",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/8503f56e381a8a42b7e2d06d37634b5b5d4be253"
+        },
+        "date": 1776598866888,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29245,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3710,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9524,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65461,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 851,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 145040,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7173,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 13,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 91230,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 760960,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7518200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10112,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 47268,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39203,
             "unit": "ns"
           }
         ]
