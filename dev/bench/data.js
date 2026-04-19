@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776595855912,
+  "lastUpdate": 1776597037423,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -5845,6 +5845,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 37795,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "925db352f77f711f8c679351e70c40fec1f04478",
+          "message": "fix: suppress tracing output for queries against system_traces\n\nSkip tracing for queries targeting the system_traces keyspace to avoid\nrecursive trace queries, matching Python cqlsh behavior.\n\nCloses #72",
+          "timestamp": "2026-04-19T14:01:20+03:00",
+          "tree_id": "66e92426d7bf40d7d790720958b0ec197053348d",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/925db352f77f711f8c679351e70c40fec1f04478"
+        },
+        "date": 1776597036973,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28784,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3483,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9076,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 62631,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 826,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153740,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6909,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 7,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 84748,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 773050,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7699100,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10556,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46527,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39211,
             "unit": "ns"
           }
         ]
