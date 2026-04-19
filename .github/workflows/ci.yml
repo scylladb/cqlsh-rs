@@ -247,8 +247,11 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      # Create/update a release PR with version bump + CHANGELOG
+      # Create/update a release PR with version bump + CHANGELOG.
+      # continue-on-error: the repo may not allow GITHUB_TOKEN to create PRs
+      # (HTTP 403). This is non-critical — don't block the release step.
       - name: Release PR
+        continue-on-error: true
         uses: release-plz/action@v0.5
         with:
           command: release-pr
