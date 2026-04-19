@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776597086375,
+  "lastUpdate": 1776598769947,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -6142,6 +6142,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 37750,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "198982749+Copilot@users.noreply.github.com",
+            "name": "copilot-swe-agent[bot]",
+            "username": "Copilot"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "ca57214fb07881711c030554d7dd703337ecd5aa",
+          "message": "fix(ci): address code review feedback on release pipeline\n\n- Remove CARGO_REGISTRY_TOKEN from release-pr step (only needed for\n  the release/publish step)\n- Add explicit permissions: contents: read to build-release-binaries\n  and generate-release-assets jobs\n\nAgent-Logs-Url: https://github.com/scylladb/cqlsh-rs/sessions/bad47fa5-7ecb-4300-ae35-7f65791d62d8\n\nCo-authored-by: fruch <340979+fruch@users.noreply.github.com>",
+          "timestamp": "2026-04-19T14:29:37+03:00",
+          "tree_id": "58f7b263b6b1fb8b64d4e77497368a49d0a0f60c",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/ca57214fb07881711c030554d7dd703337ecd5aa"
+        },
+        "date": 1776598769523,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 25621,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3246,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 8513,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 58155,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 987,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 133210,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 5406,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 5,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 78624,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 704480,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7099600,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 8414,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 39354,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 34091,
             "unit": "ns"
           }
         ]
