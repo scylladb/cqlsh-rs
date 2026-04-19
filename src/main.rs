@@ -1,6 +1,6 @@
 //! cqlsh-rs — A Rust re-implementation of the Apache Cassandra cqlsh shell.
 
-use std::io::{self, IsTerminal, Write};
+use std::io::{self, BufRead, IsTerminal, Write};
 
 use anyhow::Result;
 use clap::{CommandFactory, Parser};
@@ -250,204 +250,261 @@ async fn execute_cql_reader<R: io::BufRead>(
 /// subsequent statements in the same batch.
 ///
 /// Returns `true` on success, `false` on error.
-async fn execute_single_statement(
-    session: &mut CqlSession,
-    config: &MergedConfig,
-    colorizer: &CqlColorizer,
-    debug: &mut bool,
-    input: &str,
-) -> bool {
-    let trimmed = input.trim();
-    if trimmed.is_empty() {
-        return true;
-    }
-
-    let upper = trimmed.to_uppercase();
-
-    // Handle DEBUG command (toggle debug output within a batch)
-    if upper == "DEBUG" {
-        if *debug {
-            println!("Debug output is currently enabled. Use DEBUG OFF to disable.");
-        } else {
-            println!("Debug output is currently disabled. Use DEBUG ON to enable.");
+fn execute_single_statement<'a>(
+    session: &'a mut CqlSession,
+    config: &'a MergedConfig,
+    colorizer: &'a CqlColorizer,
+    debug: &'a mut bool,
+    input: &'a str,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + 'a>> {
+    Box::pin(async move {
+        let trimmed = input.trim();
+        if trimmed.is_empty() {
+            return true;
         }
-        return true;
-    }
-    if upper == "DEBUG ON" {
-        *debug = true;
-        println!("Now printing debug output.");
-        return true;
-    }
-    if upper == "DEBUG OFF" {
-        *debug = false;
-        println!("Disabled debug output.");
-        return true;
-    }
 
-    // Handle UNICODE command
-    if upper == "UNICODE" {
-        println!("Encoding: {}\nDefault encoding: utf-8", config.encoding);
-        return true;
-    }
+        let upper = trimmed.to_uppercase();
 
-    // Handle CONSISTENCY
-    if upper == "CONSISTENCY" {
-        let cl = session.get_consistency();
-        println!("Current consistency level is {cl}.");
-        return true;
-    }
-    if let Some(rest) = upper.strip_prefix("CONSISTENCY ") {
-        let level = rest.trim();
-        match session.set_consistency_str(level) {
-            Ok(()) => println!("Consistency level set to {level}."),
-            Err(e) => {
-                eprintln!("{e}");
-                return false;
+        // Handle DEBUG command (toggle debug output within a batch)
+        if upper == "DEBUG" {
+            if *debug {
+                println!("Debug output is currently enabled. Use DEBUG OFF to disable.");
+            } else {
+                println!("Debug output is currently disabled. Use DEBUG ON to enable.");
             }
+            return true;
         }
-        return true;
-    }
-    if upper == "SERIAL CONSISTENCY" {
-        match session.get_serial_consistency() {
-            Some(scl) => println!("Current serial consistency level is {scl}."),
-            None => println!("Current serial consistency level is SERIAL."),
+        if upper == "DEBUG ON" {
+            *debug = true;
+            println!("Now printing debug output.");
+            return true;
         }
-        return true;
-    }
-    if let Some(rest) = upper.strip_prefix("SERIAL CONSISTENCY ") {
-        let level = rest.trim();
-        match session.set_serial_consistency_str(level) {
-            Ok(()) => println!("Serial consistency level set to {level}."),
-            Err(e) => {
-                eprintln!("{e}");
-                return false;
-            }
+        if upper == "DEBUG OFF" {
+            *debug = false;
+            println!("Disabled debug output.");
+            return true;
         }
-        return true;
-    }
-    if upper == "TRACING OFF" || upper == "TRACING" {
-        session.set_tracing(false);
-        println!("Disabled tracing.");
-        return true;
-    }
-    if upper == "TRACING ON" {
-        session.set_tracing(true);
-        println!("Now tracing requests.");
-        return true;
-    }
-    if upper == "SHOW VERSION" {
-        println!("[cqlsh {}]", env!("CARGO_PKG_VERSION"));
-        return true;
-    }
-    if upper == "SHOW HOST" {
-        println!("Connected to: {}", session.connection_display);
-        return true;
-    }
 
-    // Handle DESCRIBE / DESC
-    if upper == "DESCRIBE"
-        || upper == "DESC"
-        || upper.starts_with("DESCRIBE ")
-        || upper.starts_with("DESC ")
-    {
-        let args = if upper.starts_with("DESCRIBE ") {
-            trimmed["DESCRIBE ".len()..].trim()
-        } else if upper.starts_with("DESC ") {
-            trimmed["DESC ".len()..].trim()
-        } else {
-            ""
-        };
-        let mut buf = Vec::new();
-        match cqlsh_rs::describe::execute(session, args, &mut buf).await {
-            Ok(()) => {
-                let _ = io::stdout().write_all(&buf);
-            }
-            Err(e) => {
-                eprintln!("Error: {e}");
-                return false;
-            }
+        // Handle UNICODE command
+        if upper == "UNICODE" {
+            println!("Encoding: {}\nDefault encoding: utf-8", config.encoding);
+            return true;
         }
-        return true;
-    }
 
-    // Handle CLEAR/CLS in non-interactive mode by emitting ANSI escape sequences
-    // (matches Python cqlsh behavior expected by dtest test_clear)
-    if upper == "CLEAR" || upper == "CLS" {
-        print!("\x1B[2J\x1B[1;1H");
-        return true;
-    }
-
-    // Skip commands that don't make sense in non-interactive mode
-    if upper == "QUIT"
-        || upper == "EXIT"
-        || upper == "HELP"
-        || upper == "?"
-        || upper.starts_with("HELP ")
-        || upper == "EXPAND"
-        || upper == "EXPAND ON"
-        || upper == "EXPAND OFF"
-        || upper == "PAGING"
-        || upper == "PAGING ON"
-        || upper == "PAGING OFF"
-        || upper.starts_with("PAGING ")
-        || upper == "CAPTURE"
-        || upper == "CAPTURE OFF"
-        || upper.starts_with("CAPTURE ")
-        || upper == "LOGIN"
-        || upper.starts_with("LOGIN ")
-    {
-        // Silently ignore interactive-only commands
-        return true;
-    }
-
-    // Execute as CQL statement
-    match session.execute(trimmed).await {
-        Ok(result) => {
-            // Print warnings to stderr
-            for warning in &result.warnings {
-                let msg = format!("Warnings: {warning}");
-                eprintln!("{}", colorizer.colorize_warning(&msg));
+        // Handle CONSISTENCY
+        if upper == "CONSISTENCY" {
+            let cl = session.get_consistency();
+            println!("Current consistency level is {cl}.");
+            return true;
+        }
+        if let Some(rest) = upper.strip_prefix("CONSISTENCY ") {
+            let level = rest.trim();
+            match session.set_consistency_str(level) {
+                Ok(()) => println!("Consistency level set to {level}."),
+                Err(e) => {
+                    eprintln!("{e}");
+                    return false;
+                }
             }
-
-            // Print results directly to stdout (no pager)
-            if !result.columns.is_empty() {
-                let mut buf = Vec::new();
-                formatter::print_tabular(&result, colorizer, &mut buf);
-                let _ = io::stdout().write_all(&buf);
+            return true;
+        }
+        if upper == "SERIAL CONSISTENCY" {
+            match session.get_serial_consistency() {
+                Some(scl) => println!("Current serial consistency level is {scl}."),
+                None => println!("Current serial consistency level is SERIAL."),
             }
+            return true;
+        }
+        if let Some(rest) = upper.strip_prefix("SERIAL CONSISTENCY ") {
+            let level = rest.trim();
+            match session.set_serial_consistency_str(level) {
+                Ok(()) => println!("Serial consistency level set to {level}."),
+                Err(e) => {
+                    eprintln!("{e}");
+                    return false;
+                }
+            }
+            return true;
+        }
+        if upper == "TRACING OFF" || upper == "TRACING" {
+            session.set_tracing(false);
+            println!("Disabled tracing.");
+            return true;
+        }
+        if upper == "TRACING ON" {
+            session.set_tracing(true);
+            println!("Now tracing requests.");
+            return true;
+        }
+        if upper == "SHOW VERSION" {
+            println!("[cqlsh {}]", env!("CARGO_PKG_VERSION"));
+            return true;
+        }
+        if upper == "SHOW HOST" {
+            println!("Connected to: {}", session.connection_display);
+            return true;
+        }
 
-            // Print trace info if tracing is enabled
-            if session.is_tracing_enabled() && !upper.contains("SYSTEM_TRACES") {
-                if let Some(trace_id) = result.tracing_id {
-                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-                    match session.get_trace_session(trace_id).await {
-                        Ok(Some(trace)) => {
-                            let mut buf = Vec::new();
-                            formatter::print_trace(&trace, colorizer, &mut buf);
-                            let _ = io::stdout().write_all(&buf);
-                        }
-                        Ok(None) => {
-                            eprintln!(
-                                "Trace {trace_id} not yet available. Use SHOW SESSION {trace_id} to view later."
-                            );
-                        }
-                        Err(e) => {
-                            eprintln!("Error fetching trace: {e}");
+        // Handle DESCRIBE / DESC
+        if upper == "DESCRIBE"
+            || upper == "DESC"
+            || upper.starts_with("DESCRIBE ")
+            || upper.starts_with("DESC ")
+        {
+            let args = if upper.starts_with("DESCRIBE ") {
+                trimmed["DESCRIBE ".len()..].trim()
+            } else if upper.starts_with("DESC ") {
+                trimmed["DESC ".len()..].trim()
+            } else {
+                ""
+            };
+            let mut buf = Vec::new();
+            match cqlsh_rs::describe::execute(session, args, &mut buf).await {
+                Ok(()) => {
+                    let _ = io::stdout().write_all(&buf);
+                }
+                Err(e) => {
+                    eprintln!("Error: {e}");
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Handle SOURCE
+        if upper.starts_with("SOURCE ") {
+            let path = trimmed["SOURCE ".len()..].trim();
+            let path = strip_quotes(path);
+            if config.no_file_io {
+                eprintln!("File I/O is disabled (--no-file-io).");
+                return true;
+            }
+            let expanded = expand_tilde(path);
+            let file = match std::fs::File::open(&expanded) {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("Could not open '{}': {e}", expanded.display());
+                    return false;
+                }
+            };
+            let reader = io::BufReader::new(file);
+            let source_name = expanded.display().to_string();
+            let mut stmt_parser = StatementParser::new();
+            let mut had_error = false;
+            for line_result in reader.lines() {
+                let line: String = match line_result {
+                    Ok(l) => l,
+                    Err(e) => {
+                        eprintln!("Error reading '{}': {e}", source_name);
+                        return false;
+                    }
+                };
+                let ltrimmed = line.trim();
+                if stmt_parser.is_empty()
+                    && !ltrimmed.is_empty()
+                    && parser::is_shell_command(ltrimmed)
+                {
+                    let clean = ltrimmed.strip_suffix(';').unwrap_or(ltrimmed).trim_end();
+                    if !execute_single_statement(session, config, colorizer, debug, clean).await {
+                        had_error = true;
+                    }
+                    continue;
+                }
+                if let ParseResult::Complete(statements) = stmt_parser.feed_line(&line) {
+                    for stmt in statements {
+                        if !execute_single_statement(session, config, colorizer, debug, &stmt).await
+                        {
+                            had_error = true;
                         }
                     }
                 }
             }
+            return !had_error;
+        }
+        if upper == "SOURCE" {
+            eprintln!("SOURCE requires a file path argument.");
+            return true;
+        }
 
-            true
+        // Handle CLEAR/CLS in non-interactive mode by emitting ANSI escape sequences
+        // (matches Python cqlsh behavior expected by dtest test_clear)
+        if upper == "CLEAR" || upper == "CLS" {
+            print!("\x1B[2J\x1B[1;1H");
+            return true;
         }
-        Err(e) => {
-            eprintln!("{}", error::format_error_colored(&e, colorizer));
-            if *debug {
-                eprintln!("Debug: {e:?}");
+
+        // Skip commands that don't make sense in non-interactive mode
+        if upper == "QUIT"
+            || upper == "EXIT"
+            || upper == "HELP"
+            || upper == "?"
+            || upper.starts_with("HELP ")
+            || upper == "EXPAND"
+            || upper == "EXPAND ON"
+            || upper == "EXPAND OFF"
+            || upper == "PAGING"
+            || upper == "PAGING ON"
+            || upper == "PAGING OFF"
+            || upper.starts_with("PAGING ")
+            || upper == "CAPTURE"
+            || upper == "CAPTURE OFF"
+            || upper.starts_with("CAPTURE ")
+            || upper == "LOGIN"
+            || upper.starts_with("LOGIN ")
+        {
+            // Silently ignore interactive-only commands
+            return true;
+        }
+
+        // Execute as CQL statement
+        match session.execute(trimmed).await {
+            Ok(result) => {
+                // Print warnings to stderr
+                for warning in &result.warnings {
+                    let msg = format!("Warnings: {warning}");
+                    eprintln!("{}", colorizer.colorize_warning(&msg));
+                }
+
+                // Print results directly to stdout (no pager)
+                if !result.columns.is_empty() {
+                    let mut buf = Vec::new();
+                    formatter::print_tabular(&result, colorizer, &mut buf);
+                    let _ = io::stdout().write_all(&buf);
+                }
+
+                // Print trace info if tracing is enabled
+                if session.is_tracing_enabled() && !upper.contains("SYSTEM_TRACES") {
+                    if let Some(trace_id) = result.tracing_id {
+                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                        match session.get_trace_session(trace_id).await {
+                            Ok(Some(trace)) => {
+                                let mut buf = Vec::new();
+                                formatter::print_trace(&trace, colorizer, &mut buf);
+                                let _ = io::stdout().write_all(&buf);
+                            }
+                            Ok(None) => {
+                                eprintln!(
+                                "Trace {trace_id} not yet available. Use SHOW SESSION {trace_id} to view later."
+                            );
+                            }
+                            Err(e) => {
+                                eprintln!("Error fetching trace: {e}");
+                            }
+                        }
+                    }
+                }
+
+                true
             }
-            false
+            Err(e) => {
+                eprintln!("{}", error::format_error_colored(&e, colorizer));
+                if *debug {
+                    eprintln!("Debug: {e:?}");
+                }
+                false
+            }
         }
-    }
+    })
 }
 
 /// Print the cqlsh connection banner matching Python cqlsh output.
@@ -476,4 +533,25 @@ fn print_banner(session: &CqlSession) {
         cql_version
     );
     println!("Use HELP for help.");
+}
+
+fn strip_quotes(s: &str) -> &str {
+    if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
+        &s[1..s.len() - 1]
+    } else {
+        s
+    }
+}
+
+fn expand_tilde(path: &str) -> std::path::PathBuf {
+    if let Some(rest) = path.strip_prefix("~/") {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(rest);
+        }
+    } else if path == "~" {
+        if let Some(home) = dirs::home_dir() {
+            return home;
+        }
+    }
+    std::path::PathBuf::from(path)
 }
