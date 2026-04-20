@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776700409487,
+  "lastUpdate": 1776714255527,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -7627,6 +7627,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40774,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "f5122508ad43d75c97bdf7d98af8e51f96db8d1f",
+          "message": "fix: match Python cqlsh error output format with source prefix and error codes\n\nAdd 'Error from server: code=NNNN [category] message=\"...\"' wrapper to\nserver error messages, matching the Python cassandra-driver's error format.\n\nAdd '<source>:N:' line number prefix to errors in batch/file mode (stdin\npipe, -f flag, SOURCE command), matching Python cqlsh's show_line_nums\nbehavior.\n\nCloses #109",
+          "timestamp": "2026-04-20T22:35:40+03:00",
+          "tree_id": "5c4f5a7a7fc8b9942185f5ba14486e56a899bc0d",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/f5122508ad43d75c97bdf7d98af8e51f96db8d1f"
+        },
+        "date": 1776714255212,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29954,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 4,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3487,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9166,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63643,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 842,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 155710,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6961,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 11,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86314,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 787020,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7888100,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9866,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46608,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40963,
             "unit": "ns"
           }
         ]
