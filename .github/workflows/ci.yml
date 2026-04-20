@@ -270,7 +270,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       # Create/update a release PR with version bump + CHANGELOG
+      # continue-on-error: the release-pr step is advisory; it must not block
+      # the release step.  It fails with HTTP 403 when the repo-level setting
+      # "Allow GitHub Actions to create and approve pull requests" is disabled.
       - name: Release PR
+        continue-on-error: true
         uses: release-plz/action@v0.5
         with:
           command: release-pr
