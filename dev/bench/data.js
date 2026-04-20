@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776714932361,
+  "lastUpdate": 1776715279598,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -7825,6 +7825,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40573,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "7fb4eff5dee82bfde54429071a16dd83c30fb822",
+          "message": "feat: warn on schema version mismatch after connect\n\nQuery system.local and system.peers for schema_version after connecting.\nIf nodes disagree, emit a warning to stderr matching Python cqlsh behavior.\n\nCloses #110",
+          "timestamp": "2026-04-20T22:52:12+03:00",
+          "tree_id": "e5b4fc76053a51c71cdb520edeed6bd9a995ace7",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/7fb4eff5dee82bfde54429071a16dd83c30fb822"
+        },
+        "date": 1776715278804,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29976,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3730,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9485,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65340,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 826,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 147140,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7280,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 14,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85710,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 766040,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7715100,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10076,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 49665,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39195,
             "unit": "ns"
           }
         ]
