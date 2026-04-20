@@ -534,6 +534,203 @@ mod tests {
     }
 
     #[test]
+    fn json_escape_special_chars() {
+        assert_eq!(json_escape_string("hello"), "hello");
+        assert_eq!(json_escape_string("say \"hi\""), "say \\\"hi\\\"");
+        assert_eq!(json_escape_string("back\\slash"), "back\\\\slash");
+        assert_eq!(json_escape_string("new\nline"), "new\\nline");
+        assert_eq!(json_escape_string("tab\there"), "tab\\there");
+        assert_eq!(json_escape_string("cr\rhere"), "cr\\rhere");
+        assert_eq!(json_escape_string("\x01"), "\\u0001");
+    }
+
+    #[test]
+    fn cql_value_to_json_scalars() {
+        use crate::driver::types::CqlValue;
+        assert_eq!(cql_value_to_json(&CqlValue::Null), "null");
+        assert_eq!(cql_value_to_json(&CqlValue::Unset), "null");
+        assert_eq!(cql_value_to_json(&CqlValue::Boolean(true)), "true");
+        assert_eq!(cql_value_to_json(&CqlValue::Boolean(false)), "false");
+        assert_eq!(cql_value_to_json(&CqlValue::Int(42)), "42");
+        assert_eq!(cql_value_to_json(&CqlValue::BigInt(-100)), "-100");
+        assert_eq!(cql_value_to_json(&CqlValue::SmallInt(7)), "7");
+        assert_eq!(cql_value_to_json(&CqlValue::TinyInt(-1)), "-1");
+        assert_eq!(cql_value_to_json(&CqlValue::Counter(99)), "99");
+    }
+
+    #[test]
+    fn cql_value_to_json_strings() {
+        use crate::driver::types::CqlValue;
+        assert_eq!(
+            cql_value_to_json(&CqlValue::Text("hello".to_string())),
+            "\"hello\""
+        );
+        assert_eq!(
+            cql_value_to_json(&CqlValue::Ascii("world".to_string())),
+            "\"world\""
+        );
+        assert_eq!(
+            cql_value_to_json(&CqlValue::Text("say \"hi\"".to_string())),
+            "\"say \\\"hi\\\"\""
+        );
+    }
+
+    #[test]
+    fn cql_value_to_json_float_special() {
+        use crate::driver::types::CqlValue;
+        assert_eq!(cql_value_to_json(&CqlValue::Float(1.5)), "1.5");
+        assert_eq!(cql_value_to_json(&CqlValue::Double(2.5)), "2.5");
+
+        let nan_json = cql_value_to_json(&CqlValue::Float(f32::NAN));
+        assert!(nan_json.starts_with('"') && nan_json.ends_with('"'));
+        let inf_json = cql_value_to_json(&CqlValue::Double(f64::INFINITY));
+        assert!(inf_json.starts_with('"') && inf_json.ends_with('"'));
+    }
+
+    #[test]
+    fn cql_value_to_json_uuid_inet_blob() {
+        use crate::driver::types::CqlValue;
+        use std::net::IpAddr;
+        assert_eq!(
+            cql_value_to_json(&CqlValue::Uuid(uuid::Uuid::nil())),
+            "\"00000000-0000-0000-0000-000000000000\""
+        );
+        assert_eq!(
+            cql_value_to_json(&CqlValue::Inet("127.0.0.1".parse::<IpAddr>().unwrap())),
+            "\"127.0.0.1\""
+        );
+        assert_eq!(
+            cql_value_to_json(&CqlValue::Blob(vec![0xca, 0xfe])),
+            "\"0xcafe\""
+        );
+    }
+
+    #[test]
+    fn cql_value_to_json_collections() {
+        use crate::driver::types::CqlValue;
+        let list = CqlValue::List(vec![CqlValue::Int(1), CqlValue::Int(2)]);
+        assert_eq!(cql_value_to_json(&list), "[1, 2]");
+
+        let set = CqlValue::Set(vec![CqlValue::Text("a".to_string())]);
+        assert_eq!(cql_value_to_json(&set), "[\"a\"]");
+
+        let map = CqlValue::Map(vec![(CqlValue::Text("key".to_string()), CqlValue::Int(42))]);
+        assert_eq!(cql_value_to_json(&map), "{\"key\": 42}");
+
+        let map2 = CqlValue::Map(vec![(CqlValue::Int(1), CqlValue::Boolean(true))]);
+        assert_eq!(cql_value_to_json(&map2), "{\"1\": true}");
+    }
+
+    #[test]
+    fn cql_value_to_json_tuple_and_udt() {
+        use crate::driver::types::CqlValue;
+        let tuple = CqlValue::Tuple(vec![Some(CqlValue::Int(1)), None]);
+        assert_eq!(cql_value_to_json(&tuple), "[1, null]");
+
+        let udt = CqlValue::UserDefinedType {
+            keyspace: "ks".to_string(),
+            type_name: "t".to_string(),
+            fields: vec![
+                (
+                    "name".to_string(),
+                    Some(CqlValue::Text("Alice".to_string())),
+                ),
+                ("age".to_string(), None),
+            ],
+        };
+        assert_eq!(
+            cql_value_to_json(&udt),
+            "{\"name\": \"Alice\", \"age\": null}"
+        );
+    }
+
+    #[test]
+    fn cql_value_to_json_duration_decimal_varint() {
+        use crate::driver::types::CqlValue;
+        use bigdecimal::BigDecimal;
+        use num_bigint::BigInt;
+        use std::str::FromStr;
+
+        let dur = CqlValue::Duration {
+            months: 1,
+            days: 2,
+            nanoseconds: 3,
+        };
+        assert_eq!(cql_value_to_json(&dur), "\"1mo2d3ns\"");
+
+        let dec = CqlValue::Decimal(BigDecimal::from_str("3.14").unwrap());
+        assert_eq!(cql_value_to_json(&dec), "\"3.14\"");
+
+        let varint = CqlValue::Varint(BigInt::from(12345));
+        assert_eq!(cql_value_to_json(&varint), "\"12345\"");
+    }
+
+    #[test]
+    fn print_json_empty_result() {
+        let result = CqlResult::empty();
+        let mut buf = Vec::new();
+        print_json(&result, &mut buf);
+        let output = String::from_utf8(buf).unwrap();
+        assert_eq!(output.trim(), "[]");
+    }
+
+    #[test]
+    fn print_json_single_row() {
+        let result = CqlResult {
+            columns: vec![
+                CqlColumn {
+                    name: "id".to_string(),
+                    type_name: "int".to_string(),
+                },
+                CqlColumn {
+                    name: "name".to_string(),
+                    type_name: "text".to_string(),
+                },
+            ],
+            rows: vec![CqlRow {
+                values: vec![CqlValue::Int(1), CqlValue::Text("Alice".to_string())],
+            }],
+            has_rows: true,
+            tracing_id: None,
+            warnings: vec![],
+        };
+        let mut buf = Vec::new();
+        print_json(&result, &mut buf);
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("\"id\": 1"));
+        assert!(output.contains("\"name\": \"Alice\""));
+        assert!(output.starts_with("[\n"));
+        assert!(output.trim().ends_with("]"));
+    }
+
+    #[test]
+    fn print_json_multiple_rows_has_commas() {
+        let result = CqlResult {
+            columns: vec![CqlColumn {
+                name: "v".to_string(),
+                type_name: "int".to_string(),
+            }],
+            rows: vec![
+                CqlRow {
+                    values: vec![CqlValue::Int(1)],
+                },
+                CqlRow {
+                    values: vec![CqlValue::Int(2)],
+                },
+            ],
+            has_rows: true,
+            tracing_id: None,
+            warnings: vec![],
+        };
+        let mut buf = Vec::new();
+        print_json(&result, &mut buf);
+        let output = String::from_utf8(buf).unwrap();
+        let lines: Vec<&str> = output.lines().collect();
+        assert!(lines[1].ends_with("},"));
+        assert!(lines[2].ends_with("}"));
+    }
+
+    #[test]
     fn wide_table_not_truncated() {
         let columns: Vec<CqlColumn> = (0..20)
             .map(|i| CqlColumn {
