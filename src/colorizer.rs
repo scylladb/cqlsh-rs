@@ -425,4 +425,115 @@ mod tests {
         let output = c.colorize_value(&udt);
         assert!(output.contains("\x1b["), "should contain ANSI codes");
     }
+
+    #[test]
+    fn colorize_warning_same_as_error() {
+        let c = CqlColorizer::new(true);
+        let output = c.colorize_warning("Something bad");
+        assert!(output.contains("\x1b["));
+        assert!(output.contains("Something bad"));
+    }
+
+    #[test]
+    fn colorize_trace_label_colored() {
+        let c = CqlColorizer::new(true);
+        let output = c.colorize_trace_label("Tracing session:");
+        assert!(output.contains("\x1b["));
+        assert!(output.contains("Tracing session:"));
+    }
+
+    #[test]
+    fn colorize_cluster_name_colored() {
+        let c = CqlColorizer::new(true);
+        let output = c.colorize_cluster_name("Test Cluster");
+        assert!(output.contains("\x1b["));
+        assert!(output.contains("Test Cluster"));
+    }
+
+    #[test]
+    fn colorize_tuple_with_nulls() {
+        let c = CqlColorizer::new(true);
+        let tuple = CqlValue::Tuple(vec![
+            Some(CqlValue::Int(1)),
+            None,
+            Some(CqlValue::Text("x".to_string())),
+        ]);
+        let output = c.colorize_value(&tuple);
+        assert!(output.contains("\x1b["));
+        assert!(output.contains("null"));
+    }
+
+    #[test]
+    fn colorize_set_multiple_elements() {
+        let c = CqlColorizer::new(true);
+        let set = CqlValue::Set(vec![
+            CqlValue::Text("a".to_string()),
+            CqlValue::Text("b".to_string()),
+            CqlValue::Text("c".to_string()),
+        ]);
+        let output = c.colorize_value(&set);
+        assert!(output.contains("\x1b["));
+    }
+
+    #[test]
+    fn colorize_udt_with_none_fields() {
+        let c = CqlColorizer::new(true);
+        let udt = CqlValue::UserDefinedType {
+            keyspace: "ks".to_string(),
+            type_name: "t".to_string(),
+            fields: vec![
+                ("a".to_string(), None),
+                ("b".to_string(), Some(CqlValue::Int(1))),
+            ],
+        };
+        let output = c.colorize_value(&udt);
+        assert!(output.contains("null"));
+    }
+
+    #[test]
+    fn colorize_map_multi_elements() {
+        let c = CqlColorizer::new(true);
+        let map = CqlValue::Map(vec![
+            (CqlValue::Text("k1".to_string()), CqlValue::Int(1)),
+            (CqlValue::Text("k2".to_string()), CqlValue::Int(2)),
+        ]);
+        let output = c.colorize_value(&map);
+        assert!(output.contains("\x1b["));
+    }
+
+    #[test]
+    fn colorize_unset_value() {
+        let c = CqlColorizer::new(true);
+        let output = c.colorize_value(&CqlValue::Unset);
+        assert!(output.contains("\x1b["));
+        assert!(output.contains("unset"));
+    }
+
+    #[test]
+    fn colorize_disabled_returns_plain_for_collections() {
+        let c = CqlColorizer::new(false);
+        let list = CqlValue::List(vec![CqlValue::Int(1), CqlValue::Int(2)]);
+        let output = c.colorize_value(&list);
+        assert_eq!(output, "[1, 2]");
+
+        let tuple = CqlValue::Tuple(vec![Some(CqlValue::Int(1)), None]);
+        let output = c.colorize_value(&tuple);
+        assert_eq!(output, "(1, null)");
+
+        let udt = CqlValue::UserDefinedType {
+            keyspace: "ks".to_string(),
+            type_name: "t".to_string(),
+            fields: vec![("x".to_string(), Some(CqlValue::Int(5)))],
+        };
+        let output = c.colorize_value(&udt);
+        assert_eq!(output, "{x: 5}");
+    }
+
+    #[test]
+    fn colorize_disabled_cluster_name() {
+        let c = CqlColorizer::new(false);
+        assert_eq!(c.colorize_cluster_name("Test"), "Test");
+        assert_eq!(c.colorize_trace_label("Trace:"), "Trace:");
+        assert_eq!(c.colorize_warning("warn"), "warn");
+    }
 }
