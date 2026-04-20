@@ -153,14 +153,33 @@ jobs:
             fi
             sleep 5
           done
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
       - name: Run integration tests
         env:
           SCYLLA_TEST_HOST: localhost
           SCYLLA_TEST_PORT: "9042"
         run: |
           set -o pipefail
-          cargo test --test integration -- --ignored --test-threads=1 2>&1 | tee integration-output.log
-        timeout-minutes: 20
+          cargo tarpaulin \
+            --all-features \
+            --workspace \
+            --timeout 300 \
+            --test integration \
+            --out xml \
+            --output-dir coverage-integration/ \
+            --skip-clean \
+            -- --ignored --test-threads=1 2>&1 | tee integration-output.log
+        timeout-minutes: 25
+      - name: Upload integration coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage-integration/cobertura.xml
+          flags: integration-${{ matrix.db_name }}
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload integration test results
         if: always()
         uses: actions/upload-artifact@v6
@@ -182,19 +201,22 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-tarpaulin
-      - name: Run coverage
+      - name: Run unit test coverage
         run: |
           cargo tarpaulin \
             --all-features \
             --workspace \
             --timeout 120 \
             --out xml \
-            --output-dir coverage/
+            --output-dir coverage/ \
+            --skip-clean \
+            --lib --bins
         timeout-minutes: 20
-      - name: Upload to Codecov
+      - name: Upload unit coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           files: coverage/cobertura.xml
+          flags: unittests
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload coverage report
@@ -208,32 +230,24 @@ jobs:
   # ===========================================================================
   # Automated release pipeline
   #
-  # Uses release-plz to automate version bumps, changelog updates,
-  # tagging, crates.io publishing, cross-platform binary builds, and
-  # Docker image publishing.
+  # Similar to scylladb/coodie's release automation (PR #220), this uses
+  # release-plz to detect version bumps from conventional commits and
+  # automate tagging, changelog, crates.io publishing, cross-platform
+  # binary builds, and Docker image publishing.
   #
   # Flow:
   #   1. release-plz release-pr  → creates/updates a "Release vX.Y.Z" PR
-  #      with Cargo.toml version bump + CHANGELOG.md entries
-  #   2. Maintainer merges the release PR
+  #   2. Maintainer merges the release PR (bumps Cargo.toml + CHANGELOG.md)
   #   3. release-plz release     → creates git tag, GitHub Release, publishes
   #      to crates.io
   #   4. Downstream jobs build cross-platform binaries, upload them to the
   #      GitHub Release, and push a multi-arch Docker image.
-  #
-  # Token setup:
-  #   The release-pr step needs a token with permission to create PRs.
-  #   The default GITHUB_TOKEN is blocked by org/repo settings, so we
-  #   use the RELEASE_PLZ_TOKEN secret (a PAT with repo scope).
-  #   To set it up:
-  #     1. Create a fine-grained PAT with Contents + Pull Requests read/write
-  #     2. Add it as a repository secret named RELEASE_PLZ_TOKEN
   # ===========================================================================
   release:
     name: Release
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [fmt, clippy, test, build, integration]
+    needs: [fmt, clippy, test, build]
 
     permissions:
       contents: write
@@ -255,15 +269,13 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      # Create/update a release PR with version bump + CHANGELOG.
-      # Uses RELEASE_PLZ_TOKEN (PAT) because the default GITHUB_TOKEN
-      # is not permitted to create PRs in this repo.
+      # Create/update a release PR with version bump + CHANGELOG
       - name: Release PR
         uses: release-plz/action@v0.5
         with:
           command: release-pr
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # If Cargo.toml version > latest tag, create tag + GitHub Release + publish to crates.io
       - name: Release
