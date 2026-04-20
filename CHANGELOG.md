@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1](https://github.com/scylladb/cqlsh-rs/compare/v0.4.0...v0.4.1) - 2026-04-20
+
+### Added
+
+- add Docker Hub publishing for releases and main branch builds
+
+### Other
+
+- port 34 Python cqlsh dtest integration tests
+
 ## [0.4.0](https://github.com/scylladb/cqlsh-rs/compare/v0.3.2...v0.4.0) - 2026-04-20
 
 ### Added
