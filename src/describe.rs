@@ -1645,4 +1645,49 @@ mod tests {
         assert!(ddl.contains("PRIMARY KEY (user_id, ts)"));
         assert!(ddl.contains("WITH CLUSTERING ORDER BY (ts DESC)"));
     }
+
+    #[test]
+    fn format_property_value_comment_quoted() {
+        let result = format_property_value("comment", "hello world");
+        assert_eq!(result, "'hello world'");
+    }
+
+    #[test]
+    fn format_property_value_comment_with_single_quote() {
+        let result = format_property_value("comment", "it's a test");
+        assert_eq!(result, "'it''s a test'");
+    }
+
+    #[test]
+    fn format_property_value_speculative_retry_quoted() {
+        let result = format_property_value("speculative_retry", "99PERCENTILE");
+        assert_eq!(result, "'99PERCENTILE'");
+    }
+
+    #[test]
+    fn format_property_value_caching_passthrough() {
+        let val = "{'keys': 'ALL', 'rows_per_partition': 'NONE'}";
+        let result = format_property_value("caching", val);
+        assert_eq!(result, val);
+    }
+
+    #[test]
+    fn format_property_value_compaction_passthrough() {
+        let val = "{'class': 'SizeTieredCompactionStrategy'}";
+        let result = format_property_value("compaction", val);
+        assert_eq!(result, val);
+    }
+
+    #[test]
+    fn format_property_value_compression_passthrough() {
+        let val = "{'sstable_compression': 'LZ4Compressor'}";
+        let result = format_property_value("compression", val);
+        assert_eq!(result, val);
+    }
+
+    #[test]
+    fn format_property_value_other_passthrough() {
+        let result = format_property_value("gc_grace_seconds", "864000");
+        assert_eq!(result, "864000");
+    }
 }
