@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/scylladb/cqlsh-rs/compare/v0.3.2...v0.4.0) - 2026-04-20
+
+### Added
+
+- *(SP20)* grammar-aware tab completion with statement-type contexts
+- warn on schema version mismatch after connect
+
+### Fixed
+
+- handle LOGIN command in non-interactive mode
+
+### Other
+
+- *(coverage)* collect coverage from all integration test variants
+- *(SP20)* add grammar-aware completion implementation plan
+
 ## [0.3.2](https://github.com/scylladb/cqlsh-rs/compare/v0.3.1...v0.3.2) - 2026-04-20
 
 ### Fixed
