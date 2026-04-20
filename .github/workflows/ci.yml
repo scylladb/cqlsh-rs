@@ -233,7 +233,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [fmt, clippy, test, build]
+    needs: [fmt, clippy, test, build, integration]
 
     permissions:
       contents: write
