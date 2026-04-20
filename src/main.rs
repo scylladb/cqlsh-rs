@@ -498,6 +498,35 @@ fn execute_single_statement<'a>(
             return true;
         }
 
+        // Handle LOGIN in non-interactive mode (reconnect with new credentials)
+        if upper == "LOGIN" {
+            eprintln!("Usage: LOGIN <username> [<password>]");
+            return false;
+        }
+        if upper.starts_with("LOGIN ") {
+            let args = trimmed["LOGIN ".len()..].trim();
+            let parts: Vec<&str> = args.splitn(2, char::is_whitespace).collect();
+            let new_user = parts[0].to_string();
+            let new_pass = if parts.len() > 1 {
+                Some(parts[1].trim_matches('\'').to_string())
+            } else {
+                None
+            };
+            let mut new_config = config.clone();
+            new_config.username = Some(new_user);
+            new_config.password = new_pass;
+            match cqlsh_rs::session::CqlSession::connect(&new_config).await {
+                Ok(new_session) => {
+                    *session = new_session;
+                }
+                Err(e) => {
+                    eprintln!("{}", cqlsh_rs::error::format_error_colored(&e, colorizer));
+                    return false;
+                }
+            }
+            return true;
+        }
+
         // Skip commands that don't make sense in non-interactive mode
         if upper == "QUIT"
             || upper == "EXIT"
@@ -514,8 +543,6 @@ fn execute_single_statement<'a>(
             || upper == "CAPTURE"
             || upper == "CAPTURE OFF"
             || upper.starts_with("CAPTURE ")
-            || upper == "LOGIN"
-            || upper.starts_with("LOGIN ")
         {
             // Silently ignore interactive-only commands
             return true;

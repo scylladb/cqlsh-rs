@@ -12,6 +12,7 @@ mod core_tests;
 mod describe_tests;
 mod escape_tests;
 mod helpers;
+mod login_tests;
 mod output_tests;
 mod ssl_tests;
 mod unicode_tests;
