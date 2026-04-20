@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776715294625,
+  "lastUpdate": 1776716041264,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -8023,6 +8023,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40346,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "1c9a7a8422a94560748b23e6bbbb3873f39ec014",
+          "message": "ci(coverage): collect coverage from all integration test variants\n\nAdd tarpaulin instrumentation to all integration test matrix variants\nand upload to Codecov with per-variant flags. The dedicated coverage job\nnow only runs unit tests (--lib --bins), avoiding test duplication.\n\nCodecov auto-merges all uploads (1 unit + 4 integration), giving a\ncomplete coverage picture without redundant test execution.",
+          "timestamp": "2026-04-20T23:05:25+03:00",
+          "tree_id": "0eb1007f4254401208d90cb3ca7df2a655c6ddd0",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/1c9a7a8422a94560748b23e6bbbb3873f39ec014"
+        },
+        "date": 1776716040861,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 30238,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3564,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9198,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64283,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 863,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153430,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6741,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 11,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 87984,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 796930,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7990300,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10261,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 47392,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40425,
             "unit": "ns"
           }
         ]
