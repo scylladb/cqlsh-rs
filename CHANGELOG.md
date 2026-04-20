@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/scylladb/cqlsh-rs/compare/v0.2.0...v0.3.0) - 2026-04-20
+
+### Fixed
+
+- *(describe)* restore accidentally deleted format_property_value function
+- *(copy)* handle COPY TO/FROM client-side instead of sending to server
+- add WITH clause to DESCRIBE MATERIALIZED VIEW output
+
 ## [0.2.0](https://github.com/scylladb/cqlsh-rs/compare/v0.1.0...v0.2.0) - 2026-04-19
 
 ### Added
