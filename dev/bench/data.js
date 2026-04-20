@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776698313216,
+  "lastUpdate": 1776700409487,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -7528,6 +7528,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 41042,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "f97f99bb46d004bd637fb6deb75e3be935b3d8e5",
+          "message": "fix: handle BATCH statements without inner semicolons via stdin/pipe\n\nWhen BATCH statements have no semicolons after inner DML statements\n(only APPLY BATCH; has one), the parser entered batch mode on the only\nsemicolon but never emitted the statement. Now detects when a single\nsemicolon both starts and ends a batch, emitting immediately.\n\nCloses #106",
+          "timestamp": "2026-04-20T18:44:44+03:00",
+          "tree_id": "344ce1e6578a15d2707f54ed8d80f6a18cc5b022",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/f97f99bb46d004bd637fb6deb75e3be935b3d8e5"
+        },
+        "date": 1776700408911,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29603,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3505,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9065,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63130,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 850,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153220,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6969,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 11,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86823,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 788830,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7926800,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9862,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46516,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40774,
             "unit": "ns"
           }
         ]
