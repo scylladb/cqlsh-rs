@@ -641,9 +641,9 @@ fn dispatch_input<'a>(
                     || upper_stmt.starts_with("DROP ")
                 {
                     if let Some(ref cache) = shell.schema_cache {
-                        if let Ok(mut c) = cache.try_write() {
-                            c.invalidate();
-                        }
+                        let mut c = cache.write().await;
+                        c.invalidate();
+                        let _ = c.refresh(session).await;
                     }
                 }
 

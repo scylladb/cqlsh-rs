@@ -27,7 +27,8 @@ const CQL_KEYWORDS: &[&str] = &[
     "LIST", "REVOKE", "SELECT", "TRUNCATE", "UPDATE", "USE",
 ];
 
-/// CQL clause keywords used within statements.
+/// CQL clause keywords used within statements (superseded by per-statement lists).
+#[allow(dead_code)]
 const CQL_CLAUSE_KEYWORDS: &[&str] = &[
     "ADD",
     "AGGREGATE",
@@ -186,6 +187,104 @@ const DESCRIBE_SUB_COMMANDS: &[&str] = &[
     "TYPES",
 ];
 
+/// Keywords valid at the start of a SELECT column list.
+const SELECT_COLUMN_KEYWORDS: &[&str] = &[
+    "*",
+    "COUNT(",
+    "DISTINCT",
+    "FROM",
+    "JSON",
+    "TTL(",
+    "WRITETIME(",
+];
+
+const CREATE_TARGET_KEYWORDS: &[&str] = &[
+    "AGGREGATE",
+    "CUSTOM INDEX",
+    "FUNCTION",
+    "INDEX",
+    "KEYSPACE",
+    "MATERIALIZED VIEW",
+    "ROLE",
+    "TABLE",
+    "TRIGGER",
+    "TYPE",
+    "USER",
+];
+
+const ALTER_TARGET_KEYWORDS: &[&str] = &[
+    "KEYSPACE",
+    "MATERIALIZED VIEW",
+    "ROLE",
+    "TABLE",
+    "TYPE",
+    "USER",
+];
+
+const DROP_TARGET_KEYWORDS: &[&str] = &[
+    "AGGREGATE",
+    "FUNCTION",
+    "INDEX",
+    "KEYSPACE",
+    "MATERIALIZED VIEW",
+    "ROLE",
+    "TABLE",
+    "TRIGGER",
+    "TYPE",
+    "USER",
+];
+
+const DELETE_TARGET_KEYWORDS: &[&str] = &["FROM"];
+
+const GRANT_REVOKE_KEYWORDS: &[&str] = &[
+    "ALL",
+    "ALTER",
+    "AUTHORIZE",
+    "CREATE",
+    "DESCRIBE",
+    "DROP",
+    "EXECUTE",
+    "MODIFY",
+    "SELECT",
+];
+
+const INSERT_TARGET_KEYWORDS: &[&str] = &["INTO"];
+
+const BEGIN_TARGET_KEYWORDS: &[&str] = &["BATCH", "COUNTER", "UNLOGGED"];
+
+const SELECT_POST_FROM_KEYWORDS: &[&str] = &[
+    "ALLOW FILTERING",
+    "GROUP BY",
+    "LIMIT",
+    "ORDER BY",
+    "PER PARTITION LIMIT",
+    "WHERE",
+];
+
+const INSERT_POST_VALUES_KEYWORDS: &[&str] = &["IF NOT EXISTS", "USING"];
+
+const DELETE_POST_FROM_KEYWORDS: &[&str] = &["IF", "USING TIMESTAMP", "WHERE"];
+
+const UPDATE_CLAUSE_KEYWORDS: &[&str] = &["SET", "USING"];
+
+const UPDATE_POST_SET_KEYWORDS: &[&str] = &["IF", "WHERE"];
+
+const GENERIC_CLAUSE_KEYWORDS: &[&str] = &[
+    "ALLOW FILTERING",
+    "AND",
+    "FROM",
+    "GROUP BY",
+    "IF",
+    "INTO",
+    "LIMIT",
+    "ORDER BY",
+    "SET",
+    "USING",
+    "VALUES",
+    "WHERE",
+    "WITH",
+];
+
 /// CQL data types for CREATE TABLE column definitions.
 #[allow(dead_code)] // Will be used when CqlType completion context is implemented
 const CQL_TYPES: &[&str] = &[
@@ -222,7 +321,8 @@ const CQL_TYPES: &[&str] = &[
 enum CompletionContext {
     /// At the start of input — complete with statement keywords and shell commands.
     Empty,
-    /// After a statement keyword — complete with clause keywords.
+    /// After a statement keyword — complete with generic clause keywords.
+    #[allow(dead_code)]
     ClauseKeyword,
     /// After FROM, INTO, UPDATE, etc. — complete with table names.
     TableName { keyspace: Option<String> },
@@ -239,6 +339,36 @@ enum CompletionContext {
     FilePath,
     /// After USE — complete with keyspace names.
     KeyspaceName,
+    /// After SELECT — complete with *, DISTINCT, JSON, or column names.
+    SelectColumnList,
+    /// After CREATE — complete with TABLE, KEYSPACE, INDEX, etc.
+    CreateTarget,
+    /// After ALTER — complete with TABLE, KEYSPACE, TYPE, etc.
+    AlterTarget,
+    /// After DROP — complete with TABLE, KEYSPACE, INDEX, etc.
+    DropTarget,
+    /// After DELETE — complete with FROM or column names.
+    DeleteTarget,
+    /// After GRANT/REVOKE — complete with permission names.
+    GrantRevoke,
+    /// After INSERT — complete with INTO.
+    InsertTarget,
+    /// After BEGIN — complete with BATCH, UNLOGGED, COUNTER.
+    BeginTarget,
+    /// After SELECT * — only FROM is valid next.
+    SelectPostStar,
+    /// After SELECT ... FROM table — complete with WHERE, ORDER BY, LIMIT, etc.
+    SelectPostFrom,
+    /// After INSERT ... VALUES(...) — complete with IF NOT EXISTS, USING.
+    InsertPostValues,
+    /// After DELETE ... FROM table — complete with WHERE, IF, USING TIMESTAMP.
+    DeletePostFrom,
+    /// After UPDATE table — complete with SET, USING.
+    UpdateClause,
+    /// After UPDATE ... SET col = val — complete with WHERE, IF.
+    UpdatePostSet,
+    /// Generic clause fallback — common clause keywords.
+    GenericClause,
 }
 
 /// Tab completer for the CQL shell REPL.
@@ -274,6 +404,13 @@ impl CqlCompleter {
     /// Uses the unified CQL lexer for grammar-aware context detection.
     fn detect_context(&self, line: &str, pos: usize) -> CompletionContext {
         let before_cursor = &line[..pos];
+
+        // Multi-statement: only consider text after the last semicolon
+        let before_cursor = match before_cursor.rfind(';') {
+            Some(idx) => &before_cursor[idx + 1..],
+            None => before_cursor,
+        };
+
         let tokens = cql_lexer::tokenize(before_cursor);
         let sig: Vec<_> = cql_lexer::significant_tokens(&tokens);
 
@@ -287,7 +424,23 @@ impl CqlCompleter {
             return CompletionContext::FilePath;
         }
 
-        let grammar_ctx = cql_lexer::grammar_context_at_end(before_cursor);
+        // Mid-word context fix: when the user is typing a partial word (no trailing
+        // space), strip it and get grammar context from everything BEFORE it.
+        // e.g. "SELECT * F" → context of "SELECT * " → ExpectColumnList
+        // e.g. "SELECT * FROM system.h" → context of "SELECT * FROM system." → ExpectQualifiedPart
+        // Exception: don't strip if the last token is a dot — the dot IS the context
+        // indicator for qualified name completion (e.g. "FROM system." → ExpectQualifiedPart).
+        let last_is_dot = sig
+            .last()
+            .is_some_and(|t| t.kind == TokenKind::Punctuation && t.text == ".");
+        let grammar_ctx = if !before_cursor.ends_with(' ') && sig.len() > 1 && !last_is_dot {
+            let last_token = sig.last().unwrap();
+            cql_lexer::grammar_context_at_end(&before_cursor[..last_token.start])
+        } else if !before_cursor.ends_with(' ') && sig.len() == 1 {
+            GrammarContext::Start
+        } else {
+            cql_lexer::grammar_context_at_end(before_cursor)
+        };
 
         match grammar_ctx {
             GrammarContext::Start => CompletionContext::Empty,
@@ -305,42 +458,69 @@ impl CqlCompleter {
                         keyspace: ks,
                         table: t,
                     },
-                    None => CompletionContext::ClauseKeyword,
+                    None => CompletionContext::GenericClause,
                 }
             }
             GrammarContext::ExpectConsistencyLevel => CompletionContext::ConsistencyLevel,
             GrammarContext::ExpectDescribeTarget => CompletionContext::DescribeTarget,
             GrammarContext::ExpectFilePath => CompletionContext::FilePath,
             GrammarContext::ExpectQualifiedPart => {
-                // After a dot — offer tables from the keyspace before the dot
-                let keyspace = self.extract_qualifying_keyspace(&sig);
-                CompletionContext::TableName { keyspace }
-            }
-            GrammarContext::ExpectColumnList => {
-                // In SELECT column list — if only first keyword and no space yet, complete keywords
-                if sig.len() == 1 && !before_cursor.ends_with(' ') {
-                    CompletionContext::Empty
+                // After CREATE/ALTER TABLE ks. — don't suggest existing tables
+                let has_create_or_alter = sig.iter().any(|t| {
+                    let u = t.text.to_uppercase();
+                    u == "CREATE" || u == "ALTER"
+                });
+                if has_create_or_alter {
+                    CompletionContext::GenericClause
                 } else {
-                    CompletionContext::ClauseKeyword
+                    let keyspace = self.extract_qualifying_keyspace(&sig);
+                    CompletionContext::TableName { keyspace }
                 }
             }
+            GrammarContext::ExpectColumnList => {
+                // If * already appears after SELECT, only offer FROM
+                let has_star = sig
+                    .iter()
+                    .any(|t| t.kind == TokenKind::Punctuation && t.text == "*");
+                if has_star {
+                    CompletionContext::SelectPostStar
+                } else {
+                    CompletionContext::SelectColumnList
+                }
+            }
+            GrammarContext::ExpectCreateTarget => CompletionContext::CreateTarget,
+            GrammarContext::ExpectAlterTarget => CompletionContext::AlterTarget,
+            GrammarContext::ExpectDropTarget => CompletionContext::DropTarget,
+            GrammarContext::ExpectDeleteTarget => CompletionContext::DeleteTarget,
+            GrammarContext::ExpectGrantRevoke => CompletionContext::GrantRevoke,
+            GrammarContext::ExpectInsertTarget => CompletionContext::InsertTarget,
+            GrammarContext::ExpectBeginTarget => CompletionContext::BeginTarget,
+            GrammarContext::ExpectSelectPostFrom => CompletionContext::SelectPostFrom,
+            GrammarContext::ExpectInsertPostValues => CompletionContext::InsertPostValues,
+            GrammarContext::ExpectDeletePostFrom => CompletionContext::DeletePostFrom,
+            GrammarContext::ExpectUpdateClause => CompletionContext::UpdateClause,
+            GrammarContext::ExpectUpdatePostSet => CompletionContext::UpdatePostSet,
             _ => {
-                // For Start-like contexts: if only one word and still typing, complete keywords
                 if sig.len() == 1 && !before_cursor.ends_with(' ') {
                     CompletionContext::Empty
                 } else {
-                    CompletionContext::ClauseKeyword
+                    CompletionContext::GenericClause
                 }
             }
         }
     }
 
     /// Extract the keyspace qualifier from a dot-qualified name in the token stream.
+    /// Handles both `ks.` (dot is last) and `ks.partial` (identifier after dot).
     fn extract_qualifying_keyspace(&self, sig: &[&cql_lexer::Token]) -> Option<String> {
-        // Look for pattern: identifier . (at end of tokens)
         let len = sig.len();
+        // Pattern: identifier . (dot is last token)
         if len >= 2 && sig[len - 1].text == "." {
             return Some(sig[len - 2].text.clone());
+        }
+        // Pattern: identifier . partial_name (user typing after dot)
+        if len >= 3 && sig[len - 2].text == "." {
+            return Some(sig[len - 3].text.clone());
         }
         None
     }
@@ -386,9 +566,6 @@ impl CqlCompleter {
                 candidates.extend_from_slice(CQL_KEYWORDS);
                 candidates.extend_from_slice(SHELL_COMMANDS);
                 filter_candidates(&candidates, &prefix_upper, true)
-            }
-            CompletionContext::ClauseKeyword => {
-                filter_candidates(CQL_CLAUSE_KEYWORDS, &prefix_upper, true)
             }
             CompletionContext::ConsistencyLevel => {
                 filter_candidates(CONSISTENCY_LEVELS, &prefix_upper, true)
@@ -441,6 +618,49 @@ impl CqlCompleter {
                 }
             }
             CompletionContext::FilePath => complete_file_path(prefix),
+            CompletionContext::SelectColumnList => {
+                filter_candidates(SELECT_COLUMN_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::SelectPostStar => filter_candidates(&["FROM"], &prefix_upper, true),
+            CompletionContext::CreateTarget => {
+                filter_candidates(CREATE_TARGET_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::AlterTarget => {
+                filter_candidates(ALTER_TARGET_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::DropTarget => {
+                filter_candidates(DROP_TARGET_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::DeleteTarget => {
+                filter_candidates(DELETE_TARGET_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::GrantRevoke => {
+                filter_candidates(GRANT_REVOKE_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::InsertTarget => {
+                filter_candidates(INSERT_TARGET_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::BeginTarget => {
+                filter_candidates(BEGIN_TARGET_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::SelectPostFrom => {
+                filter_candidates(SELECT_POST_FROM_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::InsertPostValues => {
+                filter_candidates(INSERT_POST_VALUES_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::DeletePostFrom => {
+                filter_candidates(DELETE_POST_FROM_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::UpdateClause => {
+                filter_candidates(UPDATE_CLAUSE_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::UpdatePostSet => {
+                filter_candidates(UPDATE_POST_SET_KEYWORDS, &prefix_upper, true)
+            }
+            CompletionContext::GenericClause | CompletionContext::ClauseKeyword => {
+                filter_candidates(GENERIC_CLAUSE_KEYWORDS, &prefix_upper, true)
+            }
         }
     }
 }
@@ -753,11 +973,213 @@ mod tests {
 
     #[test]
     fn file_path_completion_tmp() {
-        // /tmp should exist on all Unix systems
         let pairs = complete_file_path("/tmp/");
-        // Should return entries — exact count varies
         assert!(
             !pairs.is_empty() || std::fs::read_dir("/tmp").map(|d| d.count()).unwrap_or(0) == 0
+        );
+    }
+
+    // --- Post-statement context detection ---
+
+    #[test]
+    fn detect_select_post_from() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("SELECT * FROM users ", 20),
+            CompletionContext::SelectPostFrom
+        );
+    }
+
+    #[test]
+    fn detect_delete_post_from() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("DELETE FROM users ", 18),
+            CompletionContext::DeletePostFrom
+        );
+    }
+
+    #[test]
+    fn detect_update_clause() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("UPDATE users ", 13),
+            CompletionContext::UpdateClause
+        );
+    }
+
+    #[test]
+    fn detect_update_post_set() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("UPDATE users SET name = 'x' ", 28),
+            CompletionContext::UpdatePostSet
+        );
+    }
+
+    #[test]
+    fn detect_insert_post_values() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("INSERT INTO users (id) VALUES (1) ", 34),
+            CompletionContext::InsertPostValues
+        );
+    }
+
+    // --- Negative tests: statement-specific contexts must NOT suggest wrong keywords ---
+
+    #[test]
+    fn select_post_from_must_not_suggest_drop() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(&CompletionContext::SelectPostFrom, "");
+        assert!(
+            !pairs.iter().any(|p| p.replacement == "DROP"),
+            "SELECT post-FROM must not suggest DROP"
+        );
+    }
+
+    #[test]
+    fn create_target_must_not_suggest_where() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(&CompletionContext::CreateTarget, "");
+        assert!(
+            !pairs.iter().any(|p| p.replacement == "WHERE"),
+            "CREATE target must not suggest WHERE"
+        );
+    }
+
+    #[test]
+    fn update_clause_suggests_set() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(&CompletionContext::UpdateClause, "");
+        assert!(pairs.iter().any(|p| p.replacement == "SET"));
+        assert!(!pairs.iter().any(|p| p.replacement == "FROM"));
+    }
+
+    #[test]
+    fn delete_post_from_suggests_where() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(&CompletionContext::DeletePostFrom, "");
+        assert!(pairs.iter().any(|p| p.replacement == "WHERE"));
+        assert!(!pairs.iter().any(|p| p.replacement == "ORDER BY"));
+    }
+
+    #[test]
+    fn midword_select_star_f_gives_select_post_star() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("SELECT * F", 10),
+            CompletionContext::SelectPostStar
+        );
+        let pairs = c.complete_for_context(&CompletionContext::SelectPostStar, "F");
+        assert!(pairs.iter().any(|p| p.replacement == "FROM"));
+        assert!(!pairs.iter().any(|p| p.replacement == "FILTERING"));
+        assert!(!pairs.iter().any(|p| p.replacement == "FUNCTION"));
+    }
+
+    #[test]
+    fn midword_qualified_table_name() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("SELECT * FROM system.h", 22),
+            CompletionContext::TableName {
+                keyspace: Some("system".to_string())
+            }
+        );
+    }
+
+    #[test]
+    fn select_space_gives_select_column_list() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("SELECT ", 7),
+            CompletionContext::SelectColumnList
+        );
+    }
+
+    #[test]
+    fn qualified_dot_without_partial_gives_table_name() {
+        let c = make_completer();
+        // Bug 1/3: "FROM system." should offer tables, not clause keywords
+        assert_eq!(
+            c.detect_context("SELECT * FROM system.", 21),
+            CompletionContext::TableName {
+                keyspace: Some("system".to_string())
+            }
+        );
+        assert_eq!(
+            c.detect_context("SELECT * FROM test_ks.", 22),
+            CompletionContext::TableName {
+                keyspace: Some("test_ks".to_string())
+            }
+        );
+    }
+
+    #[test]
+    fn select_star_space_gives_post_star() {
+        let c = make_completer();
+        // Bug 4: "SELECT * " should only offer FROM
+        assert_eq!(
+            c.detect_context("SELECT * ", 9),
+            CompletionContext::SelectPostStar
+        );
+        let pairs = c.complete_for_context(&CompletionContext::SelectPostStar, "");
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].replacement, "FROM");
+    }
+
+    #[test]
+    fn multi_statement_resets_context() {
+        let c = make_completer();
+        assert_eq!(c.detect_context("SELECT 1; ", 10), CompletionContext::Empty);
+        assert_eq!(
+            c.detect_context("SELECT 1; S", 11),
+            CompletionContext::Empty
+        );
+    }
+
+    #[test]
+    fn create_table_qualified_does_not_suggest_tables() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("CREATE TABLE test_ks.", 21),
+            CompletionContext::GenericClause
+        );
+    }
+
+    #[test]
+    fn alter_table_qualified_does_not_suggest_tables() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("ALTER TABLE test_ks.", 20),
+            CompletionContext::GenericClause
+        );
+    }
+
+    #[test]
+    fn select_post_from_qualified_table() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("SELECT * FROM test_ks.users ", 28),
+            CompletionContext::SelectPostFrom
+        );
+    }
+
+    #[test]
+    fn update_clause_qualified_table() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("UPDATE test_ks.users ", 21),
+            CompletionContext::UpdateClause
+        );
+    }
+
+    #[test]
+    fn delete_post_from_qualified_table() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("DELETE FROM test_ks.users ", 26),
+            CompletionContext::DeletePostFrom
         );
     }
 }

@@ -357,9 +357,8 @@ fn find_keyword_outside_parens(s: &str, keyword: &str) -> Option<usize> {
             // Check if keyword matches at this position, surrounded by word boundaries
             if i + kw_len <= upper.len() && upper[i..i + kw_len] == *kw_upper {
                 // Check word boundaries
-                let is_word_char = |b: u8| b.is_ascii_alphanumeric() || b == b'_';
-                let before_ok = i == 0 || !is_word_char(bytes[i - 1]);
-                let after_ok = i + kw_len >= s.len() || !is_word_char(bytes[i + kw_len]);
+                let before_ok = i == 0 || !bytes[i - 1].is_ascii_alphanumeric();
+                let after_ok = i + kw_len >= s.len() || !bytes[i + kw_len].is_ascii_alphanumeric();
                 if before_ok && after_ok {
                     return Some(i);
                 }

@@ -90,6 +90,30 @@ pub enum GrammarContext {
     ExpectDescribeTarget,
     /// After SOURCE / CAPTURE — expecting file path.
     ExpectFilePath,
+    /// After CREATE — expecting TABLE, KEYSPACE, INDEX, etc.
+    ExpectCreateTarget,
+    /// After ALTER — expecting TABLE, KEYSPACE, TYPE, etc.
+    ExpectAlterTarget,
+    /// After DROP — expecting TABLE, KEYSPACE, INDEX, etc.
+    ExpectDropTarget,
+    /// After DELETE (before FROM) — expecting column names or FROM.
+    ExpectDeleteTarget,
+    /// After GRANT or REVOKE — expecting permission names.
+    ExpectGrantRevoke,
+    /// After INSERT — expecting INTO.
+    ExpectInsertTarget,
+    /// After BEGIN — expecting BATCH, UNLOGGED, COUNTER.
+    ExpectBeginTarget,
+    /// After SELECT … FROM <table> — expecting WHERE, ORDER BY, LIMIT, etc.
+    ExpectSelectPostFrom,
+    /// After INSERT INTO … VALUES (…) — expecting IF NOT EXISTS, USING.
+    ExpectInsertPostValues,
+    /// After DELETE … FROM <table> — expecting WHERE, USING TIMESTAMP, IF.
+    ExpectDeletePostFrom,
+    /// After UPDATE <table> — expecting SET, USING.
+    ExpectUpdateClause,
+    /// After UPDATE … SET … — expecting WHERE, IF.
+    ExpectUpdatePostSet,
     /// General clause context (default within a statement body).
     General,
 }
@@ -585,11 +609,12 @@ pub fn tokenize(input: &str) -> Vec<Token> {
 /// Useful for tab completion to know what kind of token is expected next.
 pub fn grammar_context_at_end(input: &str) -> GrammarContext {
     let tokens = tokenize(input);
-    context_from_tokens(&tokens)
+    context_from_tokens(&tokens, input.len())
 }
 
 /// Derive grammar context from a token sequence (skipping whitespace/comments).
-pub fn context_from_tokens(tokens: &[Token]) -> GrammarContext {
+/// `input_len` is the total length of the original input, used to detect trailing whitespace.
+pub fn context_from_tokens(tokens: &[Token], input_len: usize) -> GrammarContext {
     // Walk backwards through significant tokens to determine context
     let significant: Vec<&Token> = tokens
         .iter()
@@ -612,9 +637,20 @@ pub fn context_from_tokens(tokens: &[Token]) -> GrammarContext {
         let upper = last.text.to_uppercase();
         match upper.as_str() {
             "SELECT" | "DISTINCT" => return GrammarContext::ExpectColumnList,
-            "FROM" | "INTO" | "UPDATE" | "TABLE" | "TRUNCATE" => {
-                return GrammarContext::ExpectTable
+            "FROM" | "UPDATE" | "TABLE" | "TRUNCATE" => return GrammarContext::ExpectTable,
+            "INTO" => {
+                if has_keyword_before(&significant, &["INSERT"]) {
+                    return GrammarContext::ExpectTable;
+                }
+                return GrammarContext::ExpectTable;
             }
+            "CREATE" => return GrammarContext::ExpectCreateTarget,
+            "ALTER" => return GrammarContext::ExpectAlterTarget,
+            "DROP" => return GrammarContext::ExpectDropTarget,
+            "DELETE" => return GrammarContext::ExpectDeleteTarget,
+            "GRANT" | "REVOKE" => return GrammarContext::ExpectGrantRevoke,
+            "INSERT" => return GrammarContext::ExpectInsertTarget,
+            "BEGIN" => return GrammarContext::ExpectBeginTarget,
             "USE" | "KEYSPACE" | "KEYSPACES" => return GrammarContext::ExpectKeyspace,
             "WHERE" | "IF" => return GrammarContext::ExpectColumn,
             "AND" => {
@@ -664,21 +700,79 @@ pub fn context_from_tokens(tokens: &[Token]) -> GrammarContext {
         return GrammarContext::ExpectQualifiedPart;
     }
 
-    // After FROM table_name — we're in general clause context
-    // Check if two tokens back is a table-expecting keyword
+    // After SELECT * → still in column list (expecting FROM or more columns)
+    if last.kind == TokenKind::Punctuation
+        && last.text == "*"
+        && significant.len() >= 2
+        && significant[significant.len() - 2].text.to_uppercase() == "SELECT"
+    {
+        return GrammarContext::ExpectColumnList;
+    }
+
+    // If last token is an identifier and second-to-last is a dot, we're still
+    // in qualified-name context — but only if the last token touches end of input
+    // (no trailing whitespace). "system.c" → qualified part; "system.table " → post-table.
     if significant.len() >= 2 {
+        let last_token_end = last.start + last.text.len();
+        let at_end_of_input = last_token_end >= input_len;
         let second_last = significant[significant.len() - 2];
-        let sl_upper = second_last.text.to_uppercase();
-        if matches!(
-            sl_upper.as_str(),
-            "FROM" | "INTO" | "UPDATE" | "TABLE" | "TRUNCATE"
-        ) {
-            return GrammarContext::General;
+        if at_end_of_input && second_last.kind == TokenKind::Punctuation && second_last.text == "."
+        {
+            return GrammarContext::ExpectQualifiedPart;
+        }
+    }
+
+    // After FROM/INTO/UPDATE/TABLE/TRUNCATE + table_name — determine post-table context
+    // Handles both unqualified (KEYWORD table) and qualified (KEYWORD ks.table) names.
+    if significant.len() >= 2 {
+        let keyword_before_table = find_keyword_before_table(&significant);
+        if let Some(kw_upper) = keyword_before_table {
+            match kw_upper.as_str() {
+                "FROM" => {
+                    if has_keyword_before(&significant, &["SELECT"]) {
+                        return GrammarContext::ExpectSelectPostFrom;
+                    }
+                    if has_keyword_before(&significant, &["DELETE"]) {
+                        return GrammarContext::ExpectDeletePostFrom;
+                    }
+                    return GrammarContext::General;
+                }
+                "INTO" => {
+                    return GrammarContext::General;
+                }
+                "UPDATE" => {
+                    return GrammarContext::ExpectUpdateClause;
+                }
+                "TABLE" | "TRUNCATE" => {
+                    return GrammarContext::General;
+                }
+                _ => {}
+            }
         }
         // After SERIAL -> if next is CONSISTENCY
+        let second_last = significant[significant.len() - 2];
+        let sl_upper = second_last.text.to_uppercase();
         if sl_upper == "SERIAL" && last.text.to_uppercase() == "CONSISTENCY" {
             return GrammarContext::ExpectConsistencyLevel;
         }
+    }
+
+    // Statement-aware fallthrough: detect post-clause contexts
+    if has_keyword_before(&significant, &["UPDATE"]) && has_keyword_before(&significant, &["SET"]) {
+        return GrammarContext::ExpectUpdatePostSet;
+    }
+    if has_keyword_before(&significant, &["INSERT"])
+        && has_keyword_before(&significant, &["VALUES"])
+    {
+        return GrammarContext::ExpectInsertPostValues;
+    }
+    if has_keyword_before(&significant, &["SELECT"]) && has_keyword_before(&significant, &["FROM"])
+    {
+        return GrammarContext::ExpectSelectPostFrom;
+    }
+    if has_keyword_before(&significant, &["DELETE"]) && has_keyword_before(&significant, &["FROM"])
+    {
+        return GrammarContext::ExpectDeletePostFrom;
     }
 
     GrammarContext::General
@@ -836,6 +930,32 @@ fn advance_context_after_name(ctx: GrammarContext) -> GrammarContext {
 }
 
 /// Check if any of the given keywords appear earlier in the significant token list.
+/// Find the keyword immediately before a table reference at the end of the token stream.
+/// Handles unqualified (`FROM table`) and qualified (`FROM ks.table`) patterns.
+fn find_keyword_before_table(significant: &[&Token]) -> Option<String> {
+    const TABLE_KEYWORDS: &[&str] = &["FROM", "INTO", "UPDATE", "TABLE", "TRUNCATE"];
+    let len = significant.len();
+    if len < 2 {
+        return None;
+    }
+
+    // Unqualified: [.., KEYWORD, table] — check len-2
+    let second_last_upper = significant[len - 2].text.to_uppercase();
+    if TABLE_KEYWORDS.contains(&second_last_upper.as_str()) {
+        return Some(second_last_upper);
+    }
+
+    // Qualified: [.., KEYWORD, ks, ".", table] — check len-4
+    if len >= 4 && significant[len - 2].text == "." {
+        let kw_upper = significant[len - 4].text.to_uppercase();
+        if TABLE_KEYWORDS.contains(&kw_upper.as_str()) {
+            return Some(kw_upper);
+        }
+    }
+
+    None
+}
+
 fn has_keyword_before(significant: &[&Token], keywords: &[&str]) -> bool {
     significant.iter().rev().skip(1).any(|t| {
         let upper = t.text.to_uppercase();
@@ -1702,7 +1822,7 @@ mod tests {
     fn context_after_table_name() {
         assert_eq!(
             grammar_context_at_end("SELECT * FROM users "),
-            GrammarContext::General
+            GrammarContext::ExpectSelectPostFrom
         );
     }
 
@@ -2078,5 +2198,157 @@ mod tests {
             .filter(|t| t.kind != TokenKind::Whitespace)
             .collect();
         assert_eq!(sig.last().unwrap().kind, TokenKind::Identifier); // created_at
+    }
+
+    // ===== Tests for SP20: Grammar-aware completion =====
+
+    #[test]
+    fn grammar_context_qualified_table_after_from() {
+        // Bug #85: SELECT * FROM system.c⇥ should recognize table context, not fall to General
+        let ctx = grammar_context_at_end("SELECT * FROM system.");
+        assert_eq!(ctx, GrammarContext::ExpectQualifiedPart);
+    }
+
+    #[test]
+    fn grammar_context_qualified_table_partial() {
+        // When user has started typing after the dot
+        let ctx = grammar_context_at_end("SELECT * FROM system.c");
+        // Last token is 'c' (identifier), second-to-last is '.', third-to-last is 'system'
+        // Should still recognize we're in table context with keyspace qualifier
+        // For now, this will fail and show the bug
+        assert_eq!(ctx, GrammarContext::ExpectQualifiedPart);
+    }
+
+    #[test]
+    fn grammar_context_select_column_list() {
+        let ctx = grammar_context_at_end("SELECT ");
+        assert_eq!(ctx, GrammarContext::ExpectColumnList);
+    }
+
+    #[test]
+    fn grammar_context_create_target() {
+        assert_eq!(
+            grammar_context_at_end("CREATE "),
+            GrammarContext::ExpectCreateTarget
+        );
+    }
+
+    #[test]
+    fn grammar_context_alter_target() {
+        assert_eq!(
+            grammar_context_at_end("ALTER "),
+            GrammarContext::ExpectAlterTarget
+        );
+    }
+
+    #[test]
+    fn grammar_context_drop_target() {
+        assert_eq!(
+            grammar_context_at_end("DROP "),
+            GrammarContext::ExpectDropTarget
+        );
+    }
+
+    #[test]
+    fn grammar_context_delete_target() {
+        assert_eq!(
+            grammar_context_at_end("DELETE "),
+            GrammarContext::ExpectDeleteTarget
+        );
+    }
+
+    #[test]
+    fn grammar_context_grant_permissions() {
+        assert_eq!(
+            grammar_context_at_end("GRANT "),
+            GrammarContext::ExpectGrantRevoke
+        );
+    }
+
+    #[test]
+    fn grammar_context_revoke_permissions() {
+        assert_eq!(
+            grammar_context_at_end("REVOKE "),
+            GrammarContext::ExpectGrantRevoke
+        );
+    }
+
+    #[test]
+    fn grammar_context_insert_target() {
+        assert_eq!(
+            grammar_context_at_end("INSERT "),
+            GrammarContext::ExpectInsertTarget
+        );
+    }
+
+    #[test]
+    fn grammar_context_insert_into_table() {
+        assert_eq!(
+            grammar_context_at_end("INSERT INTO "),
+            GrammarContext::ExpectTable
+        );
+    }
+
+    #[test]
+    fn grammar_context_begin_target() {
+        assert_eq!(
+            grammar_context_at_end("BEGIN "),
+            GrammarContext::ExpectBeginTarget
+        );
+    }
+
+    #[test]
+    fn grammar_context_update_expects_table() {
+        assert_eq!(
+            grammar_context_at_end("UPDATE "),
+            GrammarContext::ExpectTable
+        );
+    }
+
+    #[test]
+    fn grammar_context_truncate_expects_table() {
+        assert_eq!(
+            grammar_context_at_end("TRUNCATE "),
+            GrammarContext::ExpectTable
+        );
+    }
+
+    // ===== Bug 7/9/10: qualified table names trigger post-table context =====
+
+    #[test]
+    fn grammar_context_select_post_from_qualified() {
+        // SELECT * FROM ks.table<space> should give ExpectSelectPostFrom, not General
+        assert_eq!(
+            grammar_context_at_end("SELECT * FROM test_ks.users "),
+            GrammarContext::ExpectSelectPostFrom
+        );
+    }
+
+    #[test]
+    fn grammar_context_update_clause_qualified() {
+        // UPDATE ks.table<space> should give ExpectUpdateClause
+        assert_eq!(
+            grammar_context_at_end("UPDATE test_ks.users "),
+            GrammarContext::ExpectUpdateClause
+        );
+    }
+
+    #[test]
+    fn grammar_context_delete_post_from_qualified() {
+        // DELETE FROM ks.table<space> should give ExpectDeletePostFrom
+        assert_eq!(
+            grammar_context_at_end("DELETE FROM test_ks.users "),
+            GrammarContext::ExpectDeletePostFrom
+        );
+    }
+
+    #[test]
+    fn grammar_context_insert_into_qualified() {
+        // INSERT INTO ks.table<space> — INTO is the keyword before table
+        // Current code returns General for INTO, which is acceptable
+        assert_eq!(
+            grammar_context_at_end("INSERT INTO test_ks.users "),
+            GrammarContext::General
+        );
     }
 }
