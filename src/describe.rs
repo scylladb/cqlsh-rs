@@ -1267,6 +1267,18 @@ fn format_create_mv_ddl(parts: &MvDdlParts<'_>) -> String {
     out
 }
 
+/// Format a table/MV property value for DDL output.
+///
+/// String-like properties (comment, speculative_retry) are single-quoted;
+/// map-like properties (caching, compaction, compression) are emitted as-is.
+fn format_property_value(name: &str, value: &str) -> String {
+    match name {
+        "comment" | "speculative_retry" => format!("'{}'", value.replace('\'', "''")),
+        "caching" | "compaction" | "compression" => value.to_string(),
+        _ => value.to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
