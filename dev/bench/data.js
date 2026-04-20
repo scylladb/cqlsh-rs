@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776611389676,
+  "lastUpdate": 1776685961829,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -7033,6 +7033,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40022,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "f0d4947383c8b8be2bf1c7fc6062e0311ff2995d",
+          "message": "fix: add WITH clause to DESCRIBE MATERIALIZED VIEW output\n\nAdd CLUSTERING ORDER BY and table properties (bloom_filter_fp_chance,\ncaching, compaction, compression, etc.) to DESCRIBE MATERIALIZED VIEW\noutput, matching Python cqlsh behavior.\n\n- Add properties field to MvDdlParts struct\n- Fetch properties from system_schema.views\n- Always emit CLUSTERING ORDER BY for MVs (matching Python cqlsh)\n- Add format_create_mv_ddl_with_properties test\n\nCloses #90",
+          "timestamp": "2026-04-20T14:43:54+03:00",
+          "tree_id": "b04eac112c4a7446ffecf4eb3174c24ef47764a2",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/f0d4947383c8b8be2bf1c7fc6062e0311ff2995d"
+        },
+        "date": 1776685960923,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 30053,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3449,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9131,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63458,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 839,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 155720,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6466,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85639,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 778080,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7810900,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9828,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 48832,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40332,
             "unit": "ns"
           }
         ]
