@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776718801138,
+  "lastUpdate": 1776720679413,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -8320,6 +8320,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39954,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "198982749+Copilot@users.noreply.github.com",
+            "name": "copilot-swe-agent[bot]",
+            "username": "Copilot"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "5e5b8f37530deb9aa07d31c78eedcaef3731c457",
+          "message": "feat: add Docker Hub publishing for releases and main branch builds\n\nAdd Docker Hub (docker.io/scylladb/cqlsh-rs) as a push target alongside\nGHCR for multi-arch Docker images (linux/amd64 + linux/arm64).\n\nChanges:\n- ci.yml: Add Docker Hub login + image to docker-release job\n- ci.yml: Add build-docker-binaries job (linux musl binaries on main push)\n- ci.yml: Add docker-main job (pushes 'main' tag on every main push)\n- release.yml: Add Docker Hub login + image to manual docker job\n- release.yml: Update release notes to feature Docker Hub as primary pull\n\nRequired secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN\n\nAgent-Logs-Url: https://github.com/scylladb/cqlsh-rs/sessions/eb4ac793-ec18-4344-b935-f0e906a0fad0\n\nCo-authored-by: fruch <340979+fruch@users.noreply.github.com>",
+          "timestamp": "2026-04-21T00:22:37+03:00",
+          "tree_id": "9e085f33001a237dcbdffbedcc7e76335606ef97",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/5e5b8f37530deb9aa07d31c78eedcaef3731c457"
+        },
+        "date": 1776720678829,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29470,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3600,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9269,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64315,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 850,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 152730,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6909,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 87133,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 793370,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7998400,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10063,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 45722,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39890,
             "unit": "ns"
           }
         ]
