@@ -193,11 +193,21 @@ impl StatementParser {
                             // Otherwise keep accumulating; do NOT advance stmt_start.
                             i += 1;
                         } else if starts_with_begin_batch(trimmed) {
-                            // Opening of a BATCH block: treat the ';' as
-                            // internal to the batch, not as a terminator.
-                            self.in_batch = true;
-                            // Do NOT advance stmt_start — keep accumulating
-                            // from the start of BEGIN BATCH.
+                            if ends_with_apply_batch(trimmed) {
+                                // Single-semicolon batch: all inner DML
+                                // statements lacked semicolons, so the only
+                                // ';' is at APPLY BATCH.  Emit immediately.
+                                if !trimmed.is_empty() {
+                                    statements.push(trimmed.to_string());
+                                }
+                                self.stmt_start = i + 1;
+                            } else {
+                                // Opening of a BATCH block: treat the ';' as
+                                // internal to the batch, not as a terminator.
+                                self.in_batch = true;
+                                // Do NOT advance stmt_start — keep accumulating
+                                // from the start of BEGIN BATCH.
+                            }
                             i += 1;
                         } else {
                             if !trimmed.is_empty() {
@@ -1047,5 +1057,90 @@ mod tests {
         let mut p = StatementParser::new();
         assert_eq!(p.feed_line("/* block comment */"), ParseResult::Incomplete);
         assert!(p.is_empty());
+    }
+
+    // --- BATCH statement handling ---
+
+    #[test]
+    fn batch_with_inner_semicolons() {
+        let mut p = StatementParser::new();
+        assert_eq!(p.feed_line("BEGIN BATCH"), ParseResult::Incomplete);
+        assert_eq!(
+            p.feed_line("INSERT INTO t (id) VALUES (1);"),
+            ParseResult::Incomplete
+        );
+        assert_eq!(
+            p.feed_line("INSERT INTO t (id) VALUES (2);"),
+            ParseResult::Incomplete
+        );
+        let result = p.feed_line("APPLY BATCH;");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec![
+                "BEGIN BATCH\nINSERT INTO t (id) VALUES (1);\nINSERT INTO t (id) VALUES (2);\nAPPLY BATCH".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn batch_without_inner_semicolons() {
+        let mut p = StatementParser::new();
+        assert_eq!(p.feed_line("BEGIN BATCH"), ParseResult::Incomplete);
+        assert_eq!(
+            p.feed_line("INSERT INTO t (id) VALUES (1)"),
+            ParseResult::Incomplete
+        );
+        assert_eq!(
+            p.feed_line("INSERT INTO t (id) VALUES (2)"),
+            ParseResult::Incomplete
+        );
+        let result = p.feed_line("APPLY BATCH;");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec![
+                "BEGIN BATCH\nINSERT INTO t (id) VALUES (1)\nINSERT INTO t (id) VALUES (2)\nAPPLY BATCH".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn batch_single_line_no_inner_semicolons() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line(
+            "BEGIN BATCH INSERT INTO t (id) VALUES (1) INSERT INTO t (id) VALUES (2) APPLY BATCH;",
+        );
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec![
+                "BEGIN BATCH INSERT INTO t (id) VALUES (1) INSERT INTO t (id) VALUES (2) APPLY BATCH".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn batch_unlogged() {
+        let mut p = StatementParser::new();
+        assert_eq!(p.feed_line("BEGIN UNLOGGED BATCH"), ParseResult::Incomplete);
+        assert_eq!(
+            p.feed_line("INSERT INTO t (id) VALUES (1)"),
+            ParseResult::Incomplete
+        );
+        let result = p.feed_line("APPLY BATCH;");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec![
+                "BEGIN UNLOGGED BATCH\nINSERT INTO t (id) VALUES (1)\nAPPLY BATCH".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn batch_via_parse_batch_no_inner_semicolons() {
+        let stmts = parse_batch(
+            "BEGIN BATCH\nINSERT INTO t (id) VALUES (1)\nINSERT INTO t (id) VALUES (2)\nAPPLY BATCH;",
+        );
+        assert_eq!(stmts.len(), 1);
+        assert!(stmts[0].starts_with("BEGIN BATCH"));
+        assert!(stmts[0].ends_with("APPLY BATCH"));
     }
 }
