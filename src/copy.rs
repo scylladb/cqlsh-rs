@@ -1966,4 +1966,154 @@ mod tests {
         let cmd = parse_copy_from("COPY ks.table FROM '/tmp/in.csv' WITH NUMPROCESSES=4").unwrap();
         assert_eq!(cmd.options.num_processes, 4);
     }
+
+    #[test]
+    fn format_value_integers() {
+        let opts = CopyOptions::default();
+        assert_eq!(format_value_for_csv(&CqlValue::Int(42), &opts), "42");
+        assert_eq!(format_value_for_csv(&CqlValue::BigInt(-100), &opts), "-100");
+        assert_eq!(format_value_for_csv(&CqlValue::SmallInt(7), &opts), "7");
+        assert_eq!(format_value_for_csv(&CqlValue::TinyInt(-1), &opts), "-1");
+        assert_eq!(format_value_for_csv(&CqlValue::Counter(99), &opts), "99");
+    }
+
+    #[test]
+    fn format_value_blob() {
+        let opts = CopyOptions::default();
+        assert_eq!(
+            format_value_for_csv(&CqlValue::Blob(vec![0xca, 0xfe]), &opts),
+            "0xcafe"
+        );
+    }
+
+    #[test]
+    fn format_value_uuid() {
+        let opts = CopyOptions::default();
+        let output = format_value_for_csv(&CqlValue::Uuid(uuid::Uuid::nil()), &opts);
+        assert_eq!(output, "00000000-0000-0000-0000-000000000000");
+    }
+
+    #[test]
+    fn format_value_inet() {
+        let opts = CopyOptions::default();
+        let output = format_value_for_csv(
+            &CqlValue::Inet("127.0.0.1".parse().unwrap()),
+            &opts,
+        );
+        assert_eq!(output, "127.0.0.1");
+    }
+
+    #[test]
+    fn format_value_duration() {
+        let opts = CopyOptions::default();
+        let dur = CqlValue::Duration { months: 1, days: 2, nanoseconds: 3 };
+        assert_eq!(format_value_for_csv(&dur, &opts), "1mo2d3ns");
+    }
+
+    #[test]
+    fn format_value_decimal_custom_sep() {
+        use bigdecimal::BigDecimal;
+        use std::str::FromStr;
+        let opts = CopyOptions {
+            decimal_sep: ',',
+            ..Default::default()
+        };
+        let dec = CqlValue::Decimal(BigDecimal::from_str("3.14").unwrap());
+        assert_eq!(format_value_for_csv(&dec, &opts), "3,14");
+    }
+
+    #[test]
+    fn format_value_varint() {
+        let opts = CopyOptions::default();
+        let v = CqlValue::Varint(num_bigint::BigInt::from(12345));
+        assert_eq!(format_value_for_csv(&v, &opts), "12345");
+    }
+
+    #[test]
+    fn format_value_float_nan_inf() {
+        let opts = CopyOptions::default();
+        assert_eq!(format_value_for_csv(&CqlValue::Float(f32::NAN), &opts), "NaN");
+        assert_eq!(format_value_for_csv(&CqlValue::Float(f32::INFINITY), &opts), "Infinity");
+        assert_eq!(format_value_for_csv(&CqlValue::Float(f32::NEG_INFINITY), &opts), "-Infinity");
+    }
+
+    #[test]
+    fn format_value_double_precision() {
+        let opts = CopyOptions {
+            double_precision: 3,
+            ..Default::default()
+        };
+        assert_eq!(format_value_for_csv(&CqlValue::Double(1.23456), &opts), "1.235");
+    }
+
+    #[test]
+    fn format_value_float_custom_decimal_sep() {
+        let opts = CopyOptions {
+            float_precision: 2,
+            decimal_sep: ',',
+            ..Default::default()
+        };
+        assert_eq!(format_value_for_csv(&CqlValue::Float(1.5), &opts), "1,50");
+    }
+
+    #[test]
+    fn format_value_timestamp() {
+        let opts = CopyOptions::default();
+        let output = format_value_for_csv(&CqlValue::Timestamp(0), &opts);
+        assert!(output.contains("1970-01-01"));
+    }
+
+    #[test]
+    fn format_value_timestamp_custom_format() {
+        let opts = CopyOptions {
+            datetime_format: Some("%Y/%m/%d".to_string()),
+            ..Default::default()
+        };
+        let output = format_value_for_csv(&CqlValue::Timestamp(0), &opts);
+        assert_eq!(output, "1970/01/01");
+    }
+
+    #[test]
+    fn format_value_collections() {
+        let opts = CopyOptions::default();
+        let list = CqlValue::List(vec![CqlValue::Int(1), CqlValue::Int(2)]);
+        assert_eq!(format_value_for_csv(&list, &opts), "[1, 2]");
+
+        let map = CqlValue::Map(vec![(CqlValue::Text("k".to_string()), CqlValue::Int(1))]);
+        assert_eq!(format_value_for_csv(&map, &opts), "{'k': 1}");
+    }
+
+    #[test]
+    fn format_value_unset() {
+        let opts = CopyOptions::default();
+        assert_eq!(format_value_for_csv(&CqlValue::Unset, &opts), "");
+    }
+
+    #[test]
+    fn parse_copy_to_no_keyspace() {
+        let cmd = parse_copy_to("COPY mytable TO '/tmp/out.csv'").unwrap();
+        assert_eq!(cmd.keyspace, None);
+        assert_eq!(cmd.table, "mytable");
+    }
+
+    #[test]
+    fn parse_copy_to_case_insensitive() {
+        let cmd = parse_copy_to("copy ks.table to STDOUT").unwrap();
+        assert_eq!(cmd.filename, CopyTarget::Stdout);
+    }
+
+    #[test]
+    fn parse_copy_to_invalid_not_copy() {
+        assert!(parse_copy_to("SELECT * FROM foo").is_err());
+    }
+
+    #[test]
+    fn parse_copy_to_missing_to() {
+        assert!(parse_copy_to("COPY ks.table '/tmp/out.csv'").is_err());
+    }
+
+    #[test]
+    fn parse_copy_from_invalid_not_copy() {
+        assert!(parse_copy_from("SELECT * FROM foo").is_err());
+    }
 }
