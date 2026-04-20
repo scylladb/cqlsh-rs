@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776715279598,
+  "lastUpdate": 1776715294625,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -7924,6 +7924,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39195,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "90e671cd58e3fcee6840be467386f896f0d60eea",
+          "message": "fix: handle LOGIN command in non-interactive mode\n\nPreviously LOGIN was silently ignored in non-interactive/batch mode,\ncausing dtests that send LOGIN via stdin to fail with no error output.\n\nNow LOGIN reconnects with new credentials (matching interactive behavior)\nand outputs auth errors to stderr using the standard error formatter.\n\nCloses #108",
+          "timestamp": "2026-04-20T22:52:48+03:00",
+          "tree_id": "b1b677ed3c46340c83c38da8a0e3696e405cdbcd",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/90e671cd58e3fcee6840be467386f896f0d60eea"
+        },
+        "date": 1776715294087,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29725,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3546,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9074,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64025,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 847,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153990,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6871,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 87417,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 803050,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 8000700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9697,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46755,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40346,
             "unit": "ns"
           }
         ]
