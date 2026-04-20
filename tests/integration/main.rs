@@ -13,5 +13,6 @@ mod describe_tests;
 mod escape_tests;
 mod helpers;
 mod output_tests;
+mod schema_agreement_tests;
 mod ssl_tests;
 mod unicode_tests;
