@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776716469108,
+  "lastUpdate": 1776718801138,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -8221,6 +8221,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40149,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "a60d7694edf3179212c631802203ba5bf043457c",
+          "message": "test: port 34 Python cqlsh dtest integration tests\n\nPort integration tests from scylla-dtest cqlsh_tests.py and\ncqlsh_copy_tests.py that had no counterparts in this repo.\n\nNew files:\n- dtest_cqlsh_tests.rs: 16 tests covering timestamps, unicode,\n  tracing, UDTs, float/int formatting, DESCRIBE round-trip,\n  comments, materialized views, and more\n- dtest_copy_tests.rs: 18 tests covering COPY TO/FROM with\n  custom delimiters, null indicators, timeformats, column\n  ordering, quoted column names, invalid data handling, and\n  counter tables\n\nAll 150 integration tests pass against ScyllaDB 2025.2.",
+          "timestamp": "2026-04-20T23:51:15+03:00",
+          "tree_id": "cebca2e0467e70e4073636bdf820255f317e6a9a",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/a60d7694edf3179212c631802203ba5bf043457c"
+        },
+        "date": 1776718800583,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29575,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3598,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9093,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63667,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 848,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 157810,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6756,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86507,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 793500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7898500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10433,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 47517,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39954,
             "unit": "ns"
           }
         ]
