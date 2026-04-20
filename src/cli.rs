@@ -6,12 +6,30 @@
 use clap::Parser;
 use clap_complete::Shell;
 
+/// Build a version string that includes the git SHA.
+///
+/// Produces `0.1.0 (abc1234)` or `0.1.0 (abc1234-dirty)` when the
+/// working tree had uncommitted changes at build time.
+fn long_version() -> &'static str {
+    // Concatenation of compile-time literals — zero runtime cost.
+    if env!("CQLSH_GIT_DIRTY") == "true" {
+        concat!(
+            env!("CARGO_PKG_VERSION"),
+            " (",
+            env!("CQLSH_GIT_SHA"),
+            "-dirty)"
+        )
+    } else {
+        concat!(env!("CARGO_PKG_VERSION"), " (", env!("CQLSH_GIT_SHA"), ")")
+    }
+}
+
 /// The Apache Cassandra interactive CQL shell (Rust implementation).
 ///
 /// Connects to a Cassandra cluster and provides an interactive shell
 /// for executing CQL statements.
 #[derive(Parser, Debug, Clone)]
-#[command(name = "cqlsh", version, about, disable_help_flag = false)]
+#[command(name = "cqlsh", version, long_version = long_version(), about, disable_help_flag = false)]
 pub struct CliArgs {
     /// Contact point hostname (default: 127.0.0.1)
     #[arg(value_name = "host")]
