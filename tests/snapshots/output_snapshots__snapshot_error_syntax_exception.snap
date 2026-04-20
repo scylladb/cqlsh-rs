@@ -1,6 +1,5 @@
 ---
 source: tests/output_snapshots.rs
-assertion_line: 187
 expression: format_error(&err)
 ---
-SyntaxException: line 1:0 no viable alternative at input 'SELEC'
+SyntaxException: Error from server: code=2000 [Syntax error] message="line 1:0 no viable alternative at input 'SELEC'"

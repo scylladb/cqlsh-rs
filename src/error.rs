@@ -28,6 +28,56 @@ pub enum ErrorCategory {
     ConnectionError,
 }
 
+impl ErrorCategory {
+    /// CQL protocol error code for this category.
+    pub fn error_code(&self) -> Option<u32> {
+        match self {
+            Self::ServerError => Some(0x0000),
+            Self::ProtocolError => Some(0x000A),
+            Self::AuthenticationError => Some(0x0100),
+            Self::Unavailable => Some(0x1000),
+            Self::Overloaded => Some(0x1001),
+            Self::IsBootstrapping => Some(0x1002),
+            Self::TruncateError => Some(0x1003),
+            Self::WriteTimeout => Some(0x1100),
+            Self::ReadTimeout => Some(0x1200),
+            Self::ReadFailure => Some(0x1300),
+            Self::FunctionFailure => Some(0x1400),
+            Self::WriteFailure => Some(0x1500),
+            Self::SyntaxException => Some(0x2000),
+            Self::Unauthorized => Some(0x2100),
+            Self::InvalidRequest => Some(0x2200),
+            Self::ConfigurationException => Some(0x2300),
+            Self::AlreadyExists => Some(0x2400),
+            Self::ConnectionError => None,
+        }
+    }
+
+    /// Human-readable category label used in `Error from server` messages.
+    fn server_label(&self) -> &'static str {
+        match self {
+            Self::ServerError => "Server error",
+            Self::ProtocolError => "Protocol error",
+            Self::AuthenticationError => "Bad credentials",
+            Self::Unavailable => "Unavailable exception",
+            Self::Overloaded => "Overloaded",
+            Self::IsBootstrapping => "Is bootstrapping",
+            Self::TruncateError => "Truncate error",
+            Self::WriteTimeout => "Write timeout",
+            Self::ReadTimeout => "Read timeout",
+            Self::ReadFailure => "Read failure",
+            Self::FunctionFailure => "Function failure",
+            Self::WriteFailure => "Write failure",
+            Self::SyntaxException => "Syntax error",
+            Self::Unauthorized => "Unauthorized",
+            Self::InvalidRequest => "Invalid query",
+            Self::ConfigurationException => "Configuration error",
+            Self::AlreadyExists => "Already exists",
+            Self::ConnectionError => "Connection error",
+        }
+    }
+}
+
 impl std::fmt::Display for ErrorCategory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -90,7 +140,16 @@ pub fn classify_error(error: &anyhow::Error) -> ClassifiedError {
 /// Format a classified error for display matching Python cqlsh output.
 pub fn format_error(error: &anyhow::Error) -> String {
     let classified = classify_error(error);
-    format!("{}: {}", classified.category, classified.message)
+    match classified.category.error_code() {
+        Some(code) => format!(
+            "{}: Error from server: code={:04X} [{}] message=\"{}\"",
+            classified.category,
+            code,
+            classified.category.server_label(),
+            classified.message
+        ),
+        None => format!("{}: {}", classified.category, classified.message),
+    }
 }
 
 /// Format a classified error with optional color (red bold when enabled).
@@ -277,7 +336,7 @@ mod tests {
         let exec = ExecutionError::LastAttemptError(attempt);
         let err = anyhow::Error::new(exec);
 
-        assert_eq!(format_error(&err), "SyntaxException: line 1:0 bad input");
+        assert_eq!(format_error(&err), "SyntaxException: Error from server: code=2000 [Syntax error] message=\"line 1:0 bad input\"");
     }
 
     #[test]

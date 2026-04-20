@@ -181,7 +181,7 @@ async fn execute_cql_string(
     let mut debug = config.debug;
 
     for stmt in statements {
-        if !execute_single_statement(session, config, colorizer, &mut debug, &stmt).await {
+        if !execute_single_statement(session, config, colorizer, &mut debug, &stmt, None, 0).await {
             had_error = true;
         }
     }
@@ -225,6 +225,8 @@ async fn execute_cql_reader<R: io::BufRead>(
     let mut stmt_parser = StatementParser::new();
     let mut had_error = false;
     let mut debug = config.debug;
+    let mut line_number: usize = 0;
+    let mut stmt_start_line: usize = 1;
 
     for line_result in reader.lines() {
         let line = match line_result {
@@ -234,12 +236,26 @@ async fn execute_cql_reader<R: io::BufRead>(
                 return 1;
             }
         };
+        line_number += 1;
 
-        // Check for shell commands on a fresh line
+        if stmt_parser.is_empty() {
+            stmt_start_line = line_number;
+        }
+
         let trimmed = line.trim();
         if stmt_parser.is_empty() && !trimmed.is_empty() && parser::is_shell_command(trimmed) {
             let clean = trimmed.strip_suffix(';').unwrap_or(trimmed).trim_end();
-            if !execute_single_statement(session, config, colorizer, &mut debug, clean).await {
+            if !execute_single_statement(
+                session,
+                config,
+                colorizer,
+                &mut debug,
+                clean,
+                Some(source_name),
+                stmt_start_line,
+            )
+            .await
+            {
                 had_error = true;
             }
             continue;
@@ -247,10 +263,21 @@ async fn execute_cql_reader<R: io::BufRead>(
 
         if let ParseResult::Complete(statements) = stmt_parser.feed_line(&line) {
             for stmt in statements {
-                if !execute_single_statement(session, config, colorizer, &mut debug, &stmt).await {
+                if !execute_single_statement(
+                    session,
+                    config,
+                    colorizer,
+                    &mut debug,
+                    &stmt,
+                    Some(source_name),
+                    stmt_start_line,
+                )
+                .await
+                {
                     had_error = true;
                 }
             }
+            stmt_start_line = line_number + 1;
         }
     }
 
@@ -273,6 +300,8 @@ fn execute_single_statement<'a>(
     colorizer: &'a CqlColorizer,
     debug: &'a mut bool,
     input: &'a str,
+    source_name: Option<&'a str>,
+    line_number: usize,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + 'a>> {
     Box::pin(async move {
         let trimmed = input.trim();
@@ -408,6 +437,8 @@ fn execute_single_statement<'a>(
             let source_name = expanded.display().to_string();
             let mut stmt_parser = StatementParser::new();
             let mut had_error = false;
+            let mut src_line_number: usize = 0;
+            let mut src_stmt_start: usize = 1;
             for line_result in reader.lines() {
                 let line: String = match line_result {
                     Ok(l) => l,
@@ -416,24 +447,48 @@ fn execute_single_statement<'a>(
                         return false;
                     }
                 };
+                src_line_number += 1;
+                if stmt_parser.is_empty() {
+                    src_stmt_start = src_line_number;
+                }
                 let ltrimmed = line.trim();
                 if stmt_parser.is_empty()
                     && !ltrimmed.is_empty()
                     && parser::is_shell_command(ltrimmed)
                 {
                     let clean = ltrimmed.strip_suffix(';').unwrap_or(ltrimmed).trim_end();
-                    if !execute_single_statement(session, config, colorizer, debug, clean).await {
+                    if !execute_single_statement(
+                        session,
+                        config,
+                        colorizer,
+                        debug,
+                        clean,
+                        Some(&source_name),
+                        src_stmt_start,
+                    )
+                    .await
+                    {
                         had_error = true;
                     }
                     continue;
                 }
                 if let ParseResult::Complete(statements) = stmt_parser.feed_line(&line) {
                     for stmt in statements {
-                        if !execute_single_statement(session, config, colorizer, debug, &stmt).await
+                        if !execute_single_statement(
+                            session,
+                            config,
+                            colorizer,
+                            debug,
+                            &stmt,
+                            Some(&source_name),
+                            src_stmt_start,
+                        )
+                        .await
                         {
                             had_error = true;
                         }
                     }
+                    src_stmt_start = src_line_number + 1;
                 }
             }
             return !had_error;
@@ -562,7 +617,12 @@ fn execute_single_statement<'a>(
                 true
             }
             Err(e) => {
-                eprintln!("{}", error::format_error_colored(&e, colorizer));
+                let err_msg = error::format_error_colored(&e, colorizer);
+                if let Some(src) = source_name {
+                    eprintln!("{src}:{line_number}:{err_msg}");
+                } else {
+                    eprintln!("{err_msg}");
+                }
                 if *debug {
                     eprintln!("Debug: {e:?}");
                 }
