@@ -359,4 +359,306 @@ mod tests {
         assert_eq!(classified.category, ErrorCategory::ServerError);
         assert_eq!(classified.message, "something went wrong");
     }
+
+    // --- Additional categorize_db_error variant tests ---
+
+    #[test]
+    fn categorize_unauthorized() {
+        assert_eq!(
+            categorize_db_error(&DbError::Unauthorized),
+            ErrorCategory::Unauthorized
+        );
+    }
+
+    #[test]
+    fn categorize_unavailable() {
+        assert_eq!(
+            categorize_db_error(&DbError::Unavailable {
+                consistency: scylla::frame::types::Consistency::Quorum,
+                required: 2,
+                alive: 1,
+            }),
+            ErrorCategory::Unavailable
+        );
+    }
+
+    #[test]
+    fn categorize_read_timeout() {
+        assert_eq!(
+            categorize_db_error(&DbError::ReadTimeout {
+                consistency: scylla::frame::types::Consistency::One,
+                received: 0,
+                required: 1,
+                data_present: false,
+            }),
+            ErrorCategory::ReadTimeout
+        );
+    }
+
+    #[test]
+    fn categorize_write_timeout() {
+        assert_eq!(
+            categorize_db_error(&DbError::WriteTimeout {
+                consistency: scylla::frame::types::Consistency::Quorum,
+                received: 1,
+                required: 2,
+                write_type: scylla::errors::WriteType::Simple,
+            }),
+            ErrorCategory::WriteTimeout
+        );
+    }
+
+    #[test]
+    fn categorize_config_error() {
+        assert_eq!(
+            categorize_db_error(&DbError::ConfigError),
+            ErrorCategory::ConfigurationException
+        );
+    }
+
+    #[test]
+    fn categorize_already_exists() {
+        assert_eq!(
+            categorize_db_error(&DbError::AlreadyExists {
+                keyspace: "ks".to_string(),
+                table: "tbl".to_string(),
+            }),
+            ErrorCategory::AlreadyExists
+        );
+    }
+
+    #[test]
+    fn categorize_overloaded() {
+        assert_eq!(
+            categorize_db_error(&DbError::Overloaded),
+            ErrorCategory::Overloaded
+        );
+    }
+
+    #[test]
+    fn categorize_is_bootstrapping() {
+        assert_eq!(
+            categorize_db_error(&DbError::IsBootstrapping),
+            ErrorCategory::IsBootstrapping
+        );
+    }
+
+    #[test]
+    fn categorize_truncate_error() {
+        assert_eq!(
+            categorize_db_error(&DbError::TruncateError),
+            ErrorCategory::TruncateError
+        );
+    }
+
+    #[test]
+    fn categorize_read_failure() {
+        assert_eq!(
+            categorize_db_error(&DbError::ReadFailure {
+                consistency: scylla::frame::types::Consistency::One,
+                received: 1,
+                required: 1,
+                numfailures: 1,
+                data_present: false,
+            }),
+            ErrorCategory::ReadFailure
+        );
+    }
+
+    #[test]
+    fn categorize_write_failure() {
+        assert_eq!(
+            categorize_db_error(&DbError::WriteFailure {
+                consistency: scylla::frame::types::Consistency::Quorum,
+                received: 1,
+                required: 2,
+                numfailures: 1,
+                write_type: scylla::errors::WriteType::Simple,
+            }),
+            ErrorCategory::WriteFailure
+        );
+    }
+
+    #[test]
+    fn categorize_function_failure() {
+        assert_eq!(
+            categorize_db_error(&DbError::FunctionFailure {
+                keyspace: "ks".to_string(),
+                function: "fn".to_string(),
+                arg_types: vec!["int".to_string()],
+            }),
+            ErrorCategory::FunctionFailure
+        );
+    }
+
+    #[test]
+    fn categorize_authentication_error() {
+        assert_eq!(
+            categorize_db_error(&DbError::AuthenticationError),
+            ErrorCategory::AuthenticationError
+        );
+    }
+
+    #[test]
+    fn categorize_server_error() {
+        assert_eq!(
+            categorize_db_error(&DbError::ServerError),
+            ErrorCategory::ServerError
+        );
+    }
+
+    #[test]
+    fn categorize_protocol_error() {
+        assert_eq!(
+            categorize_db_error(&DbError::ProtocolError),
+            ErrorCategory::ProtocolError
+        );
+    }
+
+    // --- classify_execution_error / classify_request_error paths ---
+
+    #[test]
+    fn classify_empty_plan_execution() {
+        let exec = ExecutionError::EmptyPlan;
+        let err = anyhow::Error::new(exec);
+        let classified = classify_error(&err);
+        assert_eq!(classified.category, ErrorCategory::ConnectionError);
+        assert!(classified.message.contains("No nodes available"));
+    }
+
+    #[test]
+    fn classify_request_timeout_execution() {
+        let exec = ExecutionError::RequestTimeout(std::time::Duration::from_secs(10));
+        let err = anyhow::Error::new(exec);
+        let classified = classify_error(&err);
+        assert_eq!(classified.category, ErrorCategory::ReadTimeout);
+        assert!(classified.message.contains("timed out"));
+    }
+
+    #[test]
+    fn classify_empty_plan_request() {
+        let req = RequestError::EmptyPlan;
+        let err = anyhow::Error::new(req);
+        let classified = classify_error(&err);
+        assert_eq!(classified.category, ErrorCategory::ConnectionError);
+        assert!(classified.message.contains("No nodes available"));
+    }
+
+    #[test]
+    fn classify_request_timeout_request() {
+        let req = RequestError::RequestTimeout(std::time::Duration::from_secs(5));
+        let err = anyhow::Error::new(req);
+        let classified = classify_error(&err);
+        assert_eq!(classified.category, ErrorCategory::ReadTimeout);
+        assert!(classified.message.contains("timed out"));
+    }
+
+    // --- format_error with no error code (ConnectionError) ---
+
+    #[test]
+    fn format_connection_error() {
+        let exec = ExecutionError::EmptyPlan;
+        let err = anyhow::Error::new(exec);
+        let formatted = format_error(&err);
+        assert!(formatted.starts_with("ConnectionError:"));
+        assert!(!formatted.contains("code="));
+    }
+
+    // --- error_code tests ---
+
+    #[test]
+    fn error_codes_some_known() {
+        assert_eq!(ErrorCategory::SyntaxException.error_code(), Some(0x2000));
+        assert_eq!(ErrorCategory::InvalidRequest.error_code(), Some(0x2200));
+        assert_eq!(ErrorCategory::Unavailable.error_code(), Some(0x1000));
+        assert_eq!(ErrorCategory::ReadTimeout.error_code(), Some(0x1200));
+        assert_eq!(ErrorCategory::WriteTimeout.error_code(), Some(0x1100));
+        assert_eq!(ErrorCategory::ConnectionError.error_code(), None);
+    }
+
+    // --- server_label tests ---
+
+    #[test]
+    fn server_labels() {
+        assert_eq!(
+            ErrorCategory::SyntaxException.server_label(),
+            "Syntax error"
+        );
+        assert_eq!(
+            ErrorCategory::InvalidRequest.server_label(),
+            "Invalid query"
+        );
+        assert_eq!(ErrorCategory::Unauthorized.server_label(), "Unauthorized");
+        assert_eq!(
+            ErrorCategory::Unavailable.server_label(),
+            "Unavailable exception"
+        );
+        assert_eq!(ErrorCategory::Overloaded.server_label(), "Overloaded");
+        assert_eq!(
+            ErrorCategory::IsBootstrapping.server_label(),
+            "Is bootstrapping"
+        );
+        assert_eq!(
+            ErrorCategory::TruncateError.server_label(),
+            "Truncate error"
+        );
+        assert_eq!(ErrorCategory::ReadFailure.server_label(), "Read failure");
+        assert_eq!(ErrorCategory::WriteFailure.server_label(), "Write failure");
+        assert_eq!(
+            ErrorCategory::FunctionFailure.server_label(),
+            "Function failure"
+        );
+        assert_eq!(
+            ErrorCategory::AuthenticationError.server_label(),
+            "Bad credentials"
+        );
+        assert_eq!(ErrorCategory::ServerError.server_label(), "Server error");
+        assert_eq!(
+            ErrorCategory::ProtocolError.server_label(),
+            "Protocol error"
+        );
+        assert_eq!(
+            ErrorCategory::ConnectionError.server_label(),
+            "Connection error"
+        );
+    }
+
+    // --- Display trait for all variants ---
+
+    #[test]
+    fn display_all_categories() {
+        let categories = vec![
+            (ErrorCategory::Unavailable, "Unavailable"),
+            (ErrorCategory::ReadTimeout, "ReadTimeout"),
+            (ErrorCategory::WriteTimeout, "WriteTimeout"),
+            (ErrorCategory::Overloaded, "Overloaded"),
+            (ErrorCategory::IsBootstrapping, "IsBootstrapping"),
+            (ErrorCategory::TruncateError, "TruncateError"),
+            (ErrorCategory::ReadFailure, "ReadFailure"),
+            (ErrorCategory::WriteFailure, "WriteFailure"),
+            (ErrorCategory::FunctionFailure, "FunctionFailure"),
+            (ErrorCategory::AuthenticationError, "AuthenticationError"),
+            (ErrorCategory::ProtocolError, "ProtocolError"),
+            (ErrorCategory::ConnectionError, "ConnectionError"),
+            (ErrorCategory::AlreadyExists, "AlreadyExists"),
+        ];
+        for (cat, expected) in categories {
+            assert_eq!(cat.to_string(), expected);
+        }
+    }
+
+    // --- classify_attempt_error with RequestError wrapping ---
+
+    #[test]
+    fn classify_db_error_through_request_error() {
+        let attempt = RequestAttemptError::DbError(
+            DbError::Unauthorized,
+            "User has no permission".to_string(),
+        );
+        let req = RequestError::LastAttemptError(attempt);
+        let err = anyhow::Error::new(req);
+        let classified = classify_error(&err);
+        assert_eq!(classified.category, ErrorCategory::Unauthorized);
+        assert_eq!(classified.message, "User has no permission");
+    }
 }
