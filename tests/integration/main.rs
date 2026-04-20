@@ -10,6 +10,8 @@ mod copy_from_tests;
 mod copy_tests;
 mod core_tests;
 mod describe_tests;
+mod dtest_copy_tests;
+mod dtest_cqlsh_tests;
 mod escape_tests;
 mod helpers;
 mod login_tests;
