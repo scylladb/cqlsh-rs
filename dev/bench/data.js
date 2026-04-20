@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776685961829,
+  "lastUpdate": 1776686731624,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -7132,6 +7132,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40332,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "9751a4c9c780c0a1187a32493d76b6a6e4a1dae5",
+          "message": "fix(describe): restore accidentally deleted format_property_value function\n\nThe function was removed in 4703a88 as collateral damage from an\nunrelated COPY TO/FROM fix, breaking compilation on main.",
+          "timestamp": "2026-04-20T14:56:44+03:00",
+          "tree_id": "00519f66f799d92ee9f0d2465c805f728f844a01",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/9751a4c9c780c0a1187a32493d76b6a6e4a1dae5"
+        },
+        "date": 1776686730724,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29503,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3458,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9268,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65917,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 823,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 165760,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6316,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86105,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 785640,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7834500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10215,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46541,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40017,
             "unit": "ns"
           }
         ]
