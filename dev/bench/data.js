@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776693342448,
+  "lastUpdate": 1776698313216,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -7429,6 +7429,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 38063,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "2e9b5533610e67ab033db44fadb0f95e4211271f",
+          "message": "feat(cli): include git SHA in --version output\n\nAdd build.rs to embed the git commit hash at compile time. The version\nstring now shows 'cqlsh-rs 0.2.0 (abc1234)' or 'cqlsh-rs 0.2.0 (abc1234-dirty)'\nwhen there are uncommitted changes. Tracks HEAD and git index for\naccurate rebuild triggers.",
+          "timestamp": "2026-04-20T18:09:51+03:00",
+          "tree_id": "02e90988a7f0302f2311b0e30bb72c58a98d6cce",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/2e9b5533610e67ab033db44fadb0f95e4211271f"
+        },
+        "date": 1776698312864,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29647,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3465,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9186,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64370,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 844,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 155270,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6625,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 84555,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 776680,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7778800,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9778,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 45738,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 41042,
             "unit": "ns"
           }
         ]
