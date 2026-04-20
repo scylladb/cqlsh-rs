@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776687397850,
+  "lastUpdate": 1776693342448,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -7330,6 +7330,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40656,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "198982749+Copilot@users.noreply.github.com",
+            "name": "copilot-swe-agent[bot]",
+            "username": "Copilot"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "0690fc25951b223f05b00a0298a6e2b1b4040056",
+          "message": "ci(release): require integration tests to pass before creating release PRs\n\nAdd `integration` to the `needs` array of the `release` job in ci.yml.\nPreviously, release-plz could create release PRs even when integration\ntests were failing, since only fmt, clippy, test (unit), and build were\nrequired. This ensures ALL CI checks must pass before version bumps.\n\nCloses the gap identified in PR #99 where a release PR was created\nwhile the main branch had a broken build.\n\nAgent-Logs-Url: https://github.com/scylladb/cqlsh-rs/sessions/0e9ba6c0-d624-4036-8e56-8e7a1ebd2fc4\n\nCo-authored-by: fruch <340979+fruch@users.noreply.github.com>",
+          "timestamp": "2026-04-20T16:46:58+03:00",
+          "tree_id": "ca8d45f693190673651440088fe3a81f2597e1cd",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/0690fc25951b223f05b00a0298a6e2b1b4040056"
+        },
+        "date": 1776693342065,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29099,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3619,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9208,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64081,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 828,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 144850,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6422,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 14,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 84561,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 752590,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7548600,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10120,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 47020,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 38063,
             "unit": "ns"
           }
         ]
