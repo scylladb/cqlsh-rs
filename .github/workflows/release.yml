@@ -288,8 +288,14 @@ jobs:
           ### Docker
 
           \`\`\`bash
+          docker pull scylladb/cqlsh-rs:${VERSION}
+          docker run --rm -it scylladb/cqlsh-rs:${VERSION} <host> <port>
+          \`\`\`
+
+          Also available from GitHub Container Registry:
+
+          \`\`\`bash
           docker pull ghcr.io/scylladb/cqlsh-rs:${VERSION}
-          docker run --rm -it ghcr.io/scylladb/cqlsh-rs:${VERSION} <host> <port>
           \`\`\`
 
           Supported platforms: \`linux/amd64\`, \`linux/arm64\`
@@ -387,11 +393,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: |
+            ghcr.io/${{ github.repository }}
+            docker.io/scylladb/cqlsh-rs
           tags: |
             type=match,pattern=v(.*),group=1,value=${{ inputs.tag }}
             type=raw,value=latest
