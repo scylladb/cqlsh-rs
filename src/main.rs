@@ -76,6 +76,14 @@ async fn main() -> Result<()> {
         }
     };
 
+    // Check for schema version agreement across the cluster
+    if !session.check_schema_agreement().await {
+        eprintln!(
+            "\nWarning: schema version mismatch detected; check the schema versions of your \
+                   nodes in system.local and system.peers.\n"
+        );
+    }
+
     // Determine whether stdin is a pipe/redirect (non-TTY) and --tty hasn't
     // been set to force interactive mode.
     let stdin_is_pipe = !io::stdin().is_terminal() && !config.tty;

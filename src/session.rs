@@ -94,6 +94,44 @@ impl CqlSession {
         })
     }
 
+    /// Check if all nodes agree on the schema version.
+    /// Returns `true` if schema is in agreement, `false` if there's a mismatch.
+    /// Errors during the check are silently ignored (non-critical).
+    pub async fn check_schema_agreement(&self) -> bool {
+        use std::collections::HashSet;
+
+        let mut versions = HashSet::new();
+
+        // Get local node's schema version
+        if let Ok(result) = self
+            .driver
+            .execute_unpaged("SELECT schema_version FROM system.local WHERE key='local'")
+            .await
+        {
+            for row in &result.rows {
+                if let Some(v) = row.get(0) {
+                    versions.insert(v.to_string());
+                }
+            }
+        }
+
+        // Get peer nodes' schema versions
+        if let Ok(result) = self
+            .driver
+            .execute_unpaged("SELECT schema_version FROM system.peers")
+            .await
+        {
+            for row in &result.rows {
+                if let Some(v) = row.get(0) {
+                    versions.insert(v.to_string());
+                }
+            }
+        }
+
+        // Agreement means exactly 0 or 1 distinct versions
+        versions.len() <= 1
+    }
+
     /// Execute a CQL statement. Handles USE keyspace commands specially.
     pub async fn execute(&mut self, query: &str) -> Result<CqlResult> {
         let trimmed = query.trim();
