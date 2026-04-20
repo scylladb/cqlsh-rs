@@ -1996,17 +1996,18 @@ mod tests {
     #[test]
     fn format_value_inet() {
         let opts = CopyOptions::default();
-        let output = format_value_for_csv(
-            &CqlValue::Inet("127.0.0.1".parse().unwrap()),
-            &opts,
-        );
+        let output = format_value_for_csv(&CqlValue::Inet("127.0.0.1".parse().unwrap()), &opts);
         assert_eq!(output, "127.0.0.1");
     }
 
     #[test]
     fn format_value_duration() {
         let opts = CopyOptions::default();
-        let dur = CqlValue::Duration { months: 1, days: 2, nanoseconds: 3 };
+        let dur = CqlValue::Duration {
+            months: 1,
+            days: 2,
+            nanoseconds: 3,
+        };
         assert_eq!(format_value_for_csv(&dur, &opts), "1mo2d3ns");
     }
 
@@ -2032,9 +2033,18 @@ mod tests {
     #[test]
     fn format_value_float_nan_inf() {
         let opts = CopyOptions::default();
-        assert_eq!(format_value_for_csv(&CqlValue::Float(f32::NAN), &opts), "NaN");
-        assert_eq!(format_value_for_csv(&CqlValue::Float(f32::INFINITY), &opts), "Infinity");
-        assert_eq!(format_value_for_csv(&CqlValue::Float(f32::NEG_INFINITY), &opts), "-Infinity");
+        assert_eq!(
+            format_value_for_csv(&CqlValue::Float(f32::NAN), &opts),
+            "NaN"
+        );
+        assert_eq!(
+            format_value_for_csv(&CqlValue::Float(f32::INFINITY), &opts),
+            "Infinity"
+        );
+        assert_eq!(
+            format_value_for_csv(&CqlValue::Float(f32::NEG_INFINITY), &opts),
+            "-Infinity"
+        );
     }
 
     #[test]
@@ -2043,7 +2053,10 @@ mod tests {
             double_precision: 3,
             ..Default::default()
         };
-        assert_eq!(format_value_for_csv(&CqlValue::Double(1.23456), &opts), "1.235");
+        assert_eq!(
+            format_value_for_csv(&CqlValue::Double(1.23456), &opts),
+            "1.235"
+        );
     }
 
     #[test]

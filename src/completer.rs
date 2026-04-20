@@ -1207,7 +1207,7 @@ mod tests {
     fn file_path_completion_with_tilde() {
         let pairs = complete_file_path("~/");
         if dirs::home_dir().is_some() {
-            assert!(!pairs.is_empty() || true);
+            let _ = pairs;
         }
     }
 
@@ -1324,10 +1324,7 @@ mod tests {
     #[test]
     fn complete_table_name_no_keyspace() {
         let c = make_completer();
-        let pairs = c.complete_for_context(
-            &CompletionContext::TableName { keyspace: None },
-            "",
-        );
+        let pairs = c.complete_for_context(&CompletionContext::TableName { keyspace: None }, "");
         assert!(pairs.is_empty());
     }
 
