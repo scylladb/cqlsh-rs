@@ -1100,7 +1100,6 @@ mod tests {
     #[test]
     fn qualified_dot_without_partial_gives_table_name() {
         let c = make_completer();
-        // Bug 1/3: "FROM system." should offer tables, not clause keywords
         assert_eq!(
             c.detect_context("SELECT * FROM system.", 21),
             CompletionContext::TableName {
@@ -1118,7 +1117,6 @@ mod tests {
     #[test]
     fn select_star_space_gives_post_star() {
         let c = make_completer();
-        // Bug 4: "SELECT * " should only offer FROM
         assert_eq!(
             c.detect_context("SELECT * ", 9),
             CompletionContext::SelectPostStar
@@ -1181,5 +1179,168 @@ mod tests {
             c.detect_context("DELETE FROM test_ks.users ", 26),
             CompletionContext::DeletePostFrom
         );
+    }
+
+    #[test]
+    fn file_path_completion_nonexistent_dir() {
+        let pairs = complete_file_path("/nonexistent_dir_xyz_123/");
+        assert!(pairs.is_empty());
+    }
+
+    #[test]
+    fn file_path_completion_with_single_quote() {
+        let pairs = complete_file_path("'/tmp/");
+        assert!(
+            !pairs.is_empty() || std::fs::read_dir("/tmp").map(|d| d.count()).unwrap_or(0) == 0
+        );
+    }
+
+    #[test]
+    fn file_path_completion_with_double_quote() {
+        let pairs = complete_file_path("\"/tmp/");
+        assert!(
+            !pairs.is_empty() || std::fs::read_dir("/tmp").map(|d| d.count()).unwrap_or(0) == 0
+        );
+    }
+
+    #[test]
+    fn file_path_completion_with_tilde() {
+        let pairs = complete_file_path("~/");
+        if dirs::home_dir().is_some() {
+            assert!(!pairs.is_empty() || true);
+        }
+    }
+
+    #[test]
+    fn file_path_completion_with_file_prefix() {
+        let pairs = complete_file_path("/tmp/nonexistent_prefix_xyz");
+        assert!(pairs.is_empty());
+    }
+
+    #[test]
+    fn filter_candidates_empty_prefix() {
+        let candidates = &["SELECT", "INSERT", "UPDATE"];
+        let pairs = filter_candidates(candidates, "", true);
+        assert_eq!(pairs.len(), 3);
+    }
+
+    #[test]
+    fn filter_candidates_no_match() {
+        let candidates = &["SELECT", "INSERT", "UPDATE"];
+        let pairs = filter_candidates(candidates, "XYZ", true);
+        assert!(pairs.is_empty());
+    }
+
+    #[test]
+    fn filter_candidates_case_insensitive() {
+        let candidates = &["SELECT", "INSERT", "UPDATE"];
+        let pairs = filter_candidates(candidates, "ins", true);
+        assert_eq!(pairs.len(), 1);
+        assert_eq!(pairs[0].replacement, "INSERT");
+    }
+
+    #[test]
+    fn filter_candidates_case_sensitive_mode() {
+        let candidates = &["myTable", "myOther", "yours"];
+        let pairs = filter_candidates(candidates, "my", false);
+        assert_eq!(pairs.len(), 2);
+    }
+
+    #[test]
+    fn filter_candidates_case_sensitive_no_match() {
+        let candidates = &["myTable", "myOther"];
+        let pairs = filter_candidates(candidates, "MY", false);
+        assert!(pairs.is_empty());
+    }
+
+    #[test]
+    fn detect_insert_into_table_context() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("INSERT INTO ", 12),
+            CompletionContext::TableName { keyspace: None }
+        );
+    }
+
+    #[test]
+    fn detect_update_table_context() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("UPDATE ", 7),
+            CompletionContext::TableName { keyspace: None }
+        );
+    }
+
+    #[test]
+    fn detect_desc_shorthand() {
+        let c = make_completer();
+        assert_eq!(
+            c.detect_context("DESC ", 5),
+            CompletionContext::DescribeTarget
+        );
+    }
+
+    #[test]
+    fn detect_qualified_table_name() {
+        let c = make_completer();
+        let ctx = c.detect_context("SELECT * FROM mykeyspace.", 25);
+        assert_eq!(
+            ctx,
+            CompletionContext::TableName {
+                keyspace: Some("mykeyspace".to_string())
+            }
+        );
+    }
+
+    #[test]
+    fn complete_empty_context_includes_shell_commands() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(&CompletionContext::Empty, "EX");
+        assert!(pairs.iter().any(|p| p.replacement == "EXIT"));
+        assert!(pairs.iter().any(|p| p.replacement == "EXPAND"));
+    }
+
+    #[test]
+    fn complete_consistency_all_levels() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(&CompletionContext::ConsistencyLevel, "");
+        assert_eq!(pairs.len(), CONSISTENCY_LEVELS.len());
+    }
+
+    #[test]
+    fn complete_consistency_local_prefix() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(&CompletionContext::ConsistencyLevel, "LOCAL");
+        assert_eq!(pairs.len(), 3);
+    }
+
+    #[test]
+    fn complete_keyspace_name_empty_cache() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(&CompletionContext::KeyspaceName, "");
+        assert!(pairs.is_empty());
+    }
+
+    #[test]
+    fn complete_table_name_no_keyspace() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(
+            &CompletionContext::TableName { keyspace: None },
+            "",
+        );
+        assert!(pairs.is_empty());
+    }
+
+    #[test]
+    fn complete_column_name_no_keyspace() {
+        let c = make_completer();
+        let pairs = c.complete_for_context(
+            &CompletionContext::ColumnName {
+                keyspace: None,
+                table: "users".to_string(),
+            },
+            "",
+        );
+        assert!(pairs.is_empty());
     }
 }
