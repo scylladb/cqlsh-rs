@@ -12,7 +12,7 @@ use std::time::Duration;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{Datelike, Timelike};
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
 use scylla::client::session::Session;
 use scylla::client::session_builder::SessionBuilder;
 use scylla::response::query_result::QueryResult;
@@ -24,7 +24,7 @@ use scylla::value::{
 };
 use uuid::Uuid;
 
-use super::types::{CqlColumn, CqlResult, CqlRow, CqlValue};
+use super::types::{CqlColumn, CqlResult, CqlRow, CqlRowStream, CqlValue};
 use super::{
     AggregateMetadata, ColumnMetadata, ConnectionConfig, Consistency, CqlDriver, FunctionMetadata,
     KeyspaceMetadata, PreparedId, SslConfig, TableMetadata, TracingEvent, TracingSession,
@@ -520,6 +520,49 @@ impl CqlDriver for ScyllaDriver {
             has_rows: true,
             tracing_id: None,
             warnings: Vec::new(),
+        })
+    }
+
+    async fn execute_streaming(&self, query: &str, page_size: i32) -> Result<CqlRowStream> {
+        let mut stmt = self.build_query(query);
+        stmt.set_page_size(page_size);
+
+        let query_pager = self
+            .session
+            .query_iter(stmt, ())
+            .await
+            .context("starting streaming query")?;
+
+        let col_specs = query_pager.column_specs();
+        let columns: Vec<CqlColumn> = col_specs
+            .iter()
+            .map(|spec| CqlColumn {
+                name: spec.name().to_string(),
+                type_name: format!("{:?}", spec.typ()),
+            })
+            .collect();
+
+        let rows_stream = query_pager.rows_stream::<Row>()?;
+
+        let mapped_stream = rows_stream.map(|row_result| {
+            row_result
+                .map(|row| {
+                    let values: Vec<CqlValue> = row
+                        .columns
+                        .into_iter()
+                        .map(|opt_val| match opt_val {
+                            Some(v) => Self::convert_scylla_value(v),
+                            None => CqlValue::Null,
+                        })
+                        .collect();
+                    CqlRow { values }
+                })
+                .map_err(|e| anyhow::anyhow!("{}", e))
+        });
+
+        Ok(CqlRowStream {
+            columns,
+            rows: Box::pin(mapped_stream),
         })
     }
 

@@ -34,7 +34,7 @@ async-trait = "0.1"
 rustyline = { version = "18", features = ["derive"] }
 comfy-table = { version = "7", features = ["custom_styling"] }
 crossterm = "0.29"
-sapling-streampager = "0.12"
+tempfile = "3"
 csv = "1"
 clap_mangen = "0.3"
 

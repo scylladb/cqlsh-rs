@@ -58,6 +58,7 @@ pub struct ConnectionSection {
     pub request_timeout: Option<u64>,
     pub connect_timeout: Option<u64>,
     pub client_timeout: Option<u64>,
+    pub default_fetch_size: Option<i32>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -179,6 +180,9 @@ impl CqlshrcConfig {
                     .and_then(|v| v.parse().ok()),
                 client_timeout: ini
                     .get("connection", "client_timeout")
+                    .and_then(|v| v.parse().ok()),
+                default_fetch_size: ini
+                    .get("connection", "default_fetch_size")
                     .and_then(|v| v.parse().ok()),
             },
             ssl: SslSection {
@@ -313,6 +317,7 @@ pub struct MergedConfig {
     pub secure_connect_bundle: Option<String>,
     pub cqlshrc_path: PathBuf,
     pub cqlshrc: CqlshrcConfig,
+    pub fetch_size: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -330,6 +335,7 @@ const DEFAULT_REQUEST_TIMEOUT: u64 = 10;
 const DEFAULT_HOST: &str = "127.0.0.1";
 /// Default port.
 const DEFAULT_PORT: u16 = 9042;
+const DEFAULT_FETCH_SIZE: i32 = 100;
 
 /// Load environment variables relevant to cqlsh.
 #[derive(Debug, Clone, Default)]
@@ -450,6 +456,11 @@ impl MergedConfig {
         // Browser: CLI > cqlshrc
         let browser = cli.browser.clone().or_else(|| cqlshrc.ui.browser.clone());
 
+        let fetch_size = cqlshrc
+            .connection
+            .default_fetch_size
+            .unwrap_or(DEFAULT_FETCH_SIZE);
+
         MergedConfig {
             host,
             port,
@@ -476,6 +487,7 @@ impl MergedConfig {
             secure_connect_bundle: cli.secure_connect_bundle.clone(),
             cqlshrc_path,
             cqlshrc,
+            fetch_size,
         }
     }
 }
