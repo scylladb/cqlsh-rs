@@ -1261,4 +1261,48 @@ mod tests {
             );
         }
     }
+
+    // --- build_prompt tests ---
+
+    #[test]
+    fn build_prompt_no_user_no_keyspace() {
+        assert_eq!(build_prompt(None, None), "cqlsh> ");
+    }
+
+    #[test]
+    fn build_prompt_with_user() {
+        assert_eq!(build_prompt(Some("admin"), None), "admin@cqlsh> ");
+    }
+
+    #[test]
+    fn build_prompt_with_keyspace() {
+        assert_eq!(build_prompt(None, Some("system")), "cqlsh:system> ");
+    }
+
+    #[test]
+    fn build_prompt_with_user_and_keyspace() {
+        assert_eq!(
+            build_prompt(Some("admin"), Some("my_ks")),
+            "admin@cqlsh:my_ks> "
+        );
+    }
+
+    #[test]
+    fn strip_quotes_empty_quoted() {
+        assert_eq!(strip_quotes("\"\""), "");
+        assert_eq!(strip_quotes("''"), "");
+    }
+
+    #[test]
+    fn expand_tilde_with_subpath() {
+        let result = expand_tilde("~/documents/file.txt");
+        let s = result.to_str().unwrap();
+        assert!(s.ends_with("documents/file.txt"));
+        assert!(!s.starts_with("~"));
+    }
+
+    #[test]
+    fn expand_tilde_not_at_start() {
+        assert_eq!(expand_tilde("/home/~user"), PathBuf::from("/home/~user"));
+    }
 }

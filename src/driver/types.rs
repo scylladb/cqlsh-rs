@@ -407,6 +407,107 @@ mod tests {
     }
 
     #[test]
+    fn cql_value_display_counter() {
+        assert_eq!(CqlValue::Counter(99).to_string(), "99");
+    }
+
+    #[test]
+    fn cql_value_display_decimal() {
+        let d = BigDecimal::from(12345);
+        assert_eq!(CqlValue::Decimal(d).to_string(), "12345");
+    }
+
+    #[test]
+    fn cql_value_display_duration() {
+        let d = CqlValue::Duration {
+            months: 1,
+            days: 2,
+            nanoseconds: 3000000000,
+        };
+        assert_eq!(d.to_string(), "1mo2d3000000000ns");
+    }
+
+    #[test]
+    fn cql_value_display_timestamp() {
+        assert_eq!(
+            CqlValue::Timestamp(0).to_string(),
+            "1970-01-01 00:00:00.000000+0000"
+        );
+    }
+
+    #[test]
+    fn cql_value_display_timestamp_invalid() {
+        let s = CqlValue::Timestamp(i64::MIN).to_string();
+        assert!(s.contains("invalid timestamp"));
+    }
+
+    #[test]
+    fn cql_value_display_inet() {
+        let addr: IpAddr = "127.0.0.1".parse().unwrap();
+        assert_eq!(CqlValue::Inet(addr).to_string(), "127.0.0.1");
+    }
+
+    #[test]
+    fn cql_value_display_inet_v6() {
+        let addr: IpAddr = "::1".parse().unwrap();
+        assert_eq!(CqlValue::Inet(addr).to_string(), "::1");
+    }
+
+    #[test]
+    fn cql_value_display_date() {
+        let d = NaiveDate::from_ymd_opt(2024, 1, 15).unwrap();
+        assert_eq!(CqlValue::Date(d).to_string(), "2024-01-15");
+    }
+
+    #[test]
+    fn cql_value_display_time() {
+        let t = NaiveTime::from_hms_opt(13, 45, 30).unwrap();
+        assert_eq!(CqlValue::Time(t).to_string(), "13:45:30");
+    }
+
+    #[test]
+    fn cql_value_display_varint() {
+        let v = BigInt::from(123456789i64);
+        assert_eq!(CqlValue::Varint(v).to_string(), "123456789");
+    }
+
+    #[test]
+    fn cql_value_display_ascii() {
+        assert_eq!(CqlValue::Ascii("test".to_string()).to_string(), "test");
+    }
+
+    #[test]
+    fn cql_value_display_timeuuid() {
+        let id = Uuid::nil();
+        assert_eq!(
+            CqlValue::TimeUuid(id).to_string(),
+            "00000000-0000-0000-0000-000000000000"
+        );
+    }
+
+    #[test]
+    fn cql_value_display_unset() {
+        assert_eq!(CqlValue::Unset.to_string(), "<unset>");
+    }
+
+    #[test]
+    fn cql_value_display_float_neg_infinity() {
+        assert_eq!(CqlValue::Float(f32::NEG_INFINITY).to_string(), "-Infinity");
+        assert_eq!(CqlValue::Double(f64::NEG_INFINITY).to_string(), "-Infinity");
+    }
+
+    #[test]
+    fn cql_value_display_double_infinity() {
+        assert_eq!(CqlValue::Double(f64::INFINITY).to_string(), "Infinity");
+    }
+
+    #[test]
+    fn cql_value_display_text_with_quotes() {
+        let list = CqlValue::List(vec![CqlValue::Text("it's".to_string())]);
+        assert_eq!(list.to_string(), "['it''s']");
+    }
+
+    #[test]
     fn cql_row_get_by_name() {
         let columns = vec![
             CqlColumn {
