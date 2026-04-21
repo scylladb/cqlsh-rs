@@ -384,4 +384,35 @@ mod tests {
         assert_eq!(parse_use_command("USE "), None);
         assert_eq!(parse_use_command("USE ;"), None);
     }
+
+    #[test]
+    fn parse_use_uppercase_preserves_keyspace_case() {
+        assert_eq!(parse_use_command("USE MyKeyspace"), Some("MyKeyspace".to_string()));
+    }
+
+    #[test]
+    fn parse_use_lowercase_prefix() {
+        assert_eq!(
+            parse_use_command("use MyKeyspace"),
+            Some("MyKeyspace".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_use_multiple_spaces() {
+        assert_eq!(
+            parse_use_command("USE    my_ks   ;"),
+            Some("my_ks".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_use_just_keyword() {
+        assert_eq!(parse_use_command("USE"), None);
+    }
+
+    #[test]
+    fn parse_use_only_semicolons() {
+        assert_eq!(parse_use_command("USE ;;"), None);
+    }
 }

@@ -1149,4 +1149,116 @@ mod tests {
         assert_eq!(lines[0], "CAPTURE '/tmp/test.txt'");
         assert!(parser::is_shell_command(lines[0].trim()));
     }
+
+    // --- print_help tests ---
+
+    #[test]
+    fn print_help_contains_documented_commands() {
+        let mut buf = Vec::new();
+        print_help(&mut buf);
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("Documented shell commands:"));
+        assert!(output.contains("CAPTURE"));
+        assert!(output.contains("CONSISTENCY"));
+        assert!(output.contains("DESCRIBE"));
+        assert!(output.contains("EXIT / QUIT"));
+        assert!(output.contains("EXPAND"));
+        assert!(output.contains("TRACING"));
+        assert!(output.contains("COPY TO"));
+        assert!(output.contains("CQL statements"));
+    }
+
+    #[test]
+    fn print_help_contains_all_shell_commands() {
+        let mut buf = Vec::new();
+        print_help(&mut buf);
+        let output = String::from_utf8(buf).unwrap();
+        for cmd in [
+            "CAPTURE", "CLEAR", "CONSISTENCY", "DEBUG", "DESCRIBE", "EXPAND", "HELP", "LOGIN",
+            "PAGING", "SERIAL", "SHOW", "SOURCE", "TRACING", "UNICODE",
+        ] {
+            assert!(output.contains(cmd), "Missing command: {cmd}");
+        }
+    }
+
+    // --- print_help_topic tests ---
+
+    #[test]
+    fn print_help_topic_known_shell_command() {
+        let mut buf = Vec::new();
+        print_help_topic("capture", &mut buf);
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("Help topic: CAPTURE"));
+    }
+
+    #[test]
+    fn print_help_topic_known_cql_topic() {
+        let mut buf = Vec::new();
+        print_help_topic("SELECT", &mut buf);
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("Help topic: SELECT"));
+    }
+
+    #[test]
+    fn print_help_topic_case_insensitive() {
+        let mut buf = Vec::new();
+        print_help_topic("consistency", &mut buf);
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("Help topic: CONSISTENCY"));
+    }
+
+    #[test]
+    fn print_help_topic_unknown() {
+        let mut buf = Vec::new();
+        print_help_topic("nonexistent", &mut buf);
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("No help topic matching 'nonexistent'"));
+    }
+
+    #[test]
+    fn print_help_topic_all_shell_commands_recognized() {
+        for cmd in [
+            "CAPTURE",
+            "CLEAR",
+            "CLS",
+            "CONSISTENCY",
+            "COPY",
+            "DESC",
+            "DESCRIBE",
+            "EXIT",
+            "EXPAND",
+            "HELP",
+            "LOGIN",
+            "PAGING",
+            "QUIT",
+            "SERIAL",
+            "SHOW",
+            "SOURCE",
+            "TRACING",
+            "UNICODE",
+            "DEBUG",
+            "USE",
+        ] {
+            let mut buf = Vec::new();
+            print_help_topic(cmd, &mut buf);
+            let output = String::from_utf8(buf).unwrap();
+            assert!(
+                output.contains("Help topic:"),
+                "Command '{cmd}' not recognized"
+            );
+        }
+    }
+
+    #[test]
+    fn print_help_topic_cql_topics_recognized() {
+        for topic in ["INSERT", "UPDATE", "DELETE", "CREATE_TABLE", "DROP_KEYSPACE", "GRANT"] {
+            let mut buf = Vec::new();
+            print_help_topic(topic, &mut buf);
+            let output = String::from_utf8(buf).unwrap();
+            assert!(
+                output.contains("Help topic:"),
+                "CQL topic '{topic}' not recognized"
+            );
+        }
+    }
 }
