@@ -133,6 +133,11 @@ impl ShellState {
 // statement detection that correctly handles strings, comments, and
 // multi-line input.
 
+fn could_return_rows(stmt: &str) -> bool {
+    let upper = stmt.trim_start().to_uppercase();
+    upper.starts_with("SELECT ") || upper.starts_with("SELECT\n") || upper.starts_with("SELECT\t")
+}
+
 /// Run the interactive REPL loop.
 ///
 /// Reads lines from the user, handles multi-line input, and dispatches
@@ -623,6 +628,80 @@ fn dispatch_input<'a>(
         }
 
         // Execute as CQL statement
+        if shell.paging_enabled && shell.is_tty && could_return_rows(trimmed) {
+            match session.execute_streaming(trimmed, config.fetch_size).await {
+                Ok(mut row_stream) => {
+                    if !row_stream.columns.is_empty() {
+                        let col_title = row_stream
+                            .columns
+                            .iter()
+                            .map(|c| c.name.as_str())
+                            .collect::<Vec<_>>()
+                            .join(" | ");
+
+                        match crate::pager::page_stream(&col_title) {
+                            Ok(mut pipe_writer) => {
+                                use futures::StreamExt;
+                                let is_file_mode = pipe_writer.is_file_mode();
+                                let mut fmt = if shell.expand {
+                                    formatter::StreamingTableFormatter::new_expanded(
+                                        row_stream.columns.clone(),
+                                        &shell.colorizer,
+                                        &mut pipe_writer,
+                                    )
+                                } else {
+                                    formatter::StreamingTableFormatter::new(
+                                        row_stream.columns.clone(),
+                                        &shell.colorizer,
+                                        &mut pipe_writer,
+                                        100,
+                                    )
+                                };
+                                let mut row_count: usize = 0;
+                                while let Some(row_result) = row_stream.rows.next().await {
+                                    match row_result {
+                                        Ok(row) => {
+                                            if fmt.add_row(row).is_err() {
+                                                break;
+                                            }
+                                            row_count += 1;
+                                            let _ = fmt.flush_writer();
+                                            if !is_file_mode && row_count.is_multiple_of(1000) {
+                                                eprint!("\rFetched {row_count} rows...");
+                                            }
+                                        }
+                                        Err(e) => {
+                                            let msg = format!("Error fetching row: {e}");
+                                            eprintln!("{}", shell.colorizer.colorize_error(&msg));
+                                            break;
+                                        }
+                                    }
+                                }
+                                if row_count >= 1000 && !is_file_mode {
+                                    eprintln!("\rFetched {row_count} rows.   ");
+                                }
+                                let _ = fmt.finish();
+                                // pipe_writer dropped here; pager thread finishes
+                                return;
+                            }
+                            Err(_) => {
+                                // Pager failed to start — fall through to non-streaming path
+                            }
+                        }
+                    } else {
+                        // No columns (non-SELECT result) — fall through to non-streaming path
+                    }
+                }
+                Err(e) => {
+                    eprintln!("{}", error::format_error_colored(&e, &shell.colorizer));
+                    if config.debug {
+                        eprintln!("Debug: {e:?}");
+                    }
+                    return;
+                }
+            }
+        }
+
         match session.execute(trimmed).await {
             Ok(result) => {
                 // Sync current keyspace for tab completion after USE
@@ -1021,6 +1100,7 @@ mod tests {
             serial_consistency_level: None,
             browser: None,
             secure_connect_bundle: None,
+            fetch_size: 100,
             cqlshrc_path: PathBuf::from("/dev/null"),
             cqlshrc: CqlshrcConfig::default(),
         }
@@ -1139,6 +1219,14 @@ mod tests {
         assert_eq!(lines[2], "SHOW HOST");
         assert!(parser::is_shell_command(lines[0].trim()));
         assert!(parser::is_shell_command(lines[2].trim()));
+    }
+
+    #[test]
+    fn could_return_rows_detects_select() {
+        assert!(super::could_return_rows("SELECT * FROM foo"));
+        assert!(super::could_return_rows("select count(*) from bar"));
+        assert!(!super::could_return_rows("INSERT INTO foo (a) VALUES (1)"));
+        assert!(!super::could_return_rows("USE my_keyspace"));
     }
 
     #[test]

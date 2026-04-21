@@ -260,6 +260,21 @@ impl CqlRow {
     }
 }
 
+use std::pin::Pin;
+
+use futures::Stream;
+
+/// A streaming result set that yields rows lazily from the database.
+///
+/// Rows are fetched page-by-page from the server as they are consumed,
+/// keeping memory usage bounded for large result sets.
+pub struct CqlRowStream {
+    /// Column metadata (available immediately after query starts).
+    pub columns: Vec<CqlColumn>,
+    /// The underlying async stream of rows.
+    pub rows: Pin<Box<dyn Stream<Item = anyhow::Result<CqlRow>> + Send>>,
+}
+
 /// The result of executing a CQL query.
 #[derive(Debug, Clone)]
 pub struct CqlResult {

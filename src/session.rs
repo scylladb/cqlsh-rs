@@ -9,9 +9,9 @@ use anyhow::{bail, Result};
 use crate::config::MergedConfig;
 use crate::driver::types::CqlValue;
 use crate::driver::{
-    AggregateMetadata, ConnectionConfig, Consistency, CqlDriver, CqlResult, FunctionMetadata,
-    KeyspaceMetadata, PreparedId, ScyllaDriver, SslConfig, TableMetadata, TracingSession,
-    UdtMetadata,
+    AggregateMetadata, ConnectionConfig, Consistency, CqlDriver, CqlResult, CqlRowStream,
+    FunctionMetadata, KeyspaceMetadata, PreparedId, ScyllaDriver, SslConfig, TableMetadata,
+    TracingSession, UdtMetadata,
 };
 
 /// High-level CQL session managing driver state and user preferences.
@@ -156,6 +156,10 @@ impl CqlSession {
     /// Execute a CQL statement with paging.
     pub async fn execute_paged(&self, query: &str, page_size: i32) -> Result<CqlResult> {
         self.driver.execute_paged(query, page_size).await
+    }
+
+    pub async fn execute_streaming(&self, query: &str, page_size: i32) -> Result<CqlRowStream> {
+        self.driver.execute_streaming(query, page_size).await
     }
 
     /// Prepare a CQL statement.

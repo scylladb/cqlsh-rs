@@ -17,7 +17,7 @@ use async_trait::async_trait;
 
 pub use scylla_driver::ScyllaDriver;
 #[allow(unused_imports)]
-pub use types::{CqlColumn, CqlResult, CqlRow, CqlValue};
+pub use types::{CqlColumn, CqlResult, CqlRow, CqlRowStream, CqlValue};
 
 /// Configuration for establishing a database connection.
 #[derive(Debug, Clone)]
@@ -191,6 +191,11 @@ pub trait CqlDriver: Send + Sync {
 
     /// Execute a CQL query with automatic paging, returning all rows.
     async fn execute_paged(&self, query: &str, page_size: i32) -> Result<CqlResult>;
+
+    /// Execute a CQL query returning a streaming result set.
+    ///
+    /// Rows are fetched lazily page-by-page from the server.
+    async fn execute_streaming(&self, query: &str, page_size: i32) -> Result<CqlRowStream>;
 
     /// Prepare a CQL statement for repeated execution.
     async fn prepare(&self, query: &str) -> Result<PreparedId>;

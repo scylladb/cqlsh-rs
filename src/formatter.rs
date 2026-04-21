@@ -9,7 +9,7 @@ use std::io::Write;
 use comfy_table::{Cell, CellAlignment, ContentArrangement, Table};
 
 use crate::colorizer::CqlColorizer;
-use crate::driver::CqlResult;
+use crate::driver::{CqlColumn, CqlResult, CqlRow};
 
 /// Format and print query results in tabular format.
 ///
@@ -372,6 +372,245 @@ fn is_numeric_type(type_name: &str) -> bool {
 /// ```
 //                    0123456789012345678
 const CQLSH_PRESET: &str = "     -+ |          ";
+
+/// A streaming table formatter that computes column widths from the first page
+/// of results and then formats subsequent rows incrementally.
+pub struct StreamingTableFormatter<'w> {
+    columns: Vec<CqlColumn>,
+    colorizer: &'w CqlColorizer,
+    writer: &'w mut dyn Write,
+    /// Buffer for first-page rows used to compute column widths
+    first_page_buffer: Vec<CqlRow>,
+    /// Maximum number of rows to buffer for width computation
+    page_size: usize,
+    /// Whether the header has been written (first page flushed)
+    header_written: bool,
+    /// Computed column widths (set after first page flush)
+    col_widths: Vec<usize>,
+    /// Total rows written
+    row_count: usize,
+    /// Whether we're in expanded mode
+    expanded: bool,
+}
+
+impl<'w> StreamingTableFormatter<'w> {
+    /// Create a new streaming formatter in tabular mode.
+    pub fn new(
+        columns: Vec<CqlColumn>,
+        colorizer: &'w CqlColorizer,
+        writer: &'w mut dyn Write,
+        page_size: usize,
+    ) -> Self {
+        Self {
+            columns,
+            colorizer,
+            writer,
+            first_page_buffer: Vec::with_capacity(page_size),
+            page_size,
+            header_written: false,
+            col_widths: Vec::new(),
+            row_count: 0,
+            expanded: false,
+        }
+    }
+
+    /// Create a new streaming formatter in expanded mode.
+    pub fn new_expanded(
+        columns: Vec<CqlColumn>,
+        colorizer: &'w CqlColorizer,
+        writer: &'w mut dyn Write,
+    ) -> Self {
+        Self {
+            columns,
+            colorizer,
+            writer,
+            first_page_buffer: Vec::new(),
+            page_size: 0,
+            header_written: true, // no header needed for expanded
+            col_widths: Vec::new(),
+            row_count: 0,
+            expanded: true,
+        }
+    }
+
+    /// Add a row to the formatter. Returns Err if writing fails (e.g. broken pipe).
+    pub fn add_row(&mut self, row: CqlRow) -> std::io::Result<()> {
+        self.row_count += 1;
+
+        if self.expanded {
+            return self.write_expanded_row(&row);
+        }
+
+        if !self.header_written {
+            self.first_page_buffer.push(row);
+            if self.first_page_buffer.len() >= self.page_size {
+                self.flush_first_page()?;
+            }
+            return Ok(());
+        }
+
+        self.write_row(&row)
+    }
+
+    pub fn flush_writer(&mut self) -> std::io::Result<()> {
+        self.writer.flush()
+    }
+
+    /// Finish the stream: flush any buffered rows and write the footer.
+    /// Returns the total row count.
+    pub fn finish(mut self) -> std::io::Result<usize> {
+        if !self.header_written && !self.first_page_buffer.is_empty() {
+            self.flush_first_page()?;
+        }
+
+        if self.row_count == 0 {
+            writeln!(self.writer, "\n(0 rows)\n")?;
+        } else {
+            writeln!(self.writer)?;
+            writeln!(
+                self.writer,
+                "({} row{})",
+                self.row_count,
+                if self.row_count == 1 { "" } else { "s" }
+            )?;
+            writeln!(self.writer)?;
+        }
+
+        Ok(self.row_count)
+    }
+
+    /// Compute column widths from the first page buffer and flush everything.
+    fn flush_first_page(&mut self) -> std::io::Result<()> {
+        // Compute widths: max of header name and all values in first page
+        self.col_widths = self
+            .columns
+            .iter()
+            .enumerate()
+            .map(|(i, col)| {
+                let header_width = col.name.len();
+                let max_val_width = self
+                    .first_page_buffer
+                    .iter()
+                    .map(|row| {
+                        row.values
+                            .get(i)
+                            .map(|v| format_value_plain(v).len())
+                            .unwrap_or(0)
+                    })
+                    .max()
+                    .unwrap_or(0);
+                header_width.max(max_val_width)
+            })
+            .collect();
+
+        self.header_written = true;
+
+        // Write header
+        writeln!(self.writer)?;
+        self.write_separator()?;
+        self.write_header_row()?;
+        self.write_separator()?;
+
+        // Write buffered rows
+        let buffered: Vec<CqlRow> = std::mem::take(&mut self.first_page_buffer);
+        for row in &buffered {
+            self.write_row(row)?;
+        }
+
+        Ok(())
+    }
+
+    fn write_separator(&mut self) -> std::io::Result<()> {
+        let parts: Vec<String> = self.col_widths.iter().map(|w| "-".repeat(*w + 2)).collect();
+        writeln!(self.writer, "+{}+", parts.join("+"))
+    }
+
+    fn write_header_row(&mut self) -> std::io::Result<()> {
+        let cells: Vec<String> = self
+            .columns
+            .iter()
+            .enumerate()
+            .map(|(i, col)| {
+                let width = self.col_widths[i];
+                let name = self.colorizer.colorize_header(&col.name);
+                // Pad based on raw name length (not colored length)
+                let padding = width.saturating_sub(col.name.len());
+                format!(" {}{} ", name, " ".repeat(padding))
+            })
+            .collect();
+        writeln!(self.writer, "|{}|", cells.join("|"))
+    }
+
+    fn write_row(&mut self, row: &CqlRow) -> std::io::Result<()> {
+        let cells: Vec<String> = row
+            .values
+            .iter()
+            .enumerate()
+            .map(|(i, val)| {
+                let width = self.col_widths.get(i).copied().unwrap_or(10);
+                let display = self.colorizer.colorize_value(val);
+                let plain_len = format_value_plain(val).len();
+                let padding = width.saturating_sub(plain_len);
+                if is_numeric_type(
+                    self.columns
+                        .get(i)
+                        .map(|c| c.type_name.as_str())
+                        .unwrap_or(""),
+                ) {
+                    // Right-align numeric
+                    format!(" {}{} ", " ".repeat(padding), display)
+                } else {
+                    format!(" {}{} ", display, " ".repeat(padding))
+                }
+            })
+            .collect();
+        writeln!(self.writer, "|{}|", cells.join("|"))
+    }
+
+    fn write_expanded_row(&mut self, row: &CqlRow) -> std::io::Result<()> {
+        let max_col_width = self.columns.iter().map(|c| c.name.len()).max().unwrap_or(0);
+
+        writeln!(self.writer, "@ Row {}", self.row_count)?;
+        writeln!(self.writer, "{}", "-".repeat(max_col_width + 10))?;
+        for (col_idx, col) in self.columns.iter().enumerate() {
+            let value = row
+                .values
+                .get(col_idx)
+                .map(|v| self.colorizer.colorize_value(v))
+                .unwrap_or_else(|| {
+                    self.colorizer
+                        .colorize_value(&crate::driver::types::CqlValue::Null)
+                });
+            writeln!(
+                self.writer,
+                " {:>width$} | {}",
+                self.colorizer.colorize_header(&col.name),
+                value,
+                width = max_col_width
+            )?;
+        }
+        writeln!(self.writer)?;
+        Ok(())
+    }
+}
+
+/// Format a CqlValue to plain text (no ANSI colors) for width calculation.
+fn format_value_plain(val: &crate::driver::types::CqlValue) -> String {
+    use crate::driver::types::CqlValue;
+    match val {
+        CqlValue::Null => "null".to_string(),
+        CqlValue::Text(s) | CqlValue::Ascii(s) => s.clone(),
+        CqlValue::Boolean(b) => if *b { "True" } else { "False" }.to_string(),
+        CqlValue::Int(n) => n.to_string(),
+        CqlValue::BigInt(n) => n.to_string(),
+        CqlValue::SmallInt(n) => n.to_string(),
+        CqlValue::TinyInt(n) => n.to_string(),
+        CqlValue::Float(n) => format!("{}", n),
+        CqlValue::Double(n) => format!("{}", n),
+        CqlValue::Uuid(u) | CqlValue::TimeUuid(u) => u.to_string(),
+        _ => format!("{}", val),
+    }
+}
 
 #[cfg(test)]
 mod tests {
