@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2](https://github.com/scylladb/cqlsh-rs/compare/v0.4.1...v0.4.2) - 2026-04-21
+
+### Fixed
+
+- resolve clippy and rustfmt issues after rebase
+
+### Other
+
+- *(describe)* add unit tests for format_property_value
+- *(completer)* add unit tests for context detection and filtering
+- *(error)* add comprehensive unit tests for error classification
+- *(copy)* add unit tests for CSV formatting edge cases
+- *(colorizer)* add unit tests for collection and warning colorization
+- *(formatter)* add unit tests for JSON formatting and value conversion
+
 ## [0.4.1](https://github.com/scylladb/cqlsh-rs/compare/v0.4.0...v0.4.1) - 2026-04-21
 
 ### Added
