@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776720679413,
+  "lastUpdate": 1776749654334,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -8419,6 +8419,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39890,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "198982749+Copilot@users.noreply.github.com",
+            "name": "copilot-swe-agent[bot]",
+            "username": "Copilot"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "d5b2011c6863b9eee8d0cb5bd742b49cd4862f07",
+          "message": "fix(ci): restore RELEASE_PLZ_TOKEN for release-pr step\n\nThe Docker Hub publishing commit (5e5b8f3) rewrote the release section\nand accidentally reverted the Release PR step from RELEASE_PLZ_TOKEN\n(PAT) back to GITHUB_TOKEN, which is blocked by repo settings (403).\n\nRestore the PAT reference and Token setup documentation from defec26.\n\nAgent-Logs-Url: https://github.com/scylladb/cqlsh-rs/sessions/4c697460-366c-4fd6-a645-8c595262aca0\n\nCo-authored-by: fruch <340979+fruch@users.noreply.github.com>",
+          "timestamp": "2026-04-21T08:25:39+03:00",
+          "tree_id": "d20650e1530779ea188288c1ce9e2955af020859",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/d5b2011c6863b9eee8d0cb5bd742b49cd4862f07"
+        },
+        "date": 1776749653984,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29174,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3540,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9100,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63235,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 846,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153260,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6773,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 11,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85466,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 783360,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7872000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10097,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 48895,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40673,
             "unit": "ns"
           }
         ]
