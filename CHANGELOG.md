@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/scylladb/cqlsh-rs/compare/v0.4.2...v0.5.0) - 2026-04-22
+
+### Added
+
+- *(pager)* replace sapling-streampager with pipe-based streaming pager
+
+### Fixed
+
+- remove misleading "Re-run failed jobs" link from CI summary footer
+- update footer text to match renamed workflow
+- update CI summary comment in place when all checks pass
+
+### Other
+
+- *(pager,formatter)* add unit tests for PagerWriter and StreamingTableFormatter
+- add SP21 streaming pager implementation plan
+- consolidate CI summary into single job
+
 ## [0.4.2](https://github.com/scylladb/cqlsh-rs/compare/v0.4.1...v0.4.2) - 2026-04-21
 
 ### Fixed
