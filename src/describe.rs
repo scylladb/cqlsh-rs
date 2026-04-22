@@ -294,6 +294,7 @@ async fn describe_table(
         Some(meta) => {
             writeln!(writer)?;
             write_create_table(writer, &meta)?;
+            write_table_indexes(session, &keyspace, &table_name, writer).await?;
             writeln!(writer)?;
         }
         None => {
