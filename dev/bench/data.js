@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776753054066,
+  "lastUpdate": 1776880478425,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -8815,6 +8815,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40345,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "198982749+Copilot@users.noreply.github.com",
+            "name": "copilot-swe-agent[bot]",
+            "username": "Copilot"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "db33d36aea8c80ff879f33dc2281baae30797a96",
+          "message": "fix: remove misleading \"Re-run failed jobs\" link from CI summary footer\n\nThe link pointed to the run logs URL, not a re-run action.\nKeep only the \"Full logs\" link which accurately describes the target.\n\nAgent-Logs-Url: https://github.com/scylladb/cqlsh-rs/sessions/e99681b1-72ca-467f-8a97-aa4caa6f700e\n\nCo-authored-by: fruch <340979+fruch@users.noreply.github.com>",
+          "timestamp": "2026-04-22T20:44:18+03:00",
+          "tree_id": "7102f4523fa1adbffeebf9b2da4007fe24300f03",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/db33d36aea8c80ff879f33dc2281baae30797a96"
+        },
+        "date": 1776880478031,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29176,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3603,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9329,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65973,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 847,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 149640,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7184,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 14,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 81284,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 738170,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7425400,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9746,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 45297,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 37588,
             "unit": "ns"
           }
         ]
