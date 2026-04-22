@@ -219,4 +219,65 @@ mod tests {
         drop(writer);
         std::env::remove_var("PAGER");
     }
+
+    #[test]
+    fn pager_writer_is_file_mode_with_child() {
+        std::env::set_var("PAGER", "cat");
+        let writer = page_stream("title").unwrap();
+        assert!(writer.is_file_mode());
+        std::env::remove_var("PAGER");
+    }
+
+    #[test]
+    fn pager_writer_is_file_mode_without_child() {
+        let writer = PagerWriter {
+            stdin: None,
+            child: None,
+        };
+        assert!(!writer.is_file_mode());
+    }
+
+    #[test]
+    fn pager_writer_write_without_stdin_returns_broken_pipe() {
+        let mut writer = PagerWriter {
+            stdin: None,
+            child: None,
+        };
+        let result = writer.write(b"data");
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::BrokenPipe);
+    }
+
+    #[test]
+    fn pager_writer_flush_without_stdin_ok() {
+        let mut writer = PagerWriter {
+            stdin: None,
+            child: None,
+        };
+        assert!(writer.flush().is_ok());
+    }
+
+    #[test]
+    fn page_stream_empty_title() {
+        std::env::set_var("PAGER", "true");
+        let writer = page_stream("");
+        std::env::remove_var("PAGER");
+        assert!(writer.is_ok());
+    }
+
+    #[test]
+    fn page_stream_nonempty_title() {
+        std::env::set_var("PAGER", "true");
+        let writer = page_stream("my table");
+        std::env::remove_var("PAGER");
+        assert!(writer.is_ok());
+    }
+
+    #[test]
+    fn pager_writer_drop_writes_end_marker() {
+        std::env::set_var("PAGER", "cat");
+        let writer = page_stream("").unwrap();
+        drop(writer);
+        std::env::remove_var("PAGER");
+    }
 }
