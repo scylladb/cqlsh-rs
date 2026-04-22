@@ -998,4 +998,199 @@ mod tests {
         // Values should not be truncated
         assert!(output.contains("value_19_with_long_content"));
     }
+
+    fn make_col(name: &str, type_name: &str) -> CqlColumn {
+        CqlColumn {
+            name: name.to_string(),
+            type_name: type_name.to_string(),
+        }
+    }
+
+    fn make_row(values: Vec<CqlValue>) -> CqlRow {
+        CqlRow { values }
+    }
+
+    #[test]
+    fn streaming_finish_zero_rows() {
+        let cols = vec![make_col("id", "int")];
+        let color = no_color();
+        let mut buf: Vec<u8> = Vec::new();
+        let fmt = StreamingTableFormatter::new(cols, &color, &mut buf, 100);
+        fmt.finish().unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("(0 rows)"));
+    }
+
+    #[test]
+    fn streaming_finish_one_row_singular() {
+        let cols = vec![make_col("id", "int")];
+        let color = no_color();
+        let mut buf: Vec<u8> = Vec::new();
+        let mut fmt = StreamingTableFormatter::new(cols, &color, &mut buf, 100);
+        fmt.add_row(make_row(vec![CqlValue::Int(1)])).unwrap();
+        fmt.finish().unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("(1 row)"));
+        assert!(!output.contains("(1 rows)"));
+    }
+
+    #[test]
+    fn streaming_finish_multiple_rows_plural() {
+        let cols = vec![make_col("id", "int")];
+        let color = no_color();
+        let mut buf: Vec<u8> = Vec::new();
+        let mut fmt = StreamingTableFormatter::new(cols, &color, &mut buf, 100);
+        fmt.add_row(make_row(vec![CqlValue::Int(1)])).unwrap();
+        fmt.add_row(make_row(vec![CqlValue::Int(2)])).unwrap();
+        fmt.add_row(make_row(vec![CqlValue::Int(3)])).unwrap();
+        fmt.finish().unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("(3 rows)"));
+    }
+
+    #[test]
+    fn streaming_tabular_buffered_rows_flushed_on_finish() {
+        let cols = vec![make_col("name", "text"), make_col("age", "int")];
+        let color = no_color();
+        let mut buf: Vec<u8> = Vec::new();
+        let mut fmt = StreamingTableFormatter::new(cols, &color, &mut buf, 100);
+        fmt.add_row(make_row(vec![
+            CqlValue::Text("Alice".to_string()),
+            CqlValue::Int(30),
+        ]))
+        .unwrap();
+        fmt.add_row(make_row(vec![
+            CqlValue::Text("Bob".to_string()),
+            CqlValue::Int(25),
+        ]))
+        .unwrap();
+        fmt.finish().unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("name"));
+        assert!(output.contains("age"));
+        assert!(output.contains("Alice"));
+        assert!(output.contains("Bob"));
+        assert!(output.contains("(2 rows)"));
+    }
+
+    #[test]
+    fn streaming_flushes_first_page_at_page_size() {
+        let cols = vec![make_col("id", "int")];
+        let color = no_color();
+        let mut buf: Vec<u8> = Vec::new();
+        let page_size = 3;
+        let mut fmt = StreamingTableFormatter::new(cols, &color, &mut buf, page_size);
+        for i in 0..page_size {
+            fmt.add_row(make_row(vec![CqlValue::Int(i as i32)]))
+                .unwrap();
+        }
+        fmt.finish().unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("id"));
+        assert!(output.contains("(3 rows)"));
+    }
+
+    #[test]
+    fn streaming_post_flush_rows_written_directly() {
+        let cols = vec![make_col("id", "int")];
+        let color = no_color();
+        let mut buf: Vec<u8> = Vec::new();
+        let page_size = 2;
+        let mut fmt = StreamingTableFormatter::new(cols, &color, &mut buf, page_size);
+        fmt.add_row(make_row(vec![CqlValue::Int(1)])).unwrap();
+        fmt.add_row(make_row(vec![CqlValue::Int(2)])).unwrap();
+        fmt.add_row(make_row(vec![CqlValue::Int(3)])).unwrap();
+        fmt.finish().unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("(3 rows)"));
+    }
+
+    #[test]
+    fn streaming_flush_writer_succeeds() {
+        let cols = vec![make_col("id", "int")];
+        let color = no_color();
+        let mut buf: Vec<u8> = Vec::new();
+        let mut fmt = StreamingTableFormatter::new(cols, &color, &mut buf, 100);
+        assert!(fmt.flush_writer().is_ok());
+    }
+
+    #[test]
+    fn streaming_expanded_mode_writes_row_headers() {
+        let cols = vec![make_col("name", "text"), make_col("age", "int")];
+        let color = no_color();
+        let mut buf: Vec<u8> = Vec::new();
+        let mut fmt = StreamingTableFormatter::new_expanded(cols, &color, &mut buf);
+        fmt.add_row(make_row(vec![
+            CqlValue::Text("Alice".to_string()),
+            CqlValue::Int(30),
+        ]))
+        .unwrap();
+        fmt.add_row(make_row(vec![
+            CqlValue::Text("Bob".to_string()),
+            CqlValue::Int(25),
+        ]))
+        .unwrap();
+        fmt.finish().unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("@ Row 1"));
+        assert!(output.contains("@ Row 2"));
+        assert!(output.contains("Alice"));
+        assert!(output.contains("Bob"));
+        assert!(output.contains("(2 rows)"));
+    }
+
+    #[test]
+    fn streaming_expanded_zero_rows_footer() {
+        let cols = vec![make_col("id", "int")];
+        let color = no_color();
+        let mut buf: Vec<u8> = Vec::new();
+        let fmt = StreamingTableFormatter::new_expanded(cols, &color, &mut buf);
+        fmt.finish().unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("(0 rows)"));
+    }
+
+    #[test]
+    fn streaming_numeric_right_aligned() {
+        let cols = vec![make_col("name", "text"), make_col("score", "int")];
+        let color = no_color();
+        let mut buf: Vec<u8> = Vec::new();
+        let page_size = 1;
+        let mut fmt = StreamingTableFormatter::new(cols, &color, &mut buf, page_size);
+        fmt.add_row(make_row(vec![
+            CqlValue::Text("Alice".to_string()),
+            CqlValue::Int(42),
+        ]))
+        .unwrap();
+        fmt.finish().unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("42"));
+        assert!(output.contains("Alice"));
+    }
+
+    #[test]
+    fn streaming_write_error_propagates() {
+        struct FailWriter;
+        impl Write for FailWriter {
+            fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::BrokenPipe,
+                    "broken",
+                ))
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::BrokenPipe,
+                    "broken",
+                ))
+            }
+        }
+
+        let cols = vec![make_col("id", "int")];
+        let color = no_color();
+        let mut writer = FailWriter;
+        let mut fmt = StreamingTableFormatter::new(cols, &color, &mut writer, 1);
+        let result = fmt.add_row(make_row(vec![CqlValue::Int(1)]));
+        assert!(result.is_err());
+    }
 }
