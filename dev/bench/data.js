@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776890453624,
+  "lastUpdate": 1776896190124,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -9112,6 +9112,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 38825,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "198982749+Copilot@users.noreply.github.com",
+            "name": "copilot-swe-agent[bot]",
+            "username": "Copilot"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "1283df9689c06b945be13371a1d88340d8288b0c",
+          "message": "fix(ci): download only needed artifacts in upload-release-artifacts job\n\nThe upload-release-artifacts job was downloading all 22 workflow artifacts\n(including large Docker build caches and unrelated test/build results)\nwhen it only needs 6 specific artifacts. This caused an intermittent\ndownload timeout failure after 5 retries.\n\nAdd a pattern filter to download-artifact to only fetch the release\nbinary artifacts and generated assets that the job actually uses.\n\nAgent-Logs-Url: https://github.com/scylladb/cqlsh-rs/sessions/f8238524-5ead-438a-bbe0-6847518efdbf\n\nCo-authored-by: fruch <340979+fruch@users.noreply.github.com>",
+          "timestamp": "2026-04-23T01:07:11+03:00",
+          "tree_id": "416d8f3a5321d71142a38096af3ad15f4aa451a9",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/1283df9689c06b945be13371a1d88340d8288b0c"
+        },
+        "date": 1776896189746,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28846,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3738,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9604,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64834,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 846,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 145920,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7583,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 14,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 83447,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 763000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7520900,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9918,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 51305,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 38788,
             "unit": "ns"
           }
         ]
