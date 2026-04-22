@@ -470,10 +470,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Download all artifacts
+      - name: Download release artifacts
         uses: actions/download-artifact@v6
         with:
           path: artifacts
+          pattern: "{x86_64-unknown-linux-musl,aarch64-unknown-linux-musl,x86_64-apple-darwin,aarch64-apple-darwin,x86_64-pc-windows-msvc,assets}"
 
       - name: Prepare release files
         run: |
