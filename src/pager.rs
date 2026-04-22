@@ -212,7 +212,7 @@ mod tests {
 
     #[test]
     fn page_stream_write_multiple() {
-        std::env::set_var("PAGER", "true");
+        std::env::set_var("PAGER", "cat");
         let mut writer = page_stream("").unwrap();
         writer.write_all(b"line 1\n").unwrap();
         writer.write_all(b"line 2\n").unwrap();

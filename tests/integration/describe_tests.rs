@@ -472,6 +472,50 @@ fn test_describe_table() {
 }
 
 // ---------------------------------------------------------------------------
+// DESCRIBE TABLE — table with a secondary index (covers write_table_indexes)
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_describe_table_with_index() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "desc_tbl_idx");
+
+    execute_cql(
+        scylla,
+        &format!(
+            "CREATE TABLE {ks}.users_idx (\
+             id int PRIMARY KEY, \
+             name text, \
+             email text)"
+        ),
+    )
+    .success();
+
+    execute_cql(
+        scylla,
+        &format!("CREATE INDEX email_idx ON {ks}.users_idx (email)"),
+    )
+    .success();
+
+    let output = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.users_idx"));
+    assert!(
+        output.contains("CREATE TABLE"),
+        "DESCRIBE TABLE should show CREATE TABLE: {output}"
+    );
+    assert!(
+        output.contains("CREATE INDEX"),
+        "DESCRIBE TABLE should include CREATE INDEX for secondary indexes: {output}"
+    );
+    assert!(
+        output.contains("email_idx"),
+        "DESCRIBE TABLE should show index name: {output}"
+    );
+
+    drop_test_keyspace(scylla, &ks);
+}
+
+// ---------------------------------------------------------------------------
 // DESCRIBE TABLE — composite primary key
 // ---------------------------------------------------------------------------
 
