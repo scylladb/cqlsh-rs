@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776880478425,
+  "lastUpdate": 1776883311013,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -8914,6 +8914,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 37588,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "1cbc8c201d25e1759102899945c0e8e97cb4d1c4",
+          "message": "test(pager,formatter): add unit tests for PagerWriter and StreamingTableFormatter\n\nCover PagerWriter::is_file_mode, Write/flush impls, Drop, and page_stream\ntitle variants. Cover StreamingTableFormatter::new, new_expanded, add_row\n(buffering, flush_first_page, post-flush), finish (0/1/N rows), flush_writer,\nwrite_row numeric alignment, write_expanded_row, and broken-writer error path.",
+          "timestamp": "2026-04-22T21:32:27+03:00",
+          "tree_id": "c164d861d4a337998c3f973b29380678c9de8534",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/1cbc8c201d25e1759102899945c0e8e97cb4d1c4"
+        },
+        "date": 1776883310576,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29434,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3644,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9196,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63053,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 846,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 155160,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7159,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 87210,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 788050,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7920900,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9768,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 49376,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39043,
             "unit": "ns"
           }
         ]
