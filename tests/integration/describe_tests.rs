@@ -498,7 +498,7 @@ fn test_describe_table_with_index() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.users_idx"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE TABLE {ks}.users_idx"));
     assert!(
         output.contains("CREATE TABLE"),
         "DESCRIBE TABLE should show CREATE TABLE: {output}"
