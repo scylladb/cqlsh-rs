@@ -2,6 +2,12 @@
 //!
 //! Provides ScyllaDB container setup via testcontainers-rs and utility
 //! functions for executing cqlsh-rs commands against a live database.
+//!
+//! Two execution modes are provided:
+//! - **Direct** (`*_direct` helpers): call library code in-process so that
+//!   `cargo tarpaulin` can measure coverage for session-dependent code paths.
+//! - **Subprocess** (original helpers): spawn `cargo_bin("cqlsh-rs")` for tests
+//!   that specifically exercise CLI behaviour (exit codes, SSL, banners, etc.).
 
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -121,22 +127,6 @@ pub fn execute_cql(scylla: &ScyllaContainer, cql: &str) -> assert_cmd::assert::A
         .assert()
 }
 
-/// Execute a CQL statement and return stdout as a string.
-/// Panics if the command fails.
-pub fn execute_cql_output(scylla: &ScyllaContainer, cql: &str) -> String {
-    let output = cqlsh_cmd(scylla)
-        .args(["-e", &with_semicolon(cql)])
-        .output()
-        .expect("failed to execute cqlsh-rs");
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        panic!("cqlsh-rs failed: {stderr}");
-    }
-
-    String::from_utf8_lossy(&output.stdout).to_string()
-}
-
 /// Create a unique test keyspace and return its name.
 pub fn create_test_keyspace(scylla: &ScyllaContainer, prefix: &str) -> String {
     let ks_name = format!(
@@ -149,19 +139,44 @@ pub fn create_test_keyspace(scylla: &ScyllaContainer, prefix: &str) -> String {
             % 0xFFFFFF
     );
 
-    execute_cql(
+    execute_cql_direct(
         scylla,
         &format!(
             "CREATE KEYSPACE IF NOT EXISTS {ks_name} \
              WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': 1}}"
         ),
-    )
-    .success();
+    );
 
     ks_name
 }
 
 /// Drop a test keyspace (cleanup).
 pub fn drop_test_keyspace(scylla: &ScyllaContainer, keyspace: &str) {
-    execute_cql(scylla, &format!("DROP KEYSPACE IF EXISTS {keyspace}")).success();
+    execute_cql_direct(scylla, &format!("DROP KEYSPACE IF EXISTS {keyspace}"));
+}
+
+static TOKIO_RT: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
+
+fn tokio_rt() -> &'static tokio::runtime::Runtime {
+    TOKIO_RT.get_or_init(|| {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("tokio runtime")
+    })
+}
+
+pub fn execute_cql_output_direct(scylla: &ScyllaContainer, cql: &str) -> String {
+    tokio_rt()
+        .block_on(cqlsh_rs::run_cql_in_process(
+            &scylla.host,
+            scylla.port,
+            None,
+            &with_semicolon(cql),
+        ))
+        .unwrap_or_else(|e| panic!("in-process cqlsh execution failed: {e}"))
+}
+
+pub fn execute_cql_direct(scylla: &ScyllaContainer, cql: &str) {
+    execute_cql_output_direct(scylla, cql);
 }

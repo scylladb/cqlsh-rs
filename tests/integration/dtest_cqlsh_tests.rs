@@ -26,7 +26,7 @@ fn test_past_and_future_dates() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.date_test"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.date_test"));
     assert!(
         output.contains("2010"),
         "Expected past date 2010 in output: {output}"
@@ -70,7 +70,7 @@ fn test_eat_glass() {
         .success();
     }
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.glass"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.glass"));
     assert!(
         output.contains("chinese"),
         "Expected 'chinese' in output: {output}"
@@ -119,7 +119,7 @@ fn test_source_glass() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    let select_output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.src_glass"));
+    let select_output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.src_glass"));
     assert!(
         select_output.contains("玻璃"),
         "Expected Chinese characters in output: {select_output}"
@@ -181,7 +181,7 @@ fn test_select_element_inside_udt() {
     )
     .success();
 
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT addr.city FROM {ks}.contacts WHERE id = 1"),
     );
@@ -223,7 +223,7 @@ fn test_float_formatting() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.float_test"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.float_test"));
     assert!(
         output.contains("3.14") || output.contains("3.1"),
         "Expected float 3.14 in output: {output}"
@@ -277,7 +277,7 @@ fn test_int_values() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.int_test"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.int_test"));
     assert!(
         output.contains("2147483647"),
         "Expected int max in output: {output}"
@@ -320,7 +320,8 @@ fn test_datetime_values() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.dt_test WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.dt_test WHERE id = 1"));
     assert!(
         output.contains("2023-06-15"),
         "Expected date '2023-06-15' in output: {output}"
@@ -393,7 +394,8 @@ fn test_describe_round_trip() {
     .success();
 
     // DESCRIBE the table
-    let describe_output = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.rt_test"));
+    let describe_output =
+        execute_cql_output_direct(scylla, &format!("DESCRIBE TABLE {ks}.rt_test"));
     assert!(
         describe_output.contains("rt_test"),
         "DESCRIBE output should contain table name: {describe_output}"
@@ -404,7 +406,7 @@ fn test_describe_round_trip() {
     );
 
     // DROP the table
-    execute_cql(scylla, &format!("DROP TABLE {ks}.rt_test")).success();
+    execute_cql_direct(scylla, &format!("DROP TABLE {ks}.rt_test"));
 
     // Re-create from DESCRIBE output — extract just the CREATE TABLE statement
     // The DESCRIBE output contains the CREATE TABLE DDL we can re-execute
@@ -419,10 +421,11 @@ fn test_describe_round_trip() {
         "Could not extract CREATE TABLE from DESCRIBE output: {describe_output}"
     );
 
-    execute_cql(scylla, &create_stmt).success();
+    execute_cql_direct(scylla, &create_stmt);
 
     // DESCRIBE again and verify structure matches
-    let describe_output2 = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.rt_test"));
+    let describe_output2 =
+        execute_cql_output_direct(scylla, &format!("DESCRIBE TABLE {ks}.rt_test"));
     assert!(
         describe_output2.contains("rt_test"),
         "Second DESCRIBE should contain table name: {describe_output2}"
@@ -483,7 +486,8 @@ fn test_commented_lines() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    let select_output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.comment_test"));
+    let select_output =
+        execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.comment_test"));
     assert!(
         select_output.contains("dash"),
         "Expected 'dash' row in output: {select_output}"
@@ -515,7 +519,7 @@ fn test_colons_in_string_literals() {
     )
     .success();
 
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT * FROM {ks}.colon_test WHERE id = 1"),
     );
@@ -542,7 +546,7 @@ fn test_describe_describes_non_default_compaction_parameters() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.compaction_test"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE TABLE {ks}.compaction_test"));
     // ScyllaDB may show compaction info differently — assert the WITH clause is present at all
     assert!(
         output.contains("LeveledCompactionStrategy")
@@ -573,7 +577,7 @@ fn test_describe_on_non_reserved_keywords() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.keyword_test"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE TABLE {ks}.keyword_test"));
     assert!(
         output.contains("keyword_test"),
         "Expected table name in DESCRIBE output: {output}"
@@ -633,7 +637,7 @@ fn test_materialized_view() {
     assert!(mv_result.status.success(), "CREATE MV failed: {mv_stderr}");
 
     // DESCRIBE the MV
-    let describe_output = execute_cql_output(
+    let describe_output = execute_cql_output_direct(
         scylla,
         &format!("DESCRIBE MATERIALIZED VIEW {ks}.mv_by_age"),
     );
@@ -644,7 +648,7 @@ fn test_materialized_view() {
 
     // SELECT from MV — allow propagation time
     std::thread::sleep(std::time::Duration::from_secs(2));
-    let select_output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.mv_by_age"));
+    let select_output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.mv_by_age"));
     assert!(
         select_output.contains("age")
             || select_output.contains("Alice")
@@ -654,7 +658,7 @@ fn test_materialized_view() {
     );
 
     // DROP the MV
-    execute_cql(scylla, &format!("DROP MATERIALIZED VIEW {ks}.mv_by_age")).success();
+    execute_cql_direct(scylla, &format!("DROP MATERIALIZED VIEW {ks}.mv_by_age"));
 
     drop_test_keyspace(scylla, &ks);
 }

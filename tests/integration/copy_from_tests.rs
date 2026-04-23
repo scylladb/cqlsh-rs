@@ -59,7 +59,7 @@ fn copy_from_basic_csv() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.basic"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.basic"));
     assert!(output.contains("Alice"), "Expected Alice in DB: {output}");
     assert!(output.contains("Bob"), "Expected Bob in DB: {output}");
     assert!(output.contains("Carol"), "Expected Carol in DB: {output}");
@@ -101,7 +101,7 @@ fn copy_from_with_header() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.hdr"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.hdr"));
     assert!(output.contains("Diana"), "Expected Diana in DB: {output}");
     assert!(output.contains("Eve"), "Expected Eve in DB: {output}");
 
@@ -161,7 +161,8 @@ fn copy_from_all_scalar_types() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.scalars WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.scalars WHERE id = 1"));
     assert!(output.contains("hello"), "Expected text value: {output}");
     assert!(
         output.contains("9876543210"),
@@ -209,7 +210,7 @@ fn copy_from_null_handling() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.nulls"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.nulls"));
     assert!(output.contains("42"), "Expected score 42: {output}");
     assert!(output.contains("hello"), "Expected 'hello': {output}");
 
@@ -249,7 +250,8 @@ fn copy_from_ttl_option() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.ttl_test WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.ttl_test WHERE id = 1"));
     assert!(
         output.contains("ephemeral"),
         "Row should exist immediately after TTL insert: {output}"
@@ -296,9 +298,10 @@ fn copy_from_roundtrip_with_copy_to() {
         .assert()
         .success();
 
-    execute_cql(scylla, &format!("TRUNCATE {ks}.rt")).success();
+    execute_cql_direct(scylla, &format!("TRUNCATE {ks}.rt"));
 
-    let count_after_truncate = execute_cql_output(scylla, &format!("SELECT count(*) FROM {ks}.rt"));
+    let count_after_truncate =
+        execute_cql_output_direct(scylla, &format!("SELECT count(*) FROM {ks}.rt"));
     assert!(
         count_after_truncate.contains(" 0"),
         "Table should be empty after TRUNCATE: {count_after_truncate}"
@@ -309,7 +312,7 @@ fn copy_from_roundtrip_with_copy_to() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.rt"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.rt"));
     for i in 1..=5 {
         assert!(
             output.contains(&format!("item_{i}")),
@@ -430,7 +433,7 @@ fn copy_from_errfile() {
         );
     }
 
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT * FROM {ks}.errfile_test WHERE id IN (1, 3)"),
     );
@@ -486,7 +489,7 @@ fn copy_from_prepared_vs_unprepared() {
         return;
     }
 
-    execute_cql(scylla, &format!("TRUNCATE {ks}.prep")).success();
+    execute_cql_direct(scylla, &format!("TRUNCATE {ks}.prep"));
 
     cqlsh_cmd(scylla)
         .args([
@@ -498,7 +501,7 @@ fn copy_from_prepared_vs_unprepared() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.prep"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.prep"));
     assert!(output.contains("alpha"), "Expected alpha: {output}");
     assert!(output.contains("beta"), "Expected beta: {output}");
     assert!(output.contains("gamma"), "Expected gamma: {output}");
@@ -550,7 +553,8 @@ fn copy_from_numprocesses_parallel() {
         return;
     }
 
-    let count_output = execute_cql_output(scylla, &format!("SELECT count(*) FROM {ks}.parallel"));
+    let count_output =
+        execute_cql_output_direct(scylla, &format!("SELECT count(*) FROM {ks}.parallel"));
     assert!(
         count_output.contains("100"),
         "Expected 100 rows after parallel import: {count_output}"

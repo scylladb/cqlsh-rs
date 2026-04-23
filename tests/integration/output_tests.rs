@@ -115,7 +115,8 @@ fn test_numeric_output() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.nums WHERE id = 42"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.nums WHERE id = 42"));
 
     assert!(output.contains("42"), "Expected int value: {output}");
     assert!(
@@ -162,7 +163,7 @@ fn test_timestamp_output() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.ts WHERE id = 1"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.ts WHERE id = 1"));
     // Timestamp should appear in output (format may vary by timezone)
     assert!(
         output.contains("2024-06-15"),
@@ -200,9 +201,9 @@ fn test_boolean_output() {
     .success();
 
     let output_true =
-        execute_cql_output(scylla, &format!("SELECT flag FROM {ks}.bools WHERE id = 1"));
+        execute_cql_output_direct(scylla, &format!("SELECT flag FROM {ks}.bools WHERE id = 1"));
     let output_false =
-        execute_cql_output(scylla, &format!("SELECT flag FROM {ks}.bools WHERE id = 2"));
+        execute_cql_output_direct(scylla, &format!("SELECT flag FROM {ks}.bools WHERE id = 2"));
 
     assert!(
         output_true.contains("True"),
@@ -233,9 +234,10 @@ fn test_null_output() {
     .success();
 
     // Insert with only PK → val is null
-    execute_cql(scylla, &format!("INSERT INTO {ks}.nulls (id) VALUES (1)")).success();
+    execute_cql_direct(scylla, &format!("INSERT INTO {ks}.nulls (id) VALUES (1)"));
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.nulls WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.nulls WHERE id = 1"));
     // Null values display as blank (empty), matching Python cqlsh
     assert!(
         !output.contains("null"),
@@ -271,7 +273,8 @@ fn test_string_output_ascii() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT val FROM {ks}.strs WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT val FROM {ks}.strs WHERE id = 1"));
     assert!(
         output.contains("Hello, World!"),
         "Expected ASCII string in output: {output}"
@@ -298,7 +301,8 @@ fn test_string_output_utf8() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT val FROM {ks}.strs WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT val FROM {ks}.strs WHERE id = 1"));
     assert!(
         output.contains("こんにちは世界"),
         "Expected UTF-8 string in output: {output}"
@@ -329,7 +333,8 @@ fn test_blob_output() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT data FROM {ks}.blobs WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT data FROM {ks}.blobs WHERE id = 1"));
     // Blob should be displayed as hex
     assert!(
         output.to_lowercase().contains("cafebabe"),
@@ -382,7 +387,7 @@ fn test_describe_keyspace_output() {
     let scylla = get_scylla();
     let ks = create_test_keyspace(scylla, "desc_ks");
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE KEYSPACE {ks}"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE KEYSPACE {ks}"));
     assert!(
         output.contains("CREATE KEYSPACE"),
         "DESCRIBE KEYSPACE should show CREATE statement: {output}"
@@ -407,7 +412,7 @@ fn test_describe_table_output() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.desc_test"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE TABLE {ks}.desc_test"));
     assert!(
         output.contains("CREATE TABLE"),
         "DESCRIBE TABLE should show CREATE statement: {output}"
@@ -429,7 +434,7 @@ fn test_describe_table_output() {
 fn test_describe_cluster_output() {
     let scylla = get_scylla();
 
-    let output = execute_cql_output(scylla, "DESCRIBE CLUSTER");
+    let output = execute_cql_output_direct(scylla, "DESCRIBE CLUSTER");
     assert!(
         output.contains("Cluster:")
             || output.contains("Partitioner:")
@@ -447,7 +452,7 @@ fn test_describe_cluster_output() {
 fn test_show_version_output() {
     let scylla = get_scylla();
 
-    let output = execute_cql_output(scylla, "SHOW VERSION");
+    let output = execute_cql_output_direct(scylla, "SHOW VERSION");
     assert!(
         output.contains("[cqlsh"),
         "SHOW VERSION should show cqlsh version: {output}"
@@ -459,7 +464,7 @@ fn test_show_version_output() {
 fn test_show_host_output() {
     let scylla = get_scylla();
 
-    let output = execute_cql_output(scylla, "SHOW HOST");
+    let output = execute_cql_output_direct(scylla, "SHOW HOST");
     assert!(
         output.contains("Connected to"),
         "SHOW HOST should show connection info: {output}"
@@ -552,7 +557,7 @@ fn test_multiline_statements() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.ml"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.ml"));
     assert!(output.contains("first"), "Expected first row: {output}");
     assert!(output.contains("second"), "Expected second row: {output}");
 
@@ -580,7 +585,7 @@ fn test_row_count_singular() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.rc"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.rc"));
     assert!(
         output.contains("(1 row)") && !output.contains("(1 rows)"),
         "Expected '(1 row)' singular: {output}"
@@ -611,7 +616,7 @@ fn test_row_count_plural() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.rc"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.rc"));
     assert!(
         output.contains("(2 rows)"),
         "Expected '(2 rows)' plural: {output}"
@@ -632,7 +637,7 @@ fn test_row_count_zero() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.rc"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.rc"));
     assert!(
         output.contains("(0 rows)"),
         "Expected '(0 rows)' for empty table: {output}"
@@ -894,7 +899,7 @@ fn snapshot_describe_keyspace() {
     let scylla = get_scylla();
     let ks = create_test_keyspace(scylla, "snap_ks");
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE KEYSPACE {ks}"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE KEYSPACE {ks}"));
     let normalized = normalize_describe_output(&output, &ks);
 
     assert!(
@@ -929,7 +934,7 @@ fn snapshot_describe_table() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.snap_table"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE TABLE {ks}.snap_table"));
     let normalized = normalize_describe_output(&output, &ks);
 
     assert!(
@@ -961,7 +966,7 @@ fn snapshot_describe_schema() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE KEYSPACE {ks}"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE KEYSPACE {ks}"));
     let normalized = normalize_describe_output(&output, &ks);
 
     assert!(

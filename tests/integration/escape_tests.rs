@@ -30,7 +30,8 @@ fn test_hex_escape_in_query() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = 1"));
     assert!(
         output.contains("ABCDEF"),
         "Expected string with hex-equivalent chars: {output}"
@@ -62,7 +63,8 @@ fn test_standard_escape_newline_tab() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = 1"));
     // The output should contain the string (tab may be displayed differently)
     assert!(
         output.contains("hello") && output.contains("world"),
@@ -95,7 +97,8 @@ fn test_backslash_in_string() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = 1"));
     // Should contain some form of the path
     assert!(
         output.contains("Users") && output.contains("test"),
@@ -128,7 +131,8 @@ fn test_quote_escaping() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = 1"));
     assert!(
         output.contains("it's a test"),
         "Expected unescaped single quote in output: {output}"
@@ -171,7 +175,7 @@ fn test_special_chars_roundtrip() {
     // Verify each value round-trips (at least the non-control parts)
     for (id, _) in &test_cases {
         let output =
-            execute_cql_output(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = {id}"));
+            execute_cql_output_direct(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = {id}"));
         // Row should exist
         assert!(
             output.contains("(1 row)"),
@@ -207,7 +211,8 @@ fn test_mixed_content_roundtrip() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT val FROM {ks}.esc WHERE id = 1"));
     assert!(
         output.contains("Hello"),
         "Expected greeting in output: {output}"

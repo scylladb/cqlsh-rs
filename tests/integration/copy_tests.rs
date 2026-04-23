@@ -144,7 +144,7 @@ fn test_copy_from_basic() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.import_test"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.import_test"));
     assert!(output.contains("Diana"), "Expected Diana in DB: {output}");
     assert!(output.contains("Eve"), "Expected Eve in DB: {output}");
     assert!(output.contains("Frank"), "Expected Frank in DB: {output}");
@@ -191,9 +191,10 @@ fn test_copy_round_trip() {
         .assert()
         .success();
 
-    execute_cql(scylla, &format!("TRUNCATE {ks}.roundtrip")).success();
+    execute_cql_direct(scylla, &format!("TRUNCATE {ks}.roundtrip"));
 
-    let count_output = execute_cql_output(scylla, &format!("SELECT count(*) FROM {ks}.roundtrip"));
+    let count_output =
+        execute_cql_output_direct(scylla, &format!("SELECT count(*) FROM {ks}.roundtrip"));
     assert!(
         count_output.contains(" 0"),
         "Table should be empty after TRUNCATE: {count_output}"
@@ -204,7 +205,7 @@ fn test_copy_round_trip() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.roundtrip"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.roundtrip"));
     for i in 1..=5 {
         assert!(
             output.contains(&format!("item_{i}")),
@@ -348,14 +349,15 @@ fn test_copy_collections_round_trip() {
         .assert()
         .success();
 
-    execute_cql(scylla, &format!("TRUNCATE {ks}.coll")).success();
+    execute_cql_direct(scylla, &format!("TRUNCATE {ks}.coll"));
 
     cqlsh_cmd(scylla)
         .args(["-e", &format!("COPY {ks}.coll FROM '{csv_path}'")])
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.coll WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.coll WHERE id = 1"));
     assert!(
         output.contains("alpha") || output.contains("beta"),
         "Expected set values after round-trip: {output}"

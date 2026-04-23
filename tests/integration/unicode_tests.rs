@@ -42,7 +42,7 @@ fn test_unicode_value_round_trip() {
     // Verify round-trip
     for (id, val) in &test_cases {
         let output =
-            execute_cql_output(scylla, &format!("SELECT val FROM {ks}.uni WHERE id = {id}"));
+            execute_cql_output_direct(scylla, &format!("SELECT val FROM {ks}.uni WHERE id = {id}"));
         assert!(
             output.contains(val),
             "Unicode value '{val}' not found in output for id={id}: {output}"
@@ -77,7 +77,8 @@ fn test_eat_glass() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT val FROM {ks}.glass WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT val FROM {ks}.glass WHERE id = 1"));
     assert!(
         output.contains("I can eat glass") || output.contains("doesn"),
         "Expected English portion: {output}"
@@ -124,7 +125,7 @@ fn test_unicode_identifiers() {
     )
     .success();
 
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT * FROM {ks}.\"données\" WHERE id = 1"),
     );
@@ -167,7 +168,7 @@ fn test_unicode_multiline_input() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.uni_ml"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.uni_ml"));
     assert!(
         output.contains("日本語"),
         "Expected Japanese in output: {output}"
@@ -204,7 +205,7 @@ fn test_unicode_describe() {
         return;
     }
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.\"テスト\""));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE TABLE {ks}.\"テスト\""));
 
     assert!(
         output.contains("CREATE TABLE"),
