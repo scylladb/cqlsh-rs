@@ -25,7 +25,8 @@ fn test_simple_insert_and_select() {
     .success();
 
     // Select and verify
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.users WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.users WHERE id = 1"));
     assert!(output.contains("Alice"));
     assert!(output.contains("30"));
 
@@ -52,20 +53,21 @@ fn test_insert_update_delete() {
     .success();
 
     // Update
-    execute_cql(
+    execute_cql_direct(
         scylla,
         &format!("UPDATE {ks}.data SET val = 'updated' WHERE id = 1"),
-    )
-    .success();
+    );
 
-    let output = execute_cql_output(scylla, &format!("SELECT val FROM {ks}.data WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT val FROM {ks}.data WHERE id = 1"));
     assert!(output.contains("updated"));
     assert!(!output.contains("original"));
 
     // Delete
-    execute_cql(scylla, &format!("DELETE FROM {ks}.data WHERE id = 1")).success();
+    execute_cql_direct(scylla, &format!("DELETE FROM {ks}.data WHERE id = 1"));
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.data WHERE id = 1"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.data WHERE id = 1"));
     assert!(!output.contains("updated"));
 
     drop_test_keyspace(scylla, &ks);
@@ -85,27 +87,26 @@ fn test_create_and_drop_keyspace() {
     );
 
     // Create keyspace
-    execute_cql(
+    execute_cql_direct(
         scylla,
         &format!(
             "CREATE KEYSPACE {ks} WITH replication = \
              {{'class': 'SimpleStrategy', 'replication_factor': 1}}"
         ),
-    )
-    .success();
+    );
 
     // Verify it exists by querying system_schema
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = '{ks}'"),
     );
     assert!(output.contains(&ks));
 
     // Drop keyspace
-    execute_cql(scylla, &format!("DROP KEYSPACE {ks}")).success();
+    execute_cql_direct(scylla, &format!("DROP KEYSPACE {ks}"));
 
     // Verify it's gone
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = '{ks}'"),
     );
@@ -132,11 +133,11 @@ fn test_create_and_drop_table() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.test_table"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.test_table"));
     assert!(output.contains("hello"));
 
     // Drop table
-    execute_cql(scylla, &format!("DROP TABLE {ks}.test_table")).success();
+    execute_cql_direct(scylla, &format!("DROP TABLE {ks}.test_table"));
 
     // Verify table is gone — query should fail
     execute_cql(scylla, &format!("SELECT * FROM {ks}.test_table")).failure();
@@ -203,7 +204,7 @@ fn test_batch_statement() {
     .success();
 
     // Verify all rows inserted
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.batch_test"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.batch_test"));
     assert!(output.contains("one"));
     assert!(output.contains("two"));
     assert!(output.contains("three"));
@@ -230,7 +231,7 @@ fn test_uuid_type() {
     )
     .success();
 
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT * FROM {ks}.uuid_test WHERE id = {test_uuid}"),
     );
@@ -265,14 +266,15 @@ fn test_truncate() {
     .success();
 
     // Verify data exists
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.trunc_test"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.trunc_test"));
     assert!(output.contains("one"));
 
     // Truncate
-    execute_cql(scylla, &format!("TRUNCATE {ks}.trunc_test")).success();
+    execute_cql_direct(scylla, &format!("TRUNCATE {ks}.trunc_test"));
 
     // Verify empty — should show header but no data rows
-    let output = execute_cql_output(scylla, &format!("SELECT count(*) FROM {ks}.trunc_test"));
+    let output =
+        execute_cql_output_direct(scylla, &format!("SELECT count(*) FROM {ks}.trunc_test"));
     assert!(output.contains("0"));
 
     drop_test_keyspace(scylla, &ks);
@@ -312,7 +314,7 @@ fn test_multiple_data_types() {
     )
     .success();
 
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT * FROM {ks}.types_test WHERE id = 1"),
     );
@@ -353,7 +355,7 @@ fn test_collection_types() {
     )
     .success();
 
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT * FROM {ks}.coll_test WHERE id = 1"),
     );
@@ -387,7 +389,7 @@ fn test_empty_string_values() {
     .success();
 
     // Empty strings should be queryable
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT * FROM {ks}.empty_test WHERE id = 1"),
     );
@@ -416,7 +418,7 @@ fn test_null_values() {
     )
     .success();
 
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT * FROM {ks}.null_test WHERE id = 1"),
     );
@@ -453,7 +455,7 @@ fn test_create_and_drop_index() {
     .success();
 
     // Drop index
-    execute_cql(scylla, &format!("DROP INDEX {ks}.idx_name")).success();
+    execute_cql_direct(scylla, &format!("DROP INDEX {ks}.idx_name"));
 
     drop_test_keyspace(scylla, &ks);
 }
@@ -471,11 +473,10 @@ fn test_alter_table() {
     .success();
 
     // Add a column
-    execute_cql(
+    execute_cql_direct(
         scylla,
         &format!("ALTER TABLE {ks}.alter_test ADD email text"),
-    )
-    .success();
+    );
 
     // Insert with new column
     execute_cql(
@@ -486,7 +487,7 @@ fn test_alter_table() {
     )
     .success();
 
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT * FROM {ks}.alter_test WHERE id = 1"),
     );
@@ -500,7 +501,7 @@ fn test_alter_table() {
 fn test_show_version() {
     let scylla = get_scylla();
 
-    let output = execute_cql_output(scylla, "SHOW VERSION");
+    let output = execute_cql_output_direct(scylla, "SHOW VERSION");
     assert!(output.contains("cqlsh"));
 }
 
@@ -509,7 +510,7 @@ fn test_show_version() {
 fn test_show_host() {
     let scylla = get_scylla();
 
-    let output = execute_cql_output(scylla, "SHOW HOST");
+    let output = execute_cql_output_direct(scylla, "SHOW HOST");
     assert!(output.contains("Connected to"));
 }
 
@@ -518,7 +519,7 @@ fn test_show_host() {
 fn test_consistency_command() {
     let scylla = get_scylla();
 
-    let output = execute_cql_output(scylla, "CONSISTENCY");
+    let output = execute_cql_output_direct(scylla, "CONSISTENCY");
     assert!(output.contains("Current consistency level is"));
 }
 

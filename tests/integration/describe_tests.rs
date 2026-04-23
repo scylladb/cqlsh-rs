@@ -52,7 +52,7 @@ fn test_describe_index() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE INDEX {ks}.email_idx"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE INDEX {ks}.email_idx"));
     assert!(
         output.contains("CREATE INDEX"),
         "DESCRIBE INDEX should show CREATE INDEX: {output}"
@@ -88,7 +88,7 @@ fn test_describe_index_on_non_pk_column() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE INDEX {ks}.idx_category"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE INDEX {ks}.idx_category"));
     assert!(
         output.contains("CREATE INDEX") || output.contains("idx_category"),
         "DESCRIBE INDEX should show index DDL: {output}"
@@ -140,7 +140,7 @@ fn test_describe_materialized_view() {
         panic!("MV creation failed unexpectedly: {stderr}");
     }
 
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("DESCRIBE MATERIALIZED VIEW {ks}.users_by_email"),
     );
@@ -176,7 +176,7 @@ fn test_describe_type() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE TYPE {ks}.address"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE TYPE {ks}.address"));
     assert!(
         output.contains("CREATE TYPE"),
         "DESCRIBE TYPE should show CREATE TYPE: {output}"
@@ -285,7 +285,7 @@ fn test_describe_function() {
         return;
     }
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE FUNCTION {ks}.double_val"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE FUNCTION {ks}.double_val"));
     assert!(
         output.contains("CREATE OR REPLACE FUNCTION"),
         "DESCRIBE FUNCTION should show CREATE FUNCTION: {output}"
@@ -338,7 +338,7 @@ fn test_describe_aggregate() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE AGGREGATE {ks}.my_sum"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE AGGREGATE {ks}.my_sum"));
     assert!(
         output.contains("CREATE OR REPLACE AGGREGATE"),
         "DESCRIBE AGGREGATE should show CREATE AGGREGATE: {output}"
@@ -394,7 +394,7 @@ fn test_describe_nonexistent_index() {
 fn test_describe_keyspaces() {
     let scylla = get_scylla();
 
-    let output = execute_cql_output(scylla, "DESCRIBE KEYSPACES");
+    let output = execute_cql_output_direct(scylla, "DESCRIBE KEYSPACES");
     assert!(
         output.contains("system"),
         "DESCRIBE KEYSPACES should list system keyspace: {output}"
@@ -411,7 +411,7 @@ fn test_describe_keyspace() {
     let scylla = get_scylla();
     let ks = create_test_keyspace(scylla, "desc_ks2");
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE KEYSPACE {ks}"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE KEYSPACE {ks}"));
     assert!(
         output.contains("CREATE KEYSPACE"),
         "DESCRIBE KEYSPACE should show CREATE statement: {output}"
@@ -450,7 +450,7 @@ fn test_describe_table() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.users"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE TABLE {ks}.users"));
     assert!(
         output.contains("CREATE TABLE"),
         "DESCRIBE TABLE should show CREATE statement: {output}"
@@ -537,7 +537,7 @@ fn test_describe_table_composite_key() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.events"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE TABLE {ks}.events"));
     assert!(
         output.contains("PRIMARY KEY"),
         "Expected composite PRIMARY KEY in output: {output}"
@@ -602,7 +602,7 @@ fn test_describe_tables_in_keyspace() {
 fn test_describe_cluster() {
     let scylla = get_scylla();
 
-    let output = execute_cql_output(scylla, "DESCRIBE CLUSTER");
+    let output = execute_cql_output_direct(scylla, "DESCRIBE CLUSTER");
     assert!(
         output.contains("Cluster") || output.contains("Partitioner") || output.contains("Snitch"),
         "DESCRIBE CLUSTER should show cluster info: {output}"
@@ -630,7 +630,7 @@ fn test_describe_table_with_keyword_column_names() {
     )
     .success();
 
-    let output = execute_cql_output(scylla, &format!("DESCRIBE TABLE {ks}.kw_table"));
+    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE TABLE {ks}.kw_table"));
     assert!(
         output.contains("CREATE TABLE"),
         "DESCRIBE TABLE with keyword column names: {output}"

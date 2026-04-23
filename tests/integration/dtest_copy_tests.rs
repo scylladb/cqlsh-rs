@@ -234,7 +234,7 @@ fn test_undefined_as_null_indicator() {
     )
     .success();
     // Insert a row with only the PK — val will be null
-    execute_cql(scylla, &format!("INSERT INTO {ks}.nulltbl (id) VALUES (1)")).success();
+    execute_cql_direct(scylla, &format!("INSERT INTO {ks}.nulltbl (id) VALUES (1)"));
 
     let tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
     let csv_path = tmp.path().to_str().unwrap().to_string();
@@ -396,7 +396,7 @@ fn test_explicit_column_order_reading() {
         .assert()
         .success();
 
-    let output = execute_cql_output(
+    let output = execute_cql_output_direct(
         scylla,
         &format!("SELECT a, b, c FROM {ks}.colord_r WHERE a = 1"),
     );
@@ -448,7 +448,7 @@ fn test_quoted_column_names_reading_specify_names() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.quoted_cols"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.quoted_cols"));
     assert!(output.contains("alpha"), "Expected 'alpha' in DB: {output}");
     assert!(output.contains("beta"), "Expected 'beta' in DB: {output}");
 
@@ -488,7 +488,7 @@ fn test_quoted_column_names_reading_dont_specify_names() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.quoted_noc"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.quoted_noc"));
     assert!(output.contains("gamma"), "Expected 'gamma' in DB: {output}");
     assert!(output.contains("delta"), "Expected 'delta' in DB: {output}");
 
@@ -614,7 +614,7 @@ fn test_read_valid_data() {
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.valid_int"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.valid_int"));
     assert!(output.contains("100"), "Expected 100 in DB: {output}");
     assert!(output.contains("200"), "Expected 200 in DB: {output}");
     assert!(output.contains("300"), "Expected 300 in DB: {output}");
@@ -864,14 +864,14 @@ fn test_source_copy_round_trip() {
     assert!(csv.contains("item_1"), "CSV should contain item_1: {csv}");
 
     // Truncate and re-import via COPY FROM
-    execute_cql(scylla, &format!("TRUNCATE {ks}.src_rt")).success();
+    execute_cql_direct(scylla, &format!("TRUNCATE {ks}.src_rt"));
 
     cqlsh_cmd(scylla)
         .args(["-e", &format!("COPY {ks}.src_rt FROM '{csv_path}'")])
         .assert()
         .success();
 
-    let output = execute_cql_output(scylla, &format!("SELECT * FROM {ks}.src_rt"));
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.src_rt"));
     for i in 1..=3_u32 {
         assert!(
             output.contains(&format!("item_{i}")),
