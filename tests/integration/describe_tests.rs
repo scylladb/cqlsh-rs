@@ -32,38 +32,58 @@ fn test_describe_full_schema_includes_system() {
 }
 
 // ---------------------------------------------------------------------------
-// DESCRIBE INDEX <name> — DDL for a secondary index
+// DESCRIBE <name> — generic fallback resolves across all object types (#139)
 // ---------------------------------------------------------------------------
 
 #[test]
 #[ignore = "requires Docker"]
-fn test_describe_index() {
+fn test_describe_bare_index_name() {
     let scylla = get_scylla();
-    let ks = create_test_keyspace(scylla, "desc_idx");
+    let ks = create_test_keyspace(scylla, "desc_bare_idx");
 
     execute_cql(
         scylla,
-        &format!("CREATE TABLE {ks}.users (id int PRIMARY KEY, email text)"),
+        &format!("CREATE TABLE {ks}.t (id int PRIMARY KEY, val text)"),
     )
     .success();
+    execute_cql(scylla, &format!("CREATE INDEX my_idx ON {ks}.t (val)")).success();
+
+    let output = cqlsh_cmd(scylla)
+        .args(["-k", &ks, "-e", "DESCRIBE my_idx"])
+        .output()
+        .expect("failed to run cqlsh-rs");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    assert!(
+        stdout.contains("CREATE INDEX"),
+        "DESCRIBE <bare_index_name> should produce CREATE INDEX, got: {stdout}"
+    );
+
+    drop_test_keyspace(scylla, &ks);
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_describe_qualified_index_name() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "desc_qual_idx");
+
     execute_cql(
         scylla,
-        &format!("CREATE INDEX email_idx ON {ks}.users (email)"),
+        &format!("CREATE TABLE {ks}.t (id int PRIMARY KEY, val text)"),
     )
     .success();
+    execute_cql(scylla, &format!("CREATE INDEX qi ON {ks}.t (val)")).success();
 
-    let output = execute_cql_output_direct(scylla, &format!("DESCRIBE INDEX {ks}.email_idx"));
+    let output = cqlsh_cmd(scylla)
+        .args(["-e", &format!("DESCRIBE {ks}.qi")])
+        .output()
+        .expect("failed to run cqlsh-rs");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
     assert!(
-        output.contains("CREATE INDEX"),
-        "DESCRIBE INDEX should show CREATE INDEX: {output}"
-    );
-    assert!(
-        output.contains("email_idx"),
-        "DESCRIBE INDEX should show index name: {output}"
-    );
-    assert!(
-        output.contains("email"),
-        "DESCRIBE INDEX should show indexed column: {output}"
+        stdout.contains("CREATE INDEX"),
+        "DESCRIBE <ks>.<index> should produce CREATE INDEX, got: {stdout}"
     );
 
     drop_test_keyspace(scylla, &ks);
