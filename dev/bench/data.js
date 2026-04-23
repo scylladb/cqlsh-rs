@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776959764047,
+  "lastUpdate": 1776959779217,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -10201,6 +10201,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39836,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "f32651f29079e0cd548e9662b5a1b21ceaddab29",
+          "message": "fix: resolve DESCRIBE <name> across all schema object types\n\nGeneric DESCRIBE <name> (without an explicit keyword like INDEX, TYPE,\netc.) only searched keyspaces and tables. When an index, materialized\nview, type, function, or aggregate was referenced by bare or qualified\nname, the user got 'Table not found' instead of the correct DDL.\n\nAdd a cascading lookup that checks each system_schema table in Python\ncqlsh's resolution order: keyspace → table → index → MV → type →\nfunction → aggregate. Both unqualified and qualified (ks.name) forms\nare handled.\n\nCloses #139",
+          "timestamp": "2026-04-23T18:46:48+03:00",
+          "tree_id": "5295a0a0d587d77e2019fbd340102d43a5f5d5c7",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/f32651f29079e0cd548e9662b5a1b21ceaddab29"
+        },
+        "date": 1776959778385,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 22549,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2867,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 7499,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 51980,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 677,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 114740,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 5807,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 10,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 66529,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 591610,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 6034600,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 7972,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 41195,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 31287,
             "unit": "ns"
           }
         ]
