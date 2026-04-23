@@ -104,23 +104,112 @@ pub async fn execute(session: &CqlSession, args: &str, writer: &mut dyn Write) -
         let agg_spec = strip_quotes(agg_spec);
         describe_aggregate(session, agg_spec, writer).await
     } else {
-        // Try to guess: could be a keyspace name, table name, or keyspace.table
-        // Check if it matches a keyspace first, then a table in current keyspace
+        // Generic DESCRIBE <name> — resolve across all object types.
+        // Resolution order matches Python cqlsh: keyspace, table, index, MV, type,
+        // function, aggregate.
         let name = strip_quotes(args);
-        if name.contains('.') {
-            // Qualified table name: keyspace.table
-            describe_table(session, name, writer).await
-        } else {
-            // Try as keyspace first
-            let keyspaces = session.get_keyspaces().await?;
-            if keyspaces.iter().any(|ks| ks.name == name) {
-                describe_keyspace(session, Some(name), writer).await
-            } else {
-                // Try as table in current keyspace
-                describe_table(session, name, writer).await
-            }
-        }
+        describe_object(session, name, writer).await
     }
+}
+
+/// Resolve a bare or qualified name across all schema object types.
+///
+/// Resolution order (matching Python cqlsh): keyspace → table → index →
+/// materialized view → type → function → aggregate.
+async fn describe_object(session: &CqlSession, name: &str, writer: &mut dyn Write) -> Result<()> {
+    if name.contains('.') {
+        return describe_qualified_object(session, name, writer).await;
+    }
+
+    let keyspaces = session.get_keyspaces().await?;
+    if keyspaces.iter().any(|ks| ks.name == name) {
+        return describe_keyspace(session, Some(name), writer).await;
+    }
+
+    let ks = match session.current_keyspace() {
+        Some(ks) => ks.to_string(),
+        None => {
+            writeln!(writer, "'{name}' not found in schema.")?;
+            return Ok(());
+        }
+    };
+
+    if object_exists_in(session, &ks, name, "tables", "table_name").await? {
+        return describe_table(session, name, writer).await;
+    }
+    if object_exists_in(session, &ks, name, "indexes", "index_name").await? {
+        return describe_index(session, name, writer).await;
+    }
+    if object_exists_in(session, &ks, name, "views", "view_name").await? {
+        return describe_materialized_view(session, name, writer).await;
+    }
+    if object_exists_in(session, &ks, name, "types", "type_name").await? {
+        return describe_type(session, name, writer).await;
+    }
+    if object_exists_in(session, &ks, name, "functions", "function_name").await? {
+        return describe_function(session, name, writer).await;
+    }
+    if object_exists_in(session, &ks, name, "aggregates", "aggregate_name").await? {
+        return describe_aggregate(session, name, writer).await;
+    }
+
+    writeln!(writer, "'{name}' not found in keyspace '{ks}'.")?;
+    Ok(())
+}
+
+/// Resolve a qualified name (`ks.obj`) across all schema object types.
+async fn describe_qualified_object(
+    session: &CqlSession,
+    spec: &str,
+    writer: &mut dyn Write,
+) -> Result<()> {
+    let parts: Vec<&str> = spec.splitn(2, '.').collect();
+    let ks = parts[0];
+    let obj = parts[1];
+
+    if object_exists_in(session, ks, obj, "tables", "table_name").await? {
+        return describe_table(session, spec, writer).await;
+    }
+    if object_exists_in(session, ks, obj, "indexes", "index_name").await? {
+        return describe_index(session, spec, writer).await;
+    }
+    if object_exists_in(session, ks, obj, "views", "view_name").await? {
+        return describe_materialized_view(session, spec, writer).await;
+    }
+    if object_exists_in(session, ks, obj, "types", "type_name").await? {
+        return describe_type(session, spec, writer).await;
+    }
+    if object_exists_in(session, ks, obj, "functions", "function_name").await? {
+        return describe_function(session, spec, writer).await;
+    }
+    if object_exists_in(session, ks, obj, "aggregates", "aggregate_name").await? {
+        return describe_aggregate(session, spec, writer).await;
+    }
+
+    writeln!(writer, "'{spec}' not found in schema.")?;
+    Ok(())
+}
+
+/// Check whether an object with the given name exists in a system_schema table.
+async fn object_exists_in(
+    session: &CqlSession,
+    keyspace: &str,
+    name: &str,
+    system_table: &str,
+    name_column: &str,
+) -> Result<bool> {
+    let query = format!(
+        "SELECT {name_column} FROM system_schema.{system_table} WHERE keyspace_name = '{}'",
+        keyspace.replace('\'', "''"),
+    );
+    let result = session.execute_query(&query).await?;
+    let lower = name.to_lowercase();
+    Ok(result.rows.iter().any(|r| {
+        r.get_by_name(name_column, &result.columns)
+            .map(|v| v.to_string().to_lowercase())
+            .as_deref()
+            == Some(lower.as_str())
+    }))
 }
 
 /// DESCRIBE CLUSTER — show cluster name and partitioner.
