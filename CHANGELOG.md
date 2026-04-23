@@ -11,12 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+<<<<<<< release-plz-2026-04-23T10-30-15Z
 - *(describe)* append CREATE INDEX statements in DESCRIBE TABLE output
+=======
+>>>>>>> main
 - *(repl)* preserve keyspace context across LOGIN
 
 ### Other
 
+<<<<<<< release-plz-2026-04-23T10-30-15Z
 - *(describe,pager)* add DESCRIBE TABLE index test; fix BrokenPipe in pager test
+=======
+>>>>>>> main
 - *(codecov)* add codecov.yml with sensible thresholds
 - *(pager,login)* fix BrokenPipe in pager test; fix login keyspace assertion
 - *(login)* add integration test for keyspace preservation after LOGIN
