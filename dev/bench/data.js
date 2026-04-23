@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776896621188,
+  "lastUpdate": 1776940333191,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -9310,6 +9310,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40934,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "2847a50de7ae579c836247e7562f8aee1fa3b0c9",
+          "message": "ci(codecov): add codecov.yml with sensible thresholds\n\nIntegration tests run cqlsh-rs as a subprocess so tarpaulin cannot\ninstrument session-dependent code paths. Make patch coverage\ninformational and allow up to 1% project coverage decrease.",
+          "timestamp": "2026-04-23T13:22:32+03:00",
+          "tree_id": "f8fbdbe3ca1b19290d484b1b044be7da2a57e857",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/2847a50de7ae579c836247e7562f8aee1fa3b0c9"
+        },
+        "date": 1776940332235,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29401,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3483,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9239,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64553,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 845,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 155780,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7331,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 84393,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 773290,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7785000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9762,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 47243,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40329,
             "unit": "ns"
           }
         ]
