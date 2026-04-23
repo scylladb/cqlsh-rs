@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776956486640,
+  "lastUpdate": 1776959735156,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -9805,6 +9805,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40557,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "ccade53e456792494054cc87b95a7357dc70ea06",
+          "message": "fix: preserve keyspace context after LOGIN in executor mode\n\nLOGIN in non-interactive (-e) mode created a new session without\nrestoring the previously active keyspace, causing subsequent queries\nto fail with 'table not found' errors.\n\nMirror the keyspace preservation logic already present in the REPL\nLOGIN handler.\n\nCloses #141",
+          "timestamp": "2026-04-23T18:46:08+03:00",
+          "tree_id": "968bd0e3876017156b27b36483878d28cdec7fd6",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/ccade53e456792494054cc87b95a7357dc70ea06"
+        },
+        "date": 1776959734598,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29059,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3677,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9685,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 67151,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 860,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 151550,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7335,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 14,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86053,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 749490,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7496100,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9985,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 51313,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39886,
             "unit": "ns"
           }
         ]
