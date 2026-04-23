@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776959735156,
+  "lastUpdate": 1776959759880,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -9904,6 +9904,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39886,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "0e662c5f95afa3a3a8965c2f179194f4ba7a3896",
+          "message": "chore(deps): bump scylla rust driver from 1.5.0 to 1.6.0",
+          "timestamp": "2026-04-23T18:46:28+03:00",
+          "tree_id": "61a4fa2b9a1a8cfa18aead727b1c8d209f76cb54",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/0e662c5f95afa3a3a8965c2f179194f4ba7a3896"
+        },
+        "date": 1776959758898,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29533,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3531,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9444,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65479,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 862,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 156120,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7093,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86674,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 793190,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7987500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9945,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 47235,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40290,
             "unit": "ns"
           }
         ]
