@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776940333191,
+  "lastUpdate": 1776940343386,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -9409,6 +9409,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40329,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "57fcef44f650943a480838726b15c29a2d9a87eb",
+          "message": "test(describe,pager): add DESCRIBE TABLE index test; fix BrokenPipe in pager test\n\n- Add integration test verifying DESCRIBE TABLE includes CREATE INDEX\n  for tables with secondary indexes (covers the new write_table_indexes call)\n- Fix page_stream_write_multiple: use 'cat' instead of 'true' as pager\n  to avoid BrokenPipe when writing multiple lines on Linux CI",
+          "timestamp": "2026-04-23T13:23:06+03:00",
+          "tree_id": "be2ff810ae3c06d64d34a7ef2837fe0c1b29bba3",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/57fcef44f650943a480838726b15c29a2d9a87eb"
+        },
+        "date": 1776940342428,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 27403,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3374,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 8610,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 59983,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1004,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 137090,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 5317,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 10,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 79185,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 707340,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7129700,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 7990,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 39110,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 35672,
             "unit": "ns"
           }
         ]
