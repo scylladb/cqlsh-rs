@@ -68,7 +68,7 @@ fn login_preserves_keyspace_context() {
         ])
         .assert()
         .success()
-        .stdout(predicate::str::contains("id"));
+        .stdout(predicate::str::contains("0 rows"));
 
     drop_test_keyspace(scylla, &ks);
 }
