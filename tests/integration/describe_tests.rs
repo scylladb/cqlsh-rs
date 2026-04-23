@@ -156,6 +156,14 @@ fn test_describe_materialized_view() {
         output.contains("PRIMARY KEY"),
         "DESCRIBE MATERIALIZED VIEW should show PRIMARY KEY: {output}"
     );
+    assert!(
+        output.contains("WITH CLUSTERING ORDER BY"),
+        "DESCRIBE MATERIALIZED VIEW should include CLUSTERING ORDER BY: {output}"
+    );
+    assert!(
+        output.contains("gc_grace_seconds"),
+        "DESCRIBE MATERIALIZED VIEW should include table properties: {output}"
+    );
 
     drop_test_keyspace(scylla, &ks);
 }

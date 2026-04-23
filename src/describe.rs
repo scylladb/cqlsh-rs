@@ -515,6 +515,36 @@ async fn describe_materialized_view(
         .map(|(_, name, order)| (name.clone(), order.clone()))
         .collect();
 
+    let prop_names = [
+        "bloom_filter_fp_chance",
+        "caching",
+        "comment",
+        "compaction",
+        "compression",
+        "crc_check_chance",
+        "default_time_to_live",
+        "gc_grace_seconds",
+        "max_index_interval",
+        "memtable_flush_period_in_ms",
+        "min_index_interval",
+        "speculative_retry",
+    ];
+    let prop_query = format!(
+        "SELECT {} FROM system_schema.views WHERE keyspace_name = '{}' AND view_name = '{}'",
+        prop_names.join(", "),
+        keyspace.replace('\'', "''"),
+        mv_name.replace('\'', "''")
+    );
+    let prop_result = session.execute_query(&prop_query).await?;
+    let mut properties = std::collections::BTreeMap::new();
+    if let Some(prop_row) = prop_result.rows.first() {
+        for pn in &prop_names {
+            if let Some(val) = prop_row.get_by_name(pn, &prop_result.columns) {
+                properties.insert(pn.to_string(), val.to_string());
+            }
+        }
+    }
+
     let parts = MvDdlParts {
         keyspace: &keyspace,
         view_name: &mv_name,
@@ -524,6 +554,7 @@ async fn describe_materialized_view(
         where_clause: &where_clause,
         partition_keys: &sorted_pk,
         clustering_keys: &sorted_ck,
+        properties: &properties,
     };
     write!(writer, "{}", format_create_mv_ddl(&parts))?;
     Ok(())
@@ -1214,6 +1245,7 @@ struct MvDdlParts<'a> {
     where_clause: &'a str,
     partition_keys: &'a [String],            // sorted by position
     clustering_keys: &'a [(String, String)], // (name, order), sorted by position
+    properties: &'a std::collections::BTreeMap<String, String>,
 }
 
 /// Format a CREATE MATERIALIZED VIEW DDL string.
@@ -1270,22 +1302,54 @@ fn format_create_mv_ddl(parts: &MvDdlParts<'_>) -> String {
         out.push_str(&format!("    PRIMARY KEY ({pk_str}, {ck_str})\n"));
     }
 
-    let has_non_default_order = parts
-        .clustering_keys
-        .iter()
-        .any(|(_, order)| order.to_uppercase() == "DESC");
-    if has_non_default_order {
+    let mut first_with = true;
+
+    if !parts.clustering_keys.is_empty() {
         let order_str = parts
             .clustering_keys
             .iter()
-            .map(|(name, order)| format!("{} {}", quote_if_needed(name), order.to_uppercase()))
+            .map(|(name, order)| {
+                let o = if order.to_uppercase() == "DESC" {
+                    order.to_uppercase()
+                } else {
+                    "ASC".to_string()
+                };
+                format!("{} {o}", quote_if_needed(name))
+            })
             .collect::<Vec<_>>()
             .join(", ");
-        out.push_str(&format!("    WITH CLUSTERING ORDER BY ({order_str});\n"));
-    } else {
-        out.push_str(";\n");
+        out.push_str(&format!(" WITH CLUSTERING ORDER BY ({order_str})"));
+        first_with = false;
     }
 
+    let prop_order = [
+        "bloom_filter_fp_chance",
+        "caching",
+        "comment",
+        "compaction",
+        "compression",
+        "crc_check_chance",
+        "default_time_to_live",
+        "gc_grace_seconds",
+        "max_index_interval",
+        "memtable_flush_period_in_ms",
+        "min_index_interval",
+        "speculative_retry",
+    ];
+
+    for prop_name in &prop_order {
+        if let Some(value) = parts.properties.get(*prop_name) {
+            let formatted_value = format_property_value(prop_name, value);
+            if first_with {
+                out.push_str(&format!(" WITH {} = {}", prop_name, formatted_value));
+                first_with = false;
+            } else {
+                out.push_str(&format!("\n    AND {} = {}", prop_name, formatted_value));
+            }
+        }
+    }
+
+    out.push_str(";\n");
     out.push('\n');
     out
 }
@@ -1591,6 +1655,7 @@ mod tests {
     #[test]
     fn format_create_mv_ddl_simple() {
         let cols = vec!["id".to_string(), "email".to_string()];
+        let props = std::collections::BTreeMap::new();
         let parts = MvDdlParts {
             keyspace: "ks1",
             view_name: "user_by_email",
@@ -1600,6 +1665,7 @@ mod tests {
             where_clause: "email IS NOT NULL",
             partition_keys: &["email".to_string()],
             clustering_keys: &[],
+            properties: &props,
         };
         let ddl = format_create_mv_ddl(&parts);
         assert!(ddl.contains("CREATE MATERIALIZED VIEW ks1.user_by_email AS"));
@@ -1611,6 +1677,7 @@ mod tests {
 
     #[test]
     fn format_create_mv_ddl_include_all() {
+        let props = std::collections::BTreeMap::new();
         let parts = MvDdlParts {
             keyspace: "ks1",
             view_name: "mv_all",
@@ -1620,6 +1687,7 @@ mod tests {
             where_clause: "id IS NOT NULL",
             partition_keys: &["id".to_string()],
             clustering_keys: &[],
+            properties: &props,
         };
         let ddl = format_create_mv_ddl(&parts);
         assert!(
@@ -1632,6 +1700,7 @@ mod tests {
     fn format_create_mv_ddl_with_clustering_desc() {
         let cols = vec!["user_id".to_string(), "ts".to_string()];
         let ck = vec![("ts".to_string(), "DESC".to_string())];
+        let props = std::collections::BTreeMap::new();
         let parts = MvDdlParts {
             keyspace: "ks1",
             view_name: "mv_ordered",
@@ -1641,10 +1710,44 @@ mod tests {
             where_clause: "ts IS NOT NULL",
             partition_keys: &["user_id".to_string()],
             clustering_keys: &ck,
+            properties: &props,
         };
         let ddl = format_create_mv_ddl(&parts);
         assert!(ddl.contains("PRIMARY KEY (user_id, ts)"));
         assert!(ddl.contains("WITH CLUSTERING ORDER BY (ts DESC)"));
+    }
+
+    #[test]
+    fn format_create_mv_ddl_with_properties() {
+        let cols = vec!["id".to_string(), "val".to_string()];
+        let ck = vec![("val".to_string(), "ASC".to_string())];
+        let mut props = std::collections::BTreeMap::new();
+        props.insert("gc_grace_seconds".to_string(), "864000".to_string());
+        props.insert("comment".to_string(), "test view".to_string());
+        let parts = MvDdlParts {
+            keyspace: "ks1",
+            view_name: "mv_props",
+            base_table: "t",
+            include_all: false,
+            select_columns: &cols,
+            where_clause: "val IS NOT NULL",
+            partition_keys: &["id".to_string()],
+            clustering_keys: &ck,
+            properties: &props,
+        };
+        let ddl = format_create_mv_ddl(&parts);
+        assert!(
+            ddl.contains("WITH CLUSTERING ORDER BY (val ASC)"),
+            "should always show CLUSTERING ORDER BY: {ddl}"
+        );
+        assert!(
+            ddl.contains("AND comment = 'test view'"),
+            "should include comment property: {ddl}"
+        );
+        assert!(
+            ddl.contains("AND gc_grace_seconds = 864000"),
+            "should include gc_grace_seconds: {ddl}"
+        );
     }
 
     #[test]
