@@ -6,6 +6,14 @@
   "packageRules": [
     {
       "matchManagers": ["cargo"],
+      "matchPackageNames": ["scylla"],
+      "groupName": "scylla rust driver",
+      "groupSlug": "scylla-driver",
+      "automerge": false
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["!/^scylla/"],
       "groupName": "rust dependencies",
       "groupSlug": "rust-deps",
       "matchUpdateTypes": ["minor", "patch"],
@@ -13,6 +21,7 @@
     },
     {
       "matchManagers": ["cargo"],
+      "matchPackageNames": ["!/^scylla/"],
       "matchUpdateTypes": ["major"],
       "automerge": false
     },
