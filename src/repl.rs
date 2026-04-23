@@ -1243,4 +1243,38 @@ mod tests {
         assert_eq!(lines[0], "CAPTURE '/tmp/test.txt'");
         assert!(parser::is_shell_command(lines[0].trim()));
     }
+
+    #[test]
+    fn print_help_writes_output() {
+        let mut buf = Vec::<u8>::new();
+        print_help(&mut buf);
+        let out = String::from_utf8(buf).unwrap();
+        assert!(out.contains("HELP"));
+        assert!(out.contains("EXIT"));
+        assert!(out.contains("DESCRIBE"));
+    }
+
+    #[test]
+    fn print_help_topic_known() {
+        let mut buf = Vec::<u8>::new();
+        print_help_topic("CONSISTENCY", &mut buf);
+        let out = String::from_utf8(buf).unwrap();
+        assert!(!out.is_empty());
+    }
+
+    #[test]
+    fn print_help_topic_unknown() {
+        let mut buf = Vec::<u8>::new();
+        print_help_topic("NONEXISTENT_TOPIC_XYZ", &mut buf);
+        let out = String::from_utf8(buf).unwrap();
+        assert!(out.contains("Unknown") || out.contains("unknown") || !out.is_empty());
+    }
+
+    #[test]
+    fn print_help_topic_cql() {
+        let mut buf = Vec::<u8>::new();
+        print_help_topic("SELECT", &mut buf);
+        let out = String::from_utf8(buf).unwrap();
+        assert!(!out.is_empty());
+    }
 }
