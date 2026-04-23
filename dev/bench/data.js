@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776943840496,
+  "lastUpdate": 1776956486640,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -9706,6 +9706,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39261,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "debdef1c4299381dc99df238db268bd28f70da60",
+          "message": "chore: release v0.5.3",
+          "timestamp": "2026-04-23T17:27:34+03:00",
+          "tree_id": "7b9c2b879b69200c2648ea7f377e423f3c9ef162",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/debdef1c4299381dc99df238db268bd28f70da60"
+        },
+        "date": 1776956486204,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29843,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3648,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9723,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65939,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 867,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 157380,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7331,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85975,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 792260,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7905100,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9887,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 49245,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40557,
             "unit": "ns"
           }
         ]
