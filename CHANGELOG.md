@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2](https://github.com/scylladb/cqlsh-rs/compare/v0.5.1...v0.5.2) - 2026-04-23
+
+### Fixed
+
+- *(repl)* preserve keyspace context across LOGIN
+
+### Other
+
+- *(codecov)* add codecov.yml with sensible thresholds
+- *(pager,login)* fix BrokenPipe in pager test; fix login keyspace assertion
+- *(login)* add integration test for keyspace preservation after LOGIN
+
 ## [0.5.1](https://github.com/scylladb/cqlsh-rs/compare/v0.5.0...v0.5.1) - 2026-04-22
 
 ### Fixed
