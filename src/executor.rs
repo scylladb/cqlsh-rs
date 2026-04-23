@@ -400,8 +400,14 @@ pub fn execute_single_statement<'a>(
             let mut new_config = config.clone();
             new_config.username = Some(new_user);
             new_config.password = new_pass;
+            let prev_keyspace = session.current_keyspace().map(str::to_string);
             match crate::session::CqlSession::connect(&new_config).await {
-                Ok(new_session) => {
+                Ok(mut new_session) => {
+                    if let Some(ks) = prev_keyspace {
+                        if let Err(e) = new_session.use_keyspace(&ks).await {
+                            eprintln!("Warning: could not restore keyspace '{ks}': {e}");
+                        }
+                    }
                     *session = new_session;
                 }
                 Err(e) => {
