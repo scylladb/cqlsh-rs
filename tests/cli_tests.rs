@@ -441,3 +441,8 @@ fn file_flag_attempts_connection() {
         .assert()
         .code(2);
 }
+
+#[test]
+fn safe_mode_flag_accepted() {
+    cmd().arg("--safe-mode").write_stdin("").assert().code(2);
+}

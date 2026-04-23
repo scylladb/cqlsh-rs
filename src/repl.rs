@@ -633,6 +633,14 @@ fn dispatch_input<'a>(
             return;
         }
 
+        // Safe-mode: confirm before DROP or TRUNCATE
+        if config.safe_mode
+            && (upper.starts_with("DROP ") || upper.starts_with("TRUNCATE "))
+            && !confirm_dangerous_statement(trimmed)
+        {
+            return;
+        }
+
         // Execute as CQL statement
         if shell.paging_enabled && shell.is_tty && could_return_rows(trimmed) {
             match session.execute_streaming(trimmed, config.fetch_size).await {
@@ -900,6 +908,20 @@ pub fn print_help_topic(topic: &str, writer: &mut dyn std::io::Write) {
     }
 }
 
+/// Prompt the user to confirm a dangerous statement (DROP/TRUNCATE).
+///
+/// Returns `true` if the user confirms, `false` otherwise.
+/// Matches Python cqlsh safe-mode behavior.
+fn confirm_dangerous_statement(stmt: &str) -> bool {
+    eprint!("Are you sure you want to execute the following?\n\n{stmt}\n\n(y/N) ");
+    let _ = io::stderr().flush();
+    let mut input = String::new();
+    if io::stdin().read_line(&mut input).is_err() {
+        return false;
+    }
+    matches!(input.trim().to_lowercase().as_str(), "y" | "yes")
+}
+
 /// Strip surrounding single or double quotes from a string.
 fn strip_quotes(s: &str) -> &str {
     if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
@@ -1094,6 +1116,7 @@ mod tests {
             tty: false,
             no_file_io: false,
             no_compact: false,
+            safe_mode: false,
             disable_history,
             execute: None,
             file: None,
@@ -1242,5 +1265,40 @@ mod tests {
         assert_eq!(lines.len(), 3);
         assert_eq!(lines[0], "CAPTURE '/tmp/test.txt'");
         assert!(parser::is_shell_command(lines[0].trim()));
+    }
+
+    #[test]
+    fn safe_mode_detects_drop_statements() {
+        let dangerous = [
+            "DROP TABLE users",
+            "DROP KEYSPACE my_ks",
+            "drop table users",
+            "TRUNCATE users",
+            "truncate table users",
+        ];
+        for stmt in &dangerous {
+            let upper = stmt.to_uppercase();
+            assert!(
+                upper.starts_with("DROP ") || upper.starts_with("TRUNCATE "),
+                "should detect as dangerous: {stmt}"
+            );
+        }
+    }
+
+    #[test]
+    fn safe_mode_ignores_non_destructive_statements() {
+        let safe = [
+            "SELECT * FROM users",
+            "INSERT INTO users (id) VALUES (1)",
+            "CREATE TABLE t (id int PRIMARY KEY)",
+            "ALTER TABLE t ADD col text",
+        ];
+        for stmt in &safe {
+            let upper = stmt.to_uppercase();
+            assert!(
+                !upper.starts_with("DROP ") && !upper.starts_with("TRUNCATE "),
+                "should not detect as dangerous: {stmt}"
+            );
+        }
     }
 }

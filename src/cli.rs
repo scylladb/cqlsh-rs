@@ -109,6 +109,10 @@ pub struct CliArgs {
     #[arg(long = "no_compact")]
     pub no_compact: bool,
 
+    /// Prompt before executing DROP or TRUNCATE statements
+    #[arg(long = "safe-mode")]
+    pub safe_mode: bool,
+
     /// Disable saving of command history
     #[arg(long = "disable-history")]
     pub disable_history: bool,
@@ -173,6 +177,7 @@ mod tests {
         assert!(!args.tty);
         assert!(!args.no_file_io);
         assert!(!args.no_compact);
+        assert!(!args.safe_mode);
         assert!(!args.disable_history);
         assert!(args.execute.is_none());
         assert!(args.file.is_none());
@@ -337,6 +342,12 @@ mod tests {
     }
 
     #[test]
+    fn safe_mode_flag() {
+        let args = parse(&["--safe-mode"]);
+        assert!(args.safe_mode);
+    }
+
+    #[test]
     fn secure_connect_bundle_flag() {
         let args = parse(&["-b", "/path/to/bundle.zip"]);
         assert_eq!(
@@ -364,6 +375,7 @@ mod tests {
             "test_ks",
             "--ssl",
             "-C",
+            "--safe-mode",
             "--connect-timeout",
             "15",
         ]);
@@ -374,6 +386,7 @@ mod tests {
         assert_eq!(args.keyspace.as_deref(), Some("test_ks"));
         assert!(args.ssl);
         assert!(args.color);
+        assert!(args.safe_mode);
         assert_eq!(args.connect_timeout, Some(15));
     }
 
