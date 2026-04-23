@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776959762083,
+  "lastUpdate": 1776959764047,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -10102,6 +10102,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40770,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "7fba3fdb43a0d1e1985ad9a4bc09be6b9058b0f9",
+          "message": "fix: include WITH clause in DESCRIBE MATERIALIZED VIEW output\n\nDESCRIBE MATERIALIZED VIEW omitted the WITH clause entirely — no\nCLUSTERING ORDER BY and no table properties (gc_grace_seconds,\ncompaction, compression, etc.).\n\nQuery view properties from system_schema.views and emit them using the\nsame WITH/AND format as DESCRIBE TABLE. CLUSTERING ORDER BY is now\nalways included (matching Python cqlsh behavior).\n\nCloses #140",
+          "timestamp": "2026-04-23T18:46:38+03:00",
+          "tree_id": "354a71f981d52ebfab973e5f948b9d799ae8097c",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/7fba3fdb43a0d1e1985ad9a4bc09be6b9058b0f9"
+        },
+        "date": 1776959759968,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29975,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3537,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9408,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65114,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 863,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 156900,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7441,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86262,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 797620,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 8010500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 11164,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 49029,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39836,
             "unit": "ns"
           }
         ]
