@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4](https://github.com/scylladb/cqlsh-rs/compare/v0.5.3...v0.5.4) - 2026-04-23
+
+### Fixed
+
+- resolve DESCRIBE <name> across all schema object types
+- include WITH clause in DESCRIBE MATERIALIZED VIEW output
+- preserve keyspace context after LOGIN in executor mode
+
+### Other
+
+- *(deps)* bump scylla rust driver from 1.5.0 to 1.6.0
+- *(renovate)* track scylla rust driver separately from other rust deps
+- *(repl)* add unit tests for print_help and print_help_topic
+
 ## [0.5.3](https://github.com/scylladb/cqlsh-rs/compare/v0.5.2...v0.5.3) - 2026-04-23
 
 ### Other
