@@ -127,7 +127,7 @@ This means we cannot simply pass a UDS path to the driver. We need a workaround.
 | # | Question | Status | Decision |
 |---|----------|--------|----------|
 | 1 | Should we also support `--unix-socket <path>` explicit flag in addition to auto-detection? | Open | Auto-detection matches Python cqlsh behavior; explicit flag could be added later for clarity |
-| 2 | Should we file an upstream issue on scylla-rust-driver for native UDS support? | Open | Yes, recommended. Would allow removing the proxy workaround eventually |
+| 2 | Should we file an upstream issue on scylla-rust-driver for native UDS support? | Resolved | Filed: [scylladb/scylla-rust-driver#1616](https://github.com/scylladb/scylla-rust-driver/issues/1616) |
 | 3 | How does auto-node-discovery interact with UDS mode? | Open | Likely need to investigate `SessionBuilder` options to disable topology refresh when in UDS mode |
 
 ---
