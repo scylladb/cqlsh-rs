@@ -5,6 +5,7 @@
 //! prepared statements, paging, and schema metadata queries.
 
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -507,20 +508,30 @@ impl CqlDriver for ScyllaDriver {
 
         let mut builder = SessionBuilder::new().known_node(&addr);
 
-        // Authentication
         if let (Some(username), Some(password)) = (&config.username, &config.password) {
             builder = builder.user(username, password);
         }
 
-        // Connection timeout
         builder = builder.connection_timeout(Duration::from_secs(config.connect_timeout));
 
-        // Default keyspace
         if let Some(keyspace) = &config.keyspace {
             builder = builder.use_keyspace(keyspace, false);
         }
 
-        // SSL/TLS
+        // Always install the proxy address translator. Since known_node addresses
+        // are never translated (only peers from system.peers are), this is safe:
+        // - Direct connections: peers share the same network, translator is a no-op
+        //   in practice (peers are reachable anyway, and translated to contact point
+        //   which also works since it's the same node in single-node or resolves correctly)
+        // - Proxy connections: peers have unreachable internal IPs, translator
+        //   redirects all of them to the proxy contact point
+        if let Ok(contact_point) = addr.parse::<SocketAddr>() {
+            let translator = Arc::new(
+                super::proxy_address_translator::ProxyAddressTranslator::new(contact_point),
+            );
+            builder = builder.address_translator(translator);
+        }
+
         if config.ssl {
             let tls_config = if let Some(ssl_config) = &config.ssl_config {
                 Self::build_rustls_config(ssl_config)?
@@ -529,11 +540,6 @@ impl CqlDriver for ScyllaDriver {
             };
             builder = builder.tls_context(Some(tls_config));
         }
-
-        // NOTE: config.protocol_version is accepted for CLI compatibility but
-        // scylla-rust-driver 1.5.0 auto-negotiates the native protocol version.
-        // SessionBuilder has no method to force a specific protocol version.
-        // Similarly, the driver hardcodes CQL_VERSION="4.0.0" in the STARTUP frame.
 
         let session = builder.build().await.context("connecting to cluster")?;
 

@@ -32,6 +32,8 @@ mod login_tests;
 #[cfg(feature = "test-plain")]
 mod output_tests;
 #[cfg(feature = "test-plain")]
+mod proxy_tests;
+#[cfg(feature = "test-plain")]
 mod schema_agreement_tests;
 #[cfg(feature = "test-plain")]
 mod unicode_tests;
