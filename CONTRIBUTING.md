@@ -103,6 +103,38 @@ scylladb organization. To set up or verify crate ownership:
 > (OIDC). A `CARGO_REGISTRY_TOKEN` secret is required. Track the upstream
 > feature request at <https://github.com/rust-lang/crates.io/issues/7091>.
 
+### Building for distribution (glibc compatibility)
+
+Release binaries for Linux are **statically linked via musl**. This eliminates
+glibc version requirements entirely and ensures compatibility with:
+
+- RHEL 9 / Rocky Linux 9 / UBI9 (glibc 2.34)
+- Ubuntu 22.04+ (glibc 2.35)
+- ScyllaDB Docker images (ubi9-minimal)
+- Any Linux distribution regardless of glibc version
+
+**If you're packaging cqlsh-rs for a distribution or embedding it in a Docker
+image, always use the musl target:**
+
+```bash
+# x86_64 static binary
+make release-linux-x86_64
+# Binary at: target/x86_64-unknown-linux-musl/release/cqlsh-rs
+
+# aarch64 static binary (requires cross-rs)
+make release-linux-aarch64
+# Binary at: target/aarch64-unknown-linux-musl/release/cqlsh-rs
+```
+
+Or use pre-built binaries from
+[GitHub Releases](https://github.com/scylladb/cqlsh-rs/releases/latest) which
+are already statically linked.
+
+> **⚠️ Do not use `cargo build --release` on modern toolchains (Fedora 43+,
+> glibc 2.39) for distribution.** The resulting binary will require the build
+> host's glibc version and fail on older systems. Always use the musl target
+> or download pre-built static binaries.
+
 ### Docker images
 
 Multi-architecture Docker images (`linux/amd64` and `linux/arm64`) are
