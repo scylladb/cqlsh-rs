@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777880100636,
+  "lastUpdate": 1777880125621,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -10597,6 +10597,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39634,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "fa00aa79a994c9fe6cb391caefa0170c759cd72e",
+          "message": "fix: suppress connection banner in non-interactive mode (-e, -f, pipe)\n\nPython cqlsh only prints the 'Connected to...' banner when running\ninteractively (TTY attached, no -e flag, no piped input). cqlsh-rs was\nincorrectly printing the banner with -e and -f flags, breaking tools\nlike scylla-doctor that parse tabular output.\n\nCloses #146",
+          "timestamp": "2026-05-04T10:25:08+03:00",
+          "tree_id": "8937b2257829d6008d51a89e454bcb74484d4c25",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/fa00aa79a994c9fe6cb391caefa0170c759cd72e"
+        },
+        "date": 1777880125105,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29536,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3545,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9334,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64330,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 886,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 155200,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6873,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 84464,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 770220,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7690200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9566,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 48300,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40202,
             "unit": "ns"
           }
         ]
