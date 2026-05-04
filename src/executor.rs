@@ -418,6 +418,54 @@ pub fn execute_single_statement<'a>(
             return true;
         }
 
+        // Handle COPY TO
+        if upper.starts_with("COPY ") && upper.contains(" TO ") {
+            if config.no_file_io {
+                eprintln!("File I/O is disabled (--no-file-io).");
+                return false;
+            }
+            match crate::copy::parse_copy_to(trimmed) {
+                Ok(cmd) => {
+                    let ks = session.current_keyspace();
+                    match crate::copy::execute_copy_to(session, &cmd, ks).await {
+                        Ok(()) => return true,
+                        Err(e) => {
+                            eprintln!("COPY TO error: {e}");
+                            return false;
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Invalid COPY TO syntax: {e}");
+                    return false;
+                }
+            }
+        }
+
+        // Handle COPY FROM
+        if upper.starts_with("COPY ") && upper.contains(" FROM ") {
+            if config.no_file_io {
+                eprintln!("File I/O is disabled (--no-file-io).");
+                return false;
+            }
+            match crate::copy::parse_copy_from(trimmed) {
+                Ok(cmd) => {
+                    let ks = session.current_keyspace();
+                    match crate::copy::execute_copy_from(session, &cmd, ks).await {
+                        Ok(()) => return true,
+                        Err(e) => {
+                            eprintln!("COPY FROM error: {e}");
+                            return false;
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Invalid COPY FROM syntax: {e}");
+                    return false;
+                }
+            }
+        }
+
         if upper == "QUIT"
             || upper == "EXIT"
             || upper == "HELP"
