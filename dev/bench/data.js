@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776960867446,
+  "lastUpdate": 1777877588488,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -10399,6 +10399,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40445,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "049b8ddcabbfc22edcc3f0b715117189afbc4374",
+          "message": "docs: add Makefile and distribution build guide for glibc compatibility\n\nCloses #147. External consumers building on modern toolchains (Fedora 43+,\nglibc 2.39) produce binaries incompatible with RHEL 9/UBI9. Add a Makefile\nwith musl static build targets and document the correct approach in\nCONTRIBUTING.md.",
+          "timestamp": "2026-05-04T09:43:09+03:00",
+          "tree_id": "d6885b0bac925a8695e76668f620acf18c35cb4a",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/049b8ddcabbfc22edcc3f0b715117189afbc4374"
+        },
+        "date": 1777877588178,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29536,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3570,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9235,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63603,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 874,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 154890,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7055,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 84675,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 767420,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7680600,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9616,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46358,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39702,
             "unit": "ns"
           }
         ]
