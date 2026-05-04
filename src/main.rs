@@ -79,10 +79,10 @@ async fn main() -> Result<()> {
 
     let stdin_is_pipe = !io::stdin().is_terminal() && !config.tty;
 
-    // Python cqlsh always prints the banner with -e/-f, only suppresses it when
-    // reading from a pipe/redirect without an explicit command.
-    let suppress_banner = stdin_is_pipe && config.execute.is_none() && config.file.is_none();
-    if !suppress_banner {
+    // Python cqlsh suppresses the banner in all non-interactive modes:
+    // -e (execute), -f (file), or piped/redirected stdin.
+    let is_interactive = !stdin_is_pipe && config.execute.is_none() && config.file.is_none();
+    if is_interactive {
         print_banner(&session);
     }
 

@@ -528,17 +528,16 @@ fn test_consistency_command() {
 fn test_connection_banner() {
     let scylla = get_scylla();
 
-    // Run any command and check stderr for the connection banner
+    // With -e flag, banner should be suppressed (non-interactive mode)
     let output = cqlsh_cmd(scylla)
         .args(["-e", "SELECT release_version FROM system.local"])
         .output()
         .expect("failed to execute cqlsh-rs");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    // The banner is printed to stdout before the query result
     assert!(
-        stdout.contains("Connected to") || stdout.contains("cqlsh"),
-        "Expected connection banner in output: {stdout}"
+        !stdout.contains("Connected to"),
+        "Banner should NOT appear in non-interactive mode: {stdout}"
     );
 }
 

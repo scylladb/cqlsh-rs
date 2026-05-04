@@ -350,7 +350,7 @@ fn test_blob_output() {
 
 #[test]
 #[ignore = "requires Docker"]
-fn test_connection_banner_format() {
+fn test_connection_banner_suppressed_with_execute_flag() {
     let scylla = get_scylla();
 
     let output = cqlsh_cmd(scylla)
@@ -360,20 +360,13 @@ fn test_connection_banner_format() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    // Banner: "Connected to <cluster> at <host>."
     assert!(
-        stdout.contains("Connected to"),
-        "Expected 'Connected to' in banner: {stdout}"
+        !stdout.contains("Connected to"),
+        "Banner should NOT appear with -e flag: {stdout}"
     );
-    // Version line: "[cqlsh <version> | ...]"
     assert!(
-        stdout.contains("[cqlsh"),
-        "Expected '[cqlsh' version line: {stdout}"
-    );
-    // Help hint
-    assert!(
-        stdout.contains("Use HELP for help."),
-        "Expected help hint: {stdout}"
+        !stdout.contains("[cqlsh"),
+        "Version line should NOT appear with -e flag: {stdout}"
     );
 }
 
