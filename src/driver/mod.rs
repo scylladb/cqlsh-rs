@@ -7,6 +7,7 @@
 //! Many types and trait methods are defined ahead of their use in later
 //! development phases (REPL, DESCRIBE, COPY, etc.).
 
+pub mod proxy_address_translator;
 pub mod scylla_driver;
 pub mod types;
 
