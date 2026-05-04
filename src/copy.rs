@@ -2119,16 +2119,14 @@ mod tests {
 
     #[test]
     fn parse_copy_to_underscore_in_names() {
-        let cmd =
-            parse_copy_to("COPY test_copy_to_f49405.copy_test TO '/tmp/out.csv'").unwrap();
+        let cmd = parse_copy_to("COPY test_copy_to_f49405.copy_test TO '/tmp/out.csv'").unwrap();
         assert_eq!(cmd.keyspace.as_deref(), Some("test_copy_to_f49405"));
         assert_eq!(cmd.table, "copy_test");
     }
 
     #[test]
     fn parse_copy_from_underscore_in_names() {
-        let cmd =
-            parse_copy_from("COPY test_from_data.my_table FROM '/tmp/in.csv'").unwrap();
+        let cmd = parse_copy_from("COPY test_from_data.my_table FROM '/tmp/in.csv'").unwrap();
         assert_eq!(cmd.keyspace.as_deref(), Some("test_from_data"));
         assert_eq!(cmd.table, "my_table");
     }

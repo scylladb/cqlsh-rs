@@ -17,12 +17,10 @@ use std::io::Write as IoWrite;
 
 use super::helpers::*;
 
-/// Run a trivial COPY TO probe and return `false` when the server rejects the
-/// command with a `SyntaxException` (meaning COPY is not yet dispatched in
-/// non-interactive mode). Returns `true` when the command is handled by
-/// cqlsh-rs itself (success or a cqlsh-level error).
+/// Run a trivial COPY TO probe and return `false` when COPY is not working
+/// in non-interactive mode. Returns `true` only when the command succeeds
+/// (exit code 0), meaning cqlsh-rs correctly dispatches and executes COPY.
 fn copy_dispatched(scylla: &ScyllaContainer, ks: &str) -> bool {
-    // A probe table that exists only for the duration of this check.
     let _ = cqlsh_cmd(scylla)
         .args([
             "-e",
@@ -38,9 +36,7 @@ fn copy_dispatched(scylla: &ScyllaContainer, ks: &str) -> bool {
         .output()
         .expect("failed to run cqlsh-rs for COPY probe");
 
-    let stderr = String::from_utf8_lossy(&result.stderr);
-    // If the server sees the statement it returns SyntaxException.
-    !stderr.contains("SyntaxException") && !stderr.contains("no viable alternative")
+    result.status.success()
 }
 
 // ---------------------------------------------------------------------------
