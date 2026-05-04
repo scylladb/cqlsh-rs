@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.6](https://github.com/scylladb/cqlsh-rs/compare/v0.5.5...v0.5.6) - 2026-05-04
+
+### Fixed
+
+- suppress connection banner in non-interactive mode (-e, -f, pipe)
+
 ## [0.5.5](https://github.com/scylladb/cqlsh-rs/compare/v0.5.4...v0.5.5) - 2026-05-04
 
 ### Other
