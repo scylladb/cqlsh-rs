@@ -357,8 +357,10 @@ fn find_keyword_outside_parens(s: &str, keyword: &str) -> Option<usize> {
             // Check if keyword matches at this position, surrounded by word boundaries
             if i + kw_len <= upper.len() && upper[i..i + kw_len] == *kw_upper {
                 // Check word boundaries
-                let before_ok = i == 0 || !bytes[i - 1].is_ascii_alphanumeric();
-                let after_ok = i + kw_len >= s.len() || !bytes[i + kw_len].is_ascii_alphanumeric();
+                let before_ok =
+                    i == 0 || !(bytes[i - 1].is_ascii_alphanumeric() || bytes[i - 1] == b'_');
+                let after_ok = i + kw_len >= s.len()
+                    || !(bytes[i + kw_len].is_ascii_alphanumeric() || bytes[i + kw_len] == b'_');
                 if before_ok && after_ok {
                     return Some(i);
                 }
@@ -2113,6 +2115,22 @@ mod tests {
     fn parse_copy_to_case_insensitive() {
         let cmd = parse_copy_to("copy ks.table to STDOUT").unwrap();
         assert_eq!(cmd.filename, CopyTarget::Stdout);
+    }
+
+    #[test]
+    fn parse_copy_to_underscore_in_names() {
+        let cmd =
+            parse_copy_to("COPY test_copy_to_f49405.copy_test TO '/tmp/out.csv'").unwrap();
+        assert_eq!(cmd.keyspace.as_deref(), Some("test_copy_to_f49405"));
+        assert_eq!(cmd.table, "copy_test");
+    }
+
+    #[test]
+    fn parse_copy_from_underscore_in_names() {
+        let cmd =
+            parse_copy_from("COPY test_from_data.my_table FROM '/tmp/in.csv'").unwrap();
+        assert_eq!(cmd.keyspace.as_deref(), Some("test_from_data"));
+        assert_eq!(cmd.table, "my_table");
     }
 
     #[test]
