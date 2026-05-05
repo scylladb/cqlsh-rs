@@ -1,0 +1,38 @@
+LOGIN HANDLER HOST PRESERVATION VERIFICATION
+==============================================
+
+Location: src/executor.rs:391-418
+
+Code Review:
+  Line 400: let mut new_config = config.clone();
+  Line 401: new_config.username = Some(new_user);
+  Line 402: new_config.password = new_pass;
+  Line 404: CqlSession::connect(&new_config).await
+
+Findings:
+  ✓ config.clone() creates a complete copy of the configuration
+  ✓ Only username and password fields are explicitly modified
+  ✓ host field is NOT overwritten — preserved automatically via clone()
+  ✓ The cloned config (with original host) is passed to connect()
+
+Result:
+  UDS host path (e.g., /var/run/scylla/cql.sock) is preserved during LOGIN reconnection.
+  No code changes needed — the implementation is correct.
+
+Verification:
+  The connect() method will re-detect the UDS path and restart the proxy automatically
+  with the new credentials while maintaining the original socket connection.
+
+Config Struct Verification (src/config.rs:294-321):
+  pub struct MergedConfig {
+    pub host: String,                    ← preserved by clone()
+    pub port: u16,
+    pub username: Option<String>,        ← modified in LOGIN handler
+    pub password: Option<String>,        ← modified in LOGIN handler
+    ...
+  }
+
+Conclusion:
+  ✓ The LOGIN handler correctly preserves the host field
+  ✓ No code changes required
+  ✓ UDS socket paths will be maintained across LOGIN reconnections

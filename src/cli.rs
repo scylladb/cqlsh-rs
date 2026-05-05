@@ -13,7 +13,7 @@ use clap_complete::Shell;
 #[derive(Parser, Debug, Clone)]
 #[command(name = "cqlsh", version, about, disable_help_flag = false)]
 pub struct CliArgs {
-    /// Contact point hostname (default: 127.0.0.1)
+    /// Contact point hostname, IP address, or Unix domain socket path (default: 127.0.0.1). Unix sockets are Linux/macOS only.
     #[arg(value_name = "host")]
     pub host: Option<String>,
 
