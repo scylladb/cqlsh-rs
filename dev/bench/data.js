@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777881674211,
+  "lastUpdate": 1777962465775,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -10795,6 +10795,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39823,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "0ddde3a8f96edbbb711a9b231f0e02de53dd7efa",
+          "message": "test: strengthen copy_dispatched probe to require exit code 0\n\nThe probe previously only checked that the server didn't return a\nSyntaxException, which meant it returned true even when COPY was\ndispatched but failed (e.g. due to keyword parsing bugs). Now it\nrequires actual success.",
+          "timestamp": "2026-05-05T09:17:44+03:00",
+          "tree_id": "7e7ddfbddaf72749ac23f6a2fe8cbf0365bfab6b",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/0ddde3a8f96edbbb711a9b231f0e02de53dd7efa"
+        },
+        "date": 1777962465253,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29628,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3666,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9621,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 67499,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 873,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 151000,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7384,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 13,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 83740,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 751770,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7520000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10110,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 48845,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39846,
             "unit": "ns"
           }
         ]
