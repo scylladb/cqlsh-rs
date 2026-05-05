@@ -57,6 +57,7 @@ impl CqlSession {
             ssl: config.ssl,
             ssl_config,
             protocol_version: config.protocol_version,
+            unix_socket: false,
         };
 
         let driver = ScyllaDriver::connect(&conn_config).await?;

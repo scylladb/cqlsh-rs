@@ -10,6 +10,7 @@
 pub mod proxy_address_translator;
 pub mod scylla_driver;
 pub mod types;
+pub mod uds_proxy;
 
 use std::collections::HashMap;
 
@@ -43,6 +44,8 @@ pub struct ConnectionConfig {
     pub ssl_config: Option<SslConfig>,
     /// Protocol version (None = auto-negotiate).
     pub protocol_version: Option<u8>,
+    /// Whether this connection is using a Unix domain socket (auto-detected).
+    pub unix_socket: bool,
 }
 
 /// SSL/TLS configuration options.
