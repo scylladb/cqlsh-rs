@@ -351,12 +351,12 @@ fn dispatch_input<'a>(
         // Handle TRACING
         if upper == "TRACING" || upper == "TRACING OFF" {
             session.set_tracing(false);
-            shell.outputln("Disabled tracing.");
+            shell.outputln("Tracing is disabled");
             return;
         }
         if upper == "TRACING ON" {
             session.set_tracing(true);
-            shell.outputln("Now tracing requests.");
+            shell.outputln("Tracing is enabled");
             return;
         }
 

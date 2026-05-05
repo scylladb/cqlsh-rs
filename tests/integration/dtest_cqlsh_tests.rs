@@ -351,8 +351,52 @@ fn test_tracing() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(
+        stdout.contains("Tracing is enabled"),
+        "Expected 'Tracing is enabled' confirmation in output: {stdout}"
+    );
+    assert!(
         stdout.contains("Tracing session:"),
         "Expected tracing session info in output: {stdout}"
+    );
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_tracing_off_message() {
+    let scylla = get_scylla();
+
+    let output = cqlsh_cmd(scylla)
+        .args(["-e", "TRACING OFF"])
+        .output()
+        .expect("failed to execute cqlsh-rs");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success());
+    assert!(
+        stdout.contains("Tracing is disabled"),
+        "Expected 'Tracing is disabled' confirmation in output: {stdout}"
+    );
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_tracing_toggle_messages() {
+    let scylla = get_scylla();
+
+    let output = cqlsh_cmd(scylla)
+        .args(["-e", "TRACING ON; TRACING OFF"])
+        .output()
+        .expect("failed to execute cqlsh-rs");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(output.status.success());
+    assert!(
+        stdout.contains("Tracing is enabled"),
+        "Expected 'Tracing is enabled' in output: {stdout}"
+    );
+    assert!(
+        stdout.contains("Tracing is disabled"),
+        "Expected 'Tracing is disabled' in output: {stdout}"
     );
 }
 

@@ -14,7 +14,7 @@ TRACING
 
 ```
 cqlsh> TRACING ON
-Now tracing requests.
+Tracing is enabled
 
 cqlsh> SELECT * FROM system.local;
 -- query results --
@@ -22,7 +22,7 @@ cqlsh> SELECT * FROM system.local;
 Tracing session: 12345678-1234-1234-1234-123456789abc
 
 cqlsh> TRACING OFF
-Disabled tracing.
+Tracing is disabled
 ```
 
 ## Notes
