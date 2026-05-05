@@ -5,7 +5,6 @@
 //! prepared statements, paging, and schema metadata queries.
 
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -508,6 +507,12 @@ impl CqlDriver for ScyllaDriver {
 
         let mut builder = SessionBuilder::new().known_node(&addr);
 
+        // cqlsh is a single-user interactive tool — one connection per host suffices
+        // and avoids connection explosion when using a proxy translator.
+        builder = builder.pool_size(scylla::client::PoolSize::PerHost(
+            std::num::NonZeroUsize::new(1).unwrap(),
+        ));
+
         if let (Some(username), Some(password)) = (&config.username, &config.password) {
             builder = builder.user(username, password);
         }
@@ -525,7 +530,11 @@ impl CqlDriver for ScyllaDriver {
         //   which also works since it's the same node in single-node or resolves correctly)
         // - Proxy connections: peers have unreachable internal IPs, translator
         //   redirects all of them to the proxy contact point
-        if let Ok(contact_point) = addr.parse::<SocketAddr>() {
+        let contact_point = tokio::net::lookup_host(&addr)
+            .await
+            .ok()
+            .and_then(|mut addrs| addrs.next());
+        if let Some(contact_point) = contact_point {
             let translator = Arc::new(
                 super::proxy_address_translator::ProxyAddressTranslator::new(contact_point),
             );
