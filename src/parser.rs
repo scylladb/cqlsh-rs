@@ -165,7 +165,9 @@ impl StatementParser {
                     } else if ch == '$' && i + 1 < len && self.buffer.as_bytes()[i + 1] == b'$' {
                         self.state = LexState::DollarQuote;
                         i += 2;
-                    } else if ch == '-' && i + 1 < len && self.buffer.as_bytes()[i + 1] == b'-' {
+                    } else if (ch == '-' && i + 1 < len && self.buffer.as_bytes()[i + 1] == b'-')
+                        || (ch == '/' && i + 1 < len && self.buffer.as_bytes()[i + 1] == b'/')
+                    {
                         self.state = LexState::LineComment;
                         i += 2;
                     } else if ch == '/' && i + 1 < len && self.buffer.as_bytes()[i + 1] == b'*' {
@@ -1142,5 +1144,116 @@ mod tests {
         assert_eq!(stmts.len(), 1);
         assert!(stmts[0].starts_with("BEGIN BATCH"));
         assert!(stmts[0].ends_with("APPLY BATCH"));
+    }
+
+    #[test]
+    fn slash_slash_line_comment_stripped() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line("SELECT 1; // post-line comment");
+        assert_eq!(result, ParseResult::Complete(vec!["SELECT 1".to_string()]));
+    }
+
+    #[test]
+    fn slash_slash_comment_mid_file() {
+        let mut p = StatementParser::new();
+        assert_eq!(p.feed_line("// this is a comment"), ParseResult::Incomplete);
+        let result = p.feed_line("SELECT 1;");
+        assert_eq!(result, ParseResult::Complete(vec!["SELECT 1".to_string()]));
+    }
+
+    #[test]
+    fn slash_slash_inside_string_not_treated_as_comment() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line("SELECT '// not a comment';");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["SELECT '// not a comment'".to_string()])
+        );
+    }
+
+    #[test]
+    fn block_comment_chars_inside_string_literal() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line("INSERT INTO t (v) VALUES ('test_role./*');");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["INSERT INTO t (v) VALUES ('test_role./*')".to_string()])
+        );
+    }
+
+    #[test]
+    fn block_comment_close_inside_string_literal() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line("INSERT INTO t (v) VALUES ('v1*/');");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["INSERT INTO t (v) VALUES ('v1*/')".to_string()])
+        );
+    }
+
+    #[test]
+    fn mixed_comment_chars_in_strings() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line("INSERT INTO t (a,b,c) VALUES ('aKey','v1*/','/v2/*/v3');");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec![
+                "INSERT INTO t (a,b,c) VALUES ('aKey','v1*/','/v2/*/v3')".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn double_dash_inside_string_not_comment() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line("SELECT '-- not a comment';");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["SELECT '-- not a comment'".to_string()])
+        );
+    }
+
+    #[test]
+    fn inline_block_comment_stripped() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line("SELECT /* inline */ * FROM t;");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["SELECT   * FROM t".to_string()])
+        );
+    }
+
+    #[test]
+    fn multiline_block_comment_across_feeds() {
+        let mut p = StatementParser::new();
+        assert_eq!(
+            p.feed_line("SELECT * FROM t WHERE"),
+            ParseResult::Incomplete
+        );
+        assert_eq!(p.feed_line("/* multi-line"), ParseResult::Incomplete);
+        assert_eq!(p.feed_line("   comment */"), ParseResult::Incomplete);
+        let result = p.feed_line("id = 1;");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["SELECT * FROM t WHERE\n \nid = 1".to_string()])
+        );
+    }
+
+    #[test]
+    fn comment_before_statement() {
+        let mut p = StatementParser::new();
+        assert_eq!(p.feed_line("/* comment */"), ParseResult::Incomplete);
+        let result = p.feed_line("SELECT 1;");
+        assert_eq!(result, ParseResult::Complete(vec!["SELECT 1".to_string()]));
+    }
+
+    #[test]
+    fn multiple_statements_with_comments() {
+        let mut p = StatementParser::new();
+        let result = p.feed_line("SELECT 1; -- comment\nSELECT 2;");
+        assert_eq!(
+            result,
+            ParseResult::Complete(vec!["SELECT 1".to_string(), "SELECT 2".to_string()])
+        );
     }
 }
