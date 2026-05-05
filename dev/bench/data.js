@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777962465775,
+  "lastUpdate": 1777962908975,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -10894,6 +10894,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39846,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "b504b27224ebc38ca6f1555ba9646e2215f775ab",
+          "message": "docs: implementation plan for Unix domain socket support (SP21)\n\nSplit into short-range and long-range strategies:\n- SP21a: built-in TCP-to-UDS proxy (implementable now, no driver changes)\n- SP21b: migrate to native driver UDS once scylla-rust-driver#1616 ships\n\nUpstream refs: scylladb/scylla-cqlsh#67, scylladb/scylla-rust-driver#1616",
+          "timestamp": "2026-05-05T09:25:07+03:00",
+          "tree_id": "41f8965d9b8e6c19b07af98d9d95fcb8b2f44de8",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/b504b27224ebc38ca6f1555ba9646e2215f775ab"
+        },
+        "date": 1777962908578,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29774,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3562,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9370,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65503,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 856,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 156560,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7170,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86209,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 793580,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7947000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10027,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46813,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40941,
             "unit": "ns"
           }
         ]
