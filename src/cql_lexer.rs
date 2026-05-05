@@ -1086,6 +1086,15 @@ pub fn strip_comments(input: &str) -> String {
             continue;
         }
 
+        // Line comment: // to end of line (Python cqlsh compatibility)
+        if ch == b'/' && i + 1 < len && bytes[i + 1] == b'/' {
+            i += 2;
+            while i < len && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+
         // Block comment: /* ... */ (nested)
         if ch == b'/' && i + 1 < len && bytes[i + 1] == b'*' {
             let mut depth: usize = 1;
@@ -2034,6 +2043,18 @@ mod tests {
     fn strip_nested_block_comments() {
         let result = strip_comments("SELECT /* outer /* inner */ still */ 1");
         assert_eq!(result, "SELECT   1");
+    }
+
+    #[test]
+    fn strip_slash_slash_comment() {
+        let result = strip_comments("SELECT 1 // comment");
+        assert_eq!(result, "SELECT 1 ");
+    }
+
+    #[test]
+    fn strip_slash_slash_preserves_strings() {
+        let result = strip_comments("SELECT '// not a comment'");
+        assert_eq!(result, "SELECT '// not a comment'");
     }
 
     // ===== is_cql_keyword =====
