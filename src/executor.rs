@@ -255,12 +255,12 @@ pub fn execute_single_statement<'a>(
         }
         if upper == "TRACING OFF" || upper == "TRACING" {
             session.set_tracing(false);
-            let _ = writeln!(writer, "Disabled tracing.");
+            let _ = writeln!(writer, "Tracing is disabled");
             return true;
         }
         if upper == "TRACING ON" {
             session.set_tracing(true);
-            let _ = writeln!(writer, "Now tracing requests.");
+            let _ = writeln!(writer, "Tracing is enabled");
             return true;
         }
         if upper == "SHOW VERSION" {
