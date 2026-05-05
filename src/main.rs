@@ -62,11 +62,16 @@ async fn main() -> Result<()> {
     let mut session = match CqlSession::connect(&config).await {
         Ok(session) => session,
         Err(e) => {
-            eprintln!(
-                "Connection error: ('Unable to connect to any servers', \
-                 {{'{}:{}'}})",
-                config.host, config.port
-            );
+            let err_str = format!("{e:#}");
+            if err_str.contains("SSL") || err_str.contains("ssl") || err_str.contains("Unix") {
+                eprintln!("{err_str}");
+            } else {
+                eprintln!(
+                    "Connection error: ('Unable to connect to any servers', \
+                     {{'{}:{}'}})",
+                    config.host, config.port
+                );
+            }
             if config.debug {
                 eprintln!("Debug: {e:?}");
             }
