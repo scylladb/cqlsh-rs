@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777973300393,
+  "lastUpdate": 1777982804313,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -11290,6 +11290,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40247,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "5431f47cf28129e195fff2d7446dde98e77ca4a8",
+          "message": "fix: support // line comments in CQL parser (Python cqlsh compat)\n\nAdd // as a line comment delimiter alongside the existing -- support.\nPython cqlsh accepts // comments, and tools/tests use them (e.g.\n'DESCRIBE SCHEMA; // post-line comment'). Without this, the //\ntext was sent to the server causing syntax errors.\n\nAlso adds comprehensive tests covering the CASSANDRA-17667 pitfall\nwhere /* and */ inside string literals were incorrectly treated as\ncomment delimiters.\n\nCloses #156",
+          "timestamp": "2026-05-05T14:56:41+03:00",
+          "tree_id": "6752c68050f3e8117e7280f31119b81883eee15d",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/5431f47cf28129e195fff2d7446dde98e77ca4a8"
+        },
+        "date": 1777982803458,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29684,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3561,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9345,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 67402,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 854,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153770,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7321,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85545,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 785790,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7893200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9964,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46245,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 41105,
             "unit": "ns"
           }
         ]
