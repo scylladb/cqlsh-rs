@@ -8,6 +8,12 @@
 //!   `cargo tarpaulin` can measure coverage for session-dependent code paths.
 //! - **Subprocess** (original helpers): spawn `cargo_bin("cqlsh-rs")` for tests
 //!   that specifically exercise CLI behaviour (exit codes, SSL, banners, etc.).
+//!
+//! Environment variables for external Scylla instances:
+//! - `CQLSH_TEST_HOST` / `CQLSH_TEST_PORT` — plain CQL instance
+//! - `CQLSH_TEST_SSL_CA_PATH` — path to CA cert for TLS instance (also uses CQLSH_TEST_HOST/PORT)
+//! - `CQLSH_TEST_USERNAME` / `CQLSH_TEST_PASSWORD` — credentials for auth instance
+//! - `CQLSH_TEST_MAINTENANCE_SOCKET` — path to Unix domain socket for maintenance instance
 
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -52,11 +58,11 @@ pub fn get_scylla() -> &'static ScyllaContainer {
 }
 
 fn start_scylla() -> StartResult {
-    // TODO: temporary CI workaround — if SCYLLA_TEST_HOST/PORT are set (injected by
+    // TODO: temporary CI workaround — if CQLSH_TEST_HOST/PORT are set (injected by
     // the GitHub Actions "Start ScyllaDB" step), skip testcontainers and connect
     // directly. Remove once testcontainers-rs works on GitHub Actions runners.
-    if let Ok(host) = std::env::var("SCYLLA_TEST_HOST") {
-        let port = std::env::var("SCYLLA_TEST_PORT")
+    if let Ok(host) = std::env::var("CQLSH_TEST_HOST") {
+        let port = std::env::var("CQLSH_TEST_PORT")
             .ok()
             .and_then(|p| p.parse().ok())
             .unwrap_or(CQL_PORT);
