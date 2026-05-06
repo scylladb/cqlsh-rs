@@ -1,0 +1,52 @@
+# Test category metadata for cqlsh-rs integration tests.
+# Used by external test orchestrators (e.g. ScyllaDB's test.py) to match
+# tests to the appropriate Scylla configuration.
+#
+# Run a category with:
+#   cargo test --test integration --features test-<category> -- --ignored --test-threads=1
+#
+# External Scylla env vars:
+#   plain:       CQLSH_TEST_HOST, CQLSH_TEST_PORT
+#   ssl:         CQLSH_TEST_HOST, CQLSH_TEST_PORT, CQLSH_TEST_SSL_CA_PATH
+#   auth:        CQLSH_TEST_HOST, CQLSH_TEST_PORT, CQLSH_TEST_USERNAME, CQLSH_TEST_PASSWORD
+#   maintenance: CQLSH_TEST_MAINTENANCE_SOCKET
+
+[plain]
+description = "Default CQL, no encryption, no auth"
+scylla_config = "default"
+cargo_feature = "test-plain"
+modules = [
+  "core_tests",
+  "copy_tests",
+  "copy_from_tests",
+  "describe_tests",
+  "dtest_copy_tests",
+  "dtest_cqlsh_tests",
+  "escape_tests",
+  "login_tests",
+  "output_tests",
+  "schema_agreement_tests",
+  "unicode_tests",
+]
+env_vars = ["CQLSH_TEST_HOST", "CQLSH_TEST_PORT"]
+
+[ssl]
+description = "client_encryption_options.enabled: true"
+scylla_config = "ssl"
+cargo_feature = "test-ssl"
+modules = ["ssl_tests"]
+env_vars = ["CQLSH_TEST_HOST", "CQLSH_TEST_PORT", "CQLSH_TEST_SSL_CA_PATH"]
+
+[auth]
+description = "authenticator: PasswordAuthenticator"
+scylla_config = "auth"
+cargo_feature = "test-auth"
+modules = []
+env_vars = ["CQLSH_TEST_HOST", "CQLSH_TEST_PORT", "CQLSH_TEST_USERNAME", "CQLSH_TEST_PASSWORD"]
+
+[maintenance]
+description = "Maintenance socket enabled"
+scylla_config = "maintenance"
+cargo_feature = "test-maintenance"
+modules = ["uds_tests"]
+env_vars = ["CQLSH_TEST_MAINTENANCE_SOCKET"]

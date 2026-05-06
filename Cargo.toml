@@ -21,7 +21,7 @@ thiserror = "2"
 dirs = "6"
 scylla = { version = "1.6", features = ["rustls-023", "chrono-04", "num-bigint-04", "bigdecimal-04"] }
 tokio = { version = "1", features = ["full"] }
-rustls = "0.23"
+rustls = { version = "0.23", features = ["ring"] }
 rustls-pemfile = "2"
 uuid = { version = "1", features = ["v4"] }
 bigdecimal = "0.4"
@@ -41,6 +41,13 @@ clap_mangen = "0.3"
 [lib]
 name = "cqlsh_rs"
 path = "src/lib.rs"
+
+[features]
+test-plain = []
+test-ssl = []
+test-auth = []
+test-maintenance = []
+test-all = ["test-plain", "test-ssl", "test-auth", "test-maintenance"]
 
 [dev-dependencies]
 assert_cmd = "2"
