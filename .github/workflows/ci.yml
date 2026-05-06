@@ -159,12 +159,12 @@ jobs:
           tool: cargo-tarpaulin
       - name: Run integration tests
         env:
-          SCYLLA_TEST_HOST: localhost
-          SCYLLA_TEST_PORT: "9042"
+          CQLSH_TEST_HOST: localhost
+          CQLSH_TEST_PORT: "9042"
         run: |
           set -o pipefail
           cargo tarpaulin \
-            --all-features \
+            --features test-plain \
             --workspace \
             --timeout 300 \
             --test integration \
@@ -186,6 +186,88 @@ jobs:
         with:
           name: integration-test-results-${{ matrix.db_name }}
           path: integration-output.log
+          retention-days: 5
+
+  integration-ssl-auth:
+    name: Integration Tests (SSL + Auth)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Generate TLS certificates
+        run: |
+          mkdir -p /tmp/scylla-certs
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout /tmp/scylla-certs/db.key \
+            -out /tmp/scylla-certs/db.crt \
+            -days 1 -subj "/CN=localhost" \
+            -addext "basicConstraints=critical,CA:TRUE" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+          chmod 644 /tmp/scylla-certs/db.key /tmp/scylla-certs/db.crt
+      - name: Start ScyllaDB with TLS + Auth
+        run: |
+          docker run -d --name testdb-ssl-auth \
+            -p 9042:9042 \
+            -v /tmp/scylla-certs/db.crt:/etc/scylla/db.crt:ro \
+            -v /tmp/scylla-certs/db.key:/etc/scylla/db.key:ro \
+            scylladb/scylla:2026.1 \
+            --smp 1 --memory 512M --overprovisioned 1 --skip-wait-for-gossip-to-settle 0 \
+            --broadcast-rpc-address 127.0.0.1 \
+            --authenticator PasswordAuthenticator \
+            --authorizer CassandraAuthorizer \
+            --client-encryption-options enabled=true \
+            --client-encryption-options certificate=/etc/scylla/db.crt \
+            --client-encryption-options keyfile=/etc/scylla/db.key
+          echo "Waiting for ScyllaDB TLS+Auth to be ready..."
+          for i in $(seq 1 60); do
+            if docker logs testdb-ssl-auth 2>&1 | grep -q "serving"; then
+              echo "ScyllaDB TLS+Auth ready after ${i} attempt(s)"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "ScyllaDB TLS+Auth failed to become ready"
+              docker logs testdb-ssl-auth
+              exit 1
+            fi
+            sleep 5
+          done
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
+      - name: Run SSL + Auth integration tests
+        env:
+          CQLSH_TEST_HOST: localhost
+          CQLSH_TEST_PORT: "9042"
+          CQLSH_TEST_SSL_CA_PATH: /tmp/scylla-certs/db.crt
+          CQLSH_TEST_USERNAME: cassandra
+          CQLSH_TEST_PASSWORD: cassandra
+        run: |
+          set -o pipefail
+          cargo tarpaulin \
+            --features test-ssl,test-auth \
+            --workspace \
+            --timeout 300 \
+            --test integration \
+            --out xml \
+            --output-dir coverage-ssl-auth/ \
+            --skip-clean \
+            -- --ignored --test-threads=1 2>&1 | tee ssl-auth-integration-output.log
+        timeout-minutes: 25
+      - name: Upload SSL+Auth integration coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage-ssl-auth/cobertura.xml
+          flags: integration-ssl-auth
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload SSL+Auth integration test results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: integration-test-results-ssl-auth
+          path: ssl-auth-integration-output.log
           retention-days: 5
 
   coverage:
@@ -596,7 +678,7 @@ jobs:
     name: Build Docker ${{ matrix.target }}
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [fmt, clippy, test, build, integration]
+    needs: [fmt, clippy, test, build, integration, integration-ssl-auth]
 
     permissions:
       contents: read
