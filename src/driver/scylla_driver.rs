@@ -53,6 +53,10 @@ impl ScyllaDriver {
         use std::fs::File;
         use std::io::BufReader;
 
+        if !ssl_config.validate {
+            return Self::build_rustls_config_no_verify(ssl_config);
+        }
+
         let mut root_store = rustls::RootCertStore::empty();
 
         // Load CA certificate if provided
@@ -73,6 +77,86 @@ impl ScyllaDriver {
         let builder = rustls::ClientConfig::builder().with_root_certificates(root_store);
 
         // Client certificate authentication (mutual TLS)
+        let config = if let (Some(usercert_path), Some(userkey_path)) =
+            (&ssl_config.usercert, &ssl_config.userkey)
+        {
+            let cert_file = File::open(usercert_path)
+                .with_context(|| format!("opening client certificate: {usercert_path}"))?;
+            let mut cert_reader = BufReader::new(cert_file);
+            let certs: Vec<CertificateDer<'static>> = rustls_pemfile::certs(&mut cert_reader)
+                .collect::<std::result::Result<Vec<_>, _>>()
+                .with_context(|| format!("parsing client certificate: {usercert_path}"))?;
+
+            let key_file = File::open(userkey_path)
+                .with_context(|| format!("opening client key: {userkey_path}"))?;
+            let mut key_reader = BufReader::new(key_file);
+            let key = rustls_pemfile::private_key(&mut key_reader)
+                .with_context(|| format!("parsing client key: {userkey_path}"))?
+                .ok_or_else(|| anyhow!("no private key found in {userkey_path}"))?;
+
+            builder
+                .with_client_auth_cert(certs, key)
+                .context("configuring mutual TLS")?
+        } else {
+            builder.with_no_client_auth()
+        };
+
+        Ok(Arc::new(config))
+    }
+
+    fn build_rustls_config_no_verify(ssl_config: &SslConfig) -> Result<Arc<rustls::ClientConfig>> {
+        use rustls::client::danger::{
+            HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
+        };
+        use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
+        use rustls::{DigitallySignedStruct, Error, SignatureScheme};
+        use std::fs::File;
+        use std::io::BufReader;
+
+        #[derive(Debug)]
+        struct NoVerifier;
+
+        impl ServerCertVerifier for NoVerifier {
+            fn verify_server_cert(
+                &self,
+                _end_entity: &CertificateDer<'_>,
+                _intermediates: &[CertificateDer<'_>],
+                _server_name: &ServerName<'_>,
+                _ocsp_response: &[u8],
+                _now: UnixTime,
+            ) -> std::result::Result<ServerCertVerified, Error> {
+                Ok(ServerCertVerified::assertion())
+            }
+
+            fn verify_tls12_signature(
+                &self,
+                _message: &[u8],
+                _cert: &CertificateDer<'_>,
+                _dss: &DigitallySignedStruct,
+            ) -> std::result::Result<HandshakeSignatureValid, Error> {
+                Ok(HandshakeSignatureValid::assertion())
+            }
+
+            fn verify_tls13_signature(
+                &self,
+                _message: &[u8],
+                _cert: &CertificateDer<'_>,
+                _dss: &DigitallySignedStruct,
+            ) -> std::result::Result<HandshakeSignatureValid, Error> {
+                Ok(HandshakeSignatureValid::assertion())
+            }
+
+            fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+                rustls::crypto::ring::default_provider()
+                    .signature_verification_algorithms
+                    .supported_schemes()
+            }
+        }
+
+        let builder = rustls::ClientConfig::builder()
+            .dangerous()
+            .with_custom_certificate_verifier(Arc::new(NoVerifier));
+
         let config = if let (Some(usercert_path), Some(userkey_path)) =
             (&ssl_config.usercert, &ssl_config.userkey)
         {
@@ -441,13 +525,7 @@ impl CqlDriver for ScyllaDriver {
             let tls_config = if let Some(ssl_config) = &config.ssl_config {
                 Self::build_rustls_config(ssl_config)?
             } else {
-                // SSL enabled but no config — use default (no validation)
-                let root_store = rustls::RootCertStore::empty();
-                Arc::new(
-                    rustls::ClientConfig::builder()
-                        .with_root_certificates(root_store)
-                        .with_no_client_auth(),
-                )
+                Self::build_rustls_config_no_verify(&SslConfig::default())?
             };
             builder = builder.tls_context(Some(tls_config));
         }
