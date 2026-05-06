@@ -45,7 +45,7 @@ pub struct ConnectionConfig {
 }
 
 /// SSL/TLS configuration options.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SslConfig {
     /// Path to CA certificate file for server verification.
     pub certfile: Option<String>,
