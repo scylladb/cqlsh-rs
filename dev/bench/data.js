@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777983222778,
+  "lastUpdate": 1778162846393,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -11488,6 +11488,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39813,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "e62a853db407ab56dcfc628fa70fce70e370b344",
+          "message": "test: add auth integration tests and SSL+Auth CI job\n\nAdd auth_tests.rs with tests for non-admin role creation, login,\npermission denial, and wrong password rejection. Update ssl_tests.rs\nto support running against external TLS-enabled instances.\n\nAdd Integration Tests (SSL + Auth) CI job that starts ScyllaDB with\nPasswordAuthenticator, CassandraAuthorizer, and client TLS encryption.\n\nRefs: #161",
+          "timestamp": "2026-05-07T16:57:11+03:00",
+          "tree_id": "2b8f8696ed06a5d64746aff12dffdf386011a11c",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/e62a853db407ab56dcfc628fa70fce70e370b344"
+        },
+        "date": 1778162846008,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29467,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3622,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9615,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 66240,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 902,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153420,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7588,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 14,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86826,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 740640,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7416000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10184,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 50118,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39539,
             "unit": "ns"
           }
         ]
