@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778164082193,
+  "lastUpdate": 1778360184053,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -11686,6 +11686,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39886,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "7aae5cfc14df1382d4ee4253bb332be566289b87",
+          "message": "fix(driver): address PR review feedback for proxy translator\n\n- Resolve DNS hostnames via tokio::net::lookup_host instead of\n  addr.parse::<SocketAddr>() which silently fails for domain names\n- Add PoolSize::PerHost(1) to limit connections per node (cqlsh is\n  single-user; also mitigates connection explosion through proxy)\n- Remove unused detect_proxy() function and proxy_address() getter\n- Trim module docs to match actual always-install strategy\n\nRefs #164",
+          "timestamp": "2026-05-09T23:46:34+03:00",
+          "tree_id": "70da0506327473406e3ae36aa32770fdc448f158",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/7aae5cfc14df1382d4ee4253bb332be566289b87"
+        },
+        "date": 1778360183525,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29022,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3692,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9303,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63094,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 862,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 142860,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7722,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 13,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 84115,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 754810,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7495000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10050,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 50602,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39562,
             "unit": "ns"
           }
         ]
