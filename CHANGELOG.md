@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.11](https://github.com/scylladb/cqlsh-rs/compare/v0.5.10...v0.5.11) - 2026-05-09
+
+### Added
+
+- auto-detect proxy and translate peer addresses to contact point
+
+### Fixed
+
+- *(driver)* address PR review feedback for proxy translator
+
 ## [0.5.10](https://github.com/scylladb/cqlsh-rs/compare/v0.5.9...v0.5.10) - 2026-05-07
 
 ### Fixed
