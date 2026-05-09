@@ -264,7 +264,6 @@ mod tests {
         let mut handles = Vec::new();
 
         for &payload in payloads {
-            let addr = addr;
             let owned = payload.to_vec();
             handles.push(tokio::spawn(async move {
                 let mut tcp = TcpStream::connect(addr)
