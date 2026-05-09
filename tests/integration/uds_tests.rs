@@ -1,4 +1,3 @@
-
 //! Integration tests for Unix domain socket (UDS) proxy support.
 //!
 //! These tests start a separate ScyllaDB container with `--maintenance-socket workdir`
