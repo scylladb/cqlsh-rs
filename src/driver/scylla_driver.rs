@@ -541,6 +541,11 @@ impl CqlDriver for ScyllaDriver {
 
         // When using UDS proxy, redirect all driver connections to the proxy
         #[cfg(unix)]
+        let using_uds_proxy = proxy_socket_addr.is_some();
+        #[cfg(not(unix))]
+        let using_uds_proxy = false;
+
+        #[cfg(unix)]
         if let Some(proxy_addr) = proxy_socket_addr {
             use std::sync::Arc;
             builder = builder.address_translator(Arc::new(
@@ -559,22 +564,20 @@ impl CqlDriver for ScyllaDriver {
             builder = builder.use_keyspace(keyspace, false);
         }
 
-        // Always install the proxy address translator. Since known_node addresses
-        // are never translated (only peers from system.peers are), this is safe:
-        // - Direct connections: peers share the same network, translator is a no-op
-        //   in practice (peers are reachable anyway, and translated to contact point
-        //   which also works since it's the same node in single-node or resolves correctly)
-        // - Proxy connections: peers have unreachable internal IPs, translator
-        //   redirects all of them to the proxy contact point
-        let contact_point = tokio::net::lookup_host(&addr)
-            .await
-            .ok()
-            .and_then(|mut addrs| addrs.next());
-        if let Some(contact_point) = contact_point {
-            let translator = Arc::new(
-                super::proxy_address_translator::ProxyAddressTranslator::new(contact_point),
-            );
-            builder = builder.address_translator(translator);
+        // Install the proxy address translator for TCP connections only.
+        // When using UDS proxy, its own translator handles all address redirection,
+        // so we must not overwrite it here.
+        if !using_uds_proxy {
+            let contact_point = tokio::net::lookup_host(&addr)
+                .await
+                .ok()
+                .and_then(|mut addrs| addrs.next());
+            if let Some(contact_point) = contact_point {
+                let translator = Arc::new(
+                    super::proxy_address_translator::ProxyAddressTranslator::new(contact_point),
+                );
+                builder = builder.address_translator(translator);
+            }
         }
 
         if config.ssl {
