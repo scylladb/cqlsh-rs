@@ -44,6 +44,10 @@ pub struct ScyllaDriver {
     tracing_enabled: AtomicBool,
     /// Last tracing session ID.
     last_trace_id: Mutex<Option<Uuid>>,
+    /// Proxy task guard for Unix domain socket connections.
+    /// Dropping this aborts the proxy listener task.
+    #[cfg(unix)]
+    _uds_proxy: Option<super::uds_proxy::UdsProxy>,
 }
 
 impl ScyllaDriver {
@@ -505,6 +509,28 @@ impl CqlDriver for ScyllaDriver {
     async fn connect(config: &ConnectionConfig) -> Result<Self> {
         let addr = format!("{}:{}", config.host, config.port);
 
+        // Detect Unix domain socket path and start proxy if needed
+        #[cfg(unix)]
+        let (addr, uds_proxy_guard, proxy_socket_addr) =
+            if super::uds_proxy::is_unix_socket(&config.host) {
+                if config.ssl {
+                    anyhow::bail!("SSL is not supported with Unix domain socket connections");
+                }
+                let (proxy_addr, proxy) = super::uds_proxy::start_uds_proxy(&config.host)
+                    .await
+                    .context("starting UDS proxy")?;
+                tracing::debug!(
+                    "UDS proxy started on {} for socket {}",
+                    proxy_addr,
+                    config.host
+                );
+                (proxy_addr.to_string(), Some(proxy), Some(proxy_addr))
+            } else {
+                (addr, None, None)
+            };
+        #[cfg(not(unix))]
+        let _uds_proxy_guard: Option<super::uds_proxy::UdsProxy> = None;
+
         let mut builder = SessionBuilder::new().known_node(&addr);
 
         // cqlsh is a single-user interactive tool — one connection per host suffices
@@ -513,6 +539,21 @@ impl CqlDriver for ScyllaDriver {
             std::num::NonZeroUsize::new(1).unwrap(),
         ));
 
+        // When using UDS proxy, redirect all driver connections to the proxy
+        #[cfg(unix)]
+        let using_uds_proxy = proxy_socket_addr.is_some();
+        #[cfg(not(unix))]
+        let using_uds_proxy = false;
+
+        #[cfg(unix)]
+        if let Some(proxy_addr) = proxy_socket_addr {
+            use std::sync::Arc;
+            builder = builder.address_translator(Arc::new(
+                super::uds_proxy::ProxyAddressTranslator::new(proxy_addr),
+            ));
+        }
+
+        // Authentication
         if let (Some(username), Some(password)) = (&config.username, &config.password) {
             builder = builder.user(username, password);
         }
@@ -523,22 +564,20 @@ impl CqlDriver for ScyllaDriver {
             builder = builder.use_keyspace(keyspace, false);
         }
 
-        // Always install the proxy address translator. Since known_node addresses
-        // are never translated (only peers from system.peers are), this is safe:
-        // - Direct connections: peers share the same network, translator is a no-op
-        //   in practice (peers are reachable anyway, and translated to contact point
-        //   which also works since it's the same node in single-node or resolves correctly)
-        // - Proxy connections: peers have unreachable internal IPs, translator
-        //   redirects all of them to the proxy contact point
-        let contact_point = tokio::net::lookup_host(&addr)
-            .await
-            .ok()
-            .and_then(|mut addrs| addrs.next());
-        if let Some(contact_point) = contact_point {
-            let translator = Arc::new(
-                super::proxy_address_translator::ProxyAddressTranslator::new(contact_point),
-            );
-            builder = builder.address_translator(translator);
+        // Install the proxy address translator for TCP connections only.
+        // When using UDS proxy, its own translator handles all address redirection,
+        // so we must not overwrite it here.
+        if !using_uds_proxy {
+            let contact_point = tokio::net::lookup_host(&addr)
+                .await
+                .ok()
+                .and_then(|mut addrs| addrs.next());
+            if let Some(contact_point) = contact_point {
+                let translator = Arc::new(
+                    super::proxy_address_translator::ProxyAddressTranslator::new(contact_point),
+                );
+                builder = builder.address_translator(translator);
+            }
         }
 
         if config.ssl {
@@ -559,6 +598,8 @@ impl CqlDriver for ScyllaDriver {
             serial_consistency: Mutex::new(None),
             tracing_enabled: AtomicBool::new(false),
             last_trace_id: Mutex::new(None),
+            #[cfg(unix)]
+            _uds_proxy: uds_proxy_guard,
         })
     }
 
