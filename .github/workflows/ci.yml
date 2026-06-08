@@ -15,7 +15,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -25,7 +25,7 @@ jobs:
           cargo fmt --all -- --check 2>&1 | tee fmt-output.txt
       - name: Upload fmt results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: fmt-results
           path: fmt-output.txt
@@ -35,18 +35,18 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Run clippy
         run: |
           set -o pipefail
           cargo clippy --all-targets --all-features --message-format=json 2>&1 | tee clippy-output.json
       - name: Upload clippy results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: clippy-results
           path: clippy-output.json
@@ -60,10 +60,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@nextest
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: taiki-e/install-action@5ab676a36d867d7d30d3c5e4472d5bc633ccf731 # nextest
       - name: Run tests
         shell: bash
         run: |
@@ -71,7 +71,7 @@ jobs:
           cargo nextest run --all-targets --all-features 2>&1 | tee test-output.log
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-results-${{ matrix.os }}
           path: test-output.log
@@ -85,9 +85,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Build release
         shell: bash
         run: |
@@ -95,7 +95,7 @@ jobs:
           cargo build --release --message-format=json 2>&1 | tee build-output.json
       - name: Upload build results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: build-results-${{ matrix.os }}
           path: build-output.json
@@ -125,9 +125,9 @@ jobs:
             db_args: ""
             db_env: "-e CASSANDRA_DC=datacenter1 -e JVM_EXTRA_OPTS=-Dcassandra.enable_materialized_views=true"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       # Temporary workaround: testcontainers-rs fails to start containers on
       # GitHub Actions (Ubuntu 24.04 / Docker 27) due to Docker networking driver
       # failing with "address already in use" when setting up port forwarding.
@@ -154,7 +154,7 @@ jobs:
             sleep 5
           done
       - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@56545b37b57562edd73171cb6c62cc509db4c34e # v2.81.7
         with:
           tool: cargo-tarpaulin
       - name: Run integration tests
@@ -174,7 +174,7 @@ jobs:
             -- --ignored --test-threads=1 2>&1 | tee integration-output.log
         timeout-minutes: 25
       - name: Upload integration coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: coverage-integration/cobertura.xml
           flags: integration-${{ matrix.db_name }}
@@ -182,7 +182,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload integration test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: integration-test-results-${{ matrix.db_name }}
           path: integration-output.log
@@ -192,9 +192,9 @@ jobs:
     name: Integration Tests (SSL + Auth)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Generate TLS certificates
         run: |
           mkdir -p /tmp/scylla-certs
@@ -233,7 +233,7 @@ jobs:
             sleep 5
           done
       - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@56545b37b57562edd73171cb6c62cc509db4c34e # v2.81.7
         with:
           tool: cargo-tarpaulin
       - name: Run SSL + Auth integration tests
@@ -256,7 +256,7 @@ jobs:
             -- --ignored --test-threads=1 2>&1 | tee ssl-auth-integration-output.log
         timeout-minutes: 25
       - name: Upload SSL+Auth integration coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: coverage-ssl-auth/cobertura.xml
           flags: integration-ssl-auth
@@ -264,7 +264,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload SSL+Auth integration test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: integration-test-results-ssl-auth
           path: ssl-auth-integration-output.log
@@ -274,13 +274,13 @@ jobs:
     name: Code Coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           key: coverage
       - name: Install cargo-tarpaulin
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@56545b37b57562edd73171cb6c62cc509db4c34e # v2.81.7
         with:
           tool: cargo-tarpaulin
       - name: Run unit test coverage
@@ -295,7 +295,7 @@ jobs:
             --lib --bins
         timeout-minutes: 20
       - name: Upload unit coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           files: coverage/cobertura.xml
           flags: unittests
@@ -303,7 +303,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-report
           path: coverage/
@@ -353,7 +353,7 @@ jobs:
       tag: ${{ steps.extract.outputs.tag }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
 
@@ -363,7 +363,7 @@ jobs:
       # Uses RELEASE_PLZ_TOKEN (PAT) because the default GITHUB_TOKEN
       # is not permitted to create PRs in this repo.
       - name: Release PR
-        uses: release-plz/action@v0.5
+        uses: release-plz/action@064f4d1e36c843611ddf013be726beaa4ad804db # v0.5
         with:
           command: release-pr
         env:
@@ -372,7 +372,7 @@ jobs:
       # If Cargo.toml version > latest tag, create tag + GitHub Release + publish to crates.io
       - name: Release
         id: release
-        uses: release-plz/action@v0.5
+        uses: release-plz/action@064f4d1e36c843611ddf013be726beaa4ad804db # v0.5
         with:
           command: release
         env:
@@ -433,7 +433,7 @@ jobs:
             artifact: cqlsh-rs.exe
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ needs.release.outputs.tag }}
 
@@ -441,7 +441,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           key: release-${{ matrix.target }}
 
@@ -482,7 +482,7 @@ jobs:
           fi
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.target }}
           path: ${{ env.ASSET_PATH }}
@@ -504,12 +504,12 @@ jobs:
       RUSTFLAGS: ""
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: ${{ needs.release.outputs.tag }}
 
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
 
       - name: Build binary
         run: cargo build --release
@@ -530,7 +530,7 @@ jobs:
         run: tar czf assets.tar.gz -C assets .
 
       - name: Upload assets
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: assets
           path: assets.tar.gz
@@ -550,10 +550,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Download release artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
           pattern: "{x86_64-unknown-linux-musl,aarch64-unknown-linux-musl,x86_64-apple-darwin,aarch64-apple-darwin,x86_64-pc-windows-msvc,assets}"
@@ -584,7 +584,7 @@ jobs:
           cat SHA256SUMS.txt
 
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
           tag_name: ${{ needs.release.outputs.tag }}
           files: release/*
@@ -605,16 +605,16 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Download Linux x86_64 binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: x86_64-unknown-linux-musl
           path: artifacts/amd64
 
       - name: Download Linux aarch64 binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: aarch64-unknown-linux-musl
           path: artifacts/arm64
@@ -632,27 +632,27 @@ jobs:
           chmod +x docker-build/cqlsh-rs-*
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
         with:
           images: |
             ghcr.io/${{ github.repository }}
@@ -662,7 +662,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           file: ./Dockerfile
@@ -696,13 +696,13 @@ jobs:
             cross: true
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           key: docker-${{ matrix.target }}
 
@@ -731,7 +731,7 @@ jobs:
           tar czf "../cqlsh-rs-${{ matrix.target }}.tar.gz" cqlsh-rs
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: docker-${{ matrix.target }}
           path: cqlsh-rs-${{ matrix.target }}.tar.gz
@@ -751,16 +751,16 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Download Linux x86_64 binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: docker-x86_64-unknown-linux-musl
           path: artifacts/amd64
 
       - name: Download Linux aarch64 binary
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: docker-aarch64-unknown-linux-musl
           path: artifacts/arm64
@@ -778,27 +778,27 @@ jobs:
           chmod +x docker-build/cqlsh-rs-*
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
         with:
           images: |
             ghcr.io/${{ github.repository }}
@@ -807,7 +807,7 @@ jobs:
             type=raw,value=main
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           file: ./Dockerfile
