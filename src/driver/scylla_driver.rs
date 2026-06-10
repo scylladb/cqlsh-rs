@@ -539,11 +539,10 @@ impl CqlDriver for ScyllaDriver {
             std::num::NonZeroUsize::new(1).unwrap(),
         ));
 
-        // When using UDS proxy, redirect all driver connections to the proxy
-        #[cfg(unix)]
-        let using_uds_proxy = proxy_socket_addr.is_some();
-        #[cfg(not(unix))]
-        let using_uds_proxy = false;
+        let using_uds_proxy = cfg_select! {
+            unix => { proxy_socket_addr.is_some() }
+            _ => { false }
+        };
 
         #[cfg(unix)]
         if let Some(proxy_addr) = proxy_socket_addr {
