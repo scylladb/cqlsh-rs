@@ -15,18 +15,19 @@ use anyhow::Context as _;
 ///
 /// Uses `std::fs::metadata` which follows symlinks, so a symlink pointing at
 /// a socket will return `true`.  Always returns `false` on non-Unix platforms.
-#[cfg(unix)]
 pub fn is_unix_socket(path: &str) -> bool {
-    use std::os::unix::fs::FileTypeExt;
-    std::fs::metadata(path)
-        .map(|m| m.file_type().is_socket())
-        .unwrap_or(false)
-}
-
-/// Non-Unix stub — always returns `false`.
-#[cfg(not(unix))]
-pub fn is_unix_socket(_path: &str) -> bool {
-    false
+    cfg_select! {
+        unix => {
+            use std::os::unix::fs::FileTypeExt;
+            std::fs::metadata(path)
+                .map(|m| m.file_type().is_socket())
+                .unwrap_or(false)
+        }
+        _ => {
+            let _ = path;
+            false
+        }
+    }
 }
 
 // ── UdsProxy (unix) ────────────────────────────────────────────────────────
@@ -67,8 +68,7 @@ pub struct UdsProxy;
 pub async fn start_uds_proxy(
     socket_path: &str,
 ) -> anyhow::Result<(std::net::SocketAddr, UdsProxy)> {
-    use tokio::io::copy_bidirectional;
-    use tokio::net::{TcpListener, UnixStream};
+    use tokio::net::TcpListener;
 
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
@@ -77,41 +77,46 @@ pub async fn start_uds_proxy(
     let socket_path = socket_path.to_owned();
     let socket_path_for_log = socket_path.clone();
 
-    let join_handle = tokio::spawn(async move {
-        loop {
-            match listener.accept().await {
-                Ok((mut tcp_stream, _peer)) => {
-                    let path = socket_path.clone();
-                    tokio::spawn(async move {
-                        match UnixStream::connect(&path).await {
-                            Ok(mut uds_stream) => {
-                                if let Err(e) =
-                                    copy_bidirectional(&mut tcp_stream, &mut uds_stream).await
-                                {
-                                    tracing::debug!("UDS proxy connection closed: {e}");
-                                }
-                            }
-                            Err(e) => {
-                                tracing::warn!("UDS proxy: failed to connect to {path}: {e}");
-                            }
-                        }
-                    });
-                }
-                Err(e) => {
-                    tracing::debug!("UDS proxy listener error: {e}");
-                    break;
-                }
-            }
-        }
-    });
+    let join_handle = tokio::spawn(accept_loop(listener, socket_path));
 
     let abort_handle = join_handle.abort_handle();
-    // Dropping a JoinHandle does NOT abort the task — the task keeps running.
-    // We only need the AbortHandle for cleanup on drop.
     drop(join_handle);
 
     tracing::debug!("UDS proxy started on {local_addr} → UDS {socket_path_for_log}");
     Ok((local_addr, UdsProxy { abort_handle }))
+}
+
+#[cfg(unix)]
+async fn accept_loop(listener: tokio::net::TcpListener, socket_path: String) {
+    loop {
+        match listener.accept().await {
+            Ok((tcp_stream, _peer)) => {
+                let path = socket_path.clone();
+                tokio::spawn(relay_connection(tcp_stream, path));
+            }
+            Err(e) => {
+                tracing::debug!("UDS proxy listener error: {e}");
+                break;
+            }
+        }
+    }
+}
+
+#[cfg(unix)]
+async fn relay_connection(mut tcp_stream: tokio::net::TcpStream, path: String) {
+    use tokio::io::copy_bidirectional;
+    use tokio::net::UnixStream;
+
+    match UnixStream::connect(&path).await {
+        Ok(mut uds_stream) => {
+            if let Err(e) = copy_bidirectional(&mut tcp_stream, &mut uds_stream).await {
+                tracing::debug!("UDS proxy connection closed: {e}");
+            }
+        }
+        Err(e) => {
+            tracing::warn!("UDS proxy: failed to connect to {path}: {e}");
+        }
+    }
 }
 
 /// Address translator that redirects all driver connections to the local proxy.
