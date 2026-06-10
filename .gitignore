@@ -6,3 +6,4 @@ target-musl-docker/
 __pycache__/
 .pytest_cache/
 .venv/
+.sisyphus/
