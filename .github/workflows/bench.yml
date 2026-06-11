@@ -109,9 +109,9 @@ jobs:
           auto-push: ${{ github.event_name == 'push' }}
           # Alert if any benchmark regresses >50% from baseline
           alert-threshold: '150%'
-          # Always post benchmark results as a PR comment
-          comment-on-alert: true
-          comment-always: true
+          # Post PR comments only when token has write access (not fork PRs)
+          comment-on-alert: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          comment-always: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           # Don't fail the workflow — just alert
           fail-on-alert: false
           # Historical data location on gh-pages branch
