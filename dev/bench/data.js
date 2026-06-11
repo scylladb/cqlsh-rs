@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778484985095,
+  "lastUpdate": 1781191609966,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -11884,6 +11884,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39748,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "roy@scylladb.com",
+            "name": "Roy Dahan",
+            "username": "roydahan"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "fd278c539aeb7b477b3ba5dd3abfbd7d2c1de3b4",
+          "message": "ci: pin GitHub Actions to commit SHAs\n\nPin all external GitHub Actions to full commit SHAs to reduce supply\nchain attack surface. Upgrade outdated actions to their latest versions.\n\nReference: https://github.com/scylladb/scylladb/pull/29421",
+          "timestamp": "2026-06-11T18:15:51+03:00",
+          "tree_id": "a1da57d4518f183fa22402fc52a3890182584d16",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/fd278c539aeb7b477b3ba5dd3abfbd7d2c1de3b4"
+        },
+        "date": 1781191609364,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29732,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3721,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9411,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 63310,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 875,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 145780,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7587,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 18,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 84944,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 764650,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7632100,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10382,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 52394,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 38804,
             "unit": "ns"
           }
         ]
