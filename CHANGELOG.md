@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.12](https://github.com/scylladb/cqlsh-rs/compare/v0.5.11...v0.5.12) - 2026-06-11
+
+### Other
+
+- pin GitHub Actions to commit SHAs
+
 ## [0.5.11](https://github.com/scylladb/cqlsh-rs/compare/v0.5.10...v0.5.11) - 2026-05-09
 
 ### Added
