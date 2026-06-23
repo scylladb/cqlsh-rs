@@ -1,32 +1,53 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "helpers:pinGitHubActionDigestsToSemver"
   ],
+  "commitBodyTable": true,
   "packageRules": [
     {
-      "matchManagers": ["cargo"],
-      "matchPackageNames": ["scylla"],
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchPackageNames": [
+        "scylla"
+      ],
       "groupName": "scylla rust driver",
       "groupSlug": "scylla-driver",
       "automerge": false
     },
     {
-      "matchManagers": ["cargo"],
-      "matchPackageNames": ["!/^scylla/"],
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchPackageNames": [
+        "!/^scylla/"
+      ],
       "groupName": "rust dependencies",
       "groupSlug": "rust-deps",
-      "matchUpdateTypes": ["minor", "patch"],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
       "automerge": true
     },
     {
-      "matchManagers": ["cargo"],
-      "matchPackageNames": ["!/^scylla/"],
-      "matchUpdateTypes": ["major"],
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchPackageNames": [
+        "!/^scylla/"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "automerge": false
     },
     {
-      "matchManagers": ["github-actions"],
+      "matchManagers": [
+        "github-actions"
+      ],
       "groupName": "github actions",
       "groupSlug": "gh-actions",
       "automerge": true
