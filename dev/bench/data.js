@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1781195721558,
+  "lastUpdate": 1783443773022,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -12082,6 +12082,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 38405,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "73635e6d2484199cac5088dd74560bffa5d74595",
+          "message": "ci(renovate): show semver versions in GitHub Actions digest PRs\n\nAdd helpers:pinGitHubActionDigestsToSemver preset so Renovate extracts\nthe actual semver tag (e.g. v6.0.2 → v6.0.3) when updating SHA-pinned\nGitHub Actions, instead of only showing opaque digest fragments.\n\nEnable commitBodyTable to include a version table in commit messages\nshowing datasource, package, and version change.\n\nThis keeps SHA pinning for security while making digest update PRs\ninformative with proper version context, release notes, and diffs.",
+          "timestamp": "2026-07-07T19:52:27+03:00",
+          "tree_id": "f92a81fbda49bb72f9f8e41d952c4327f68fddd7",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/73635e6d2484199cac5088dd74560bffa5d74595"
+        },
+        "date": 1783443772410,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 27866,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3396,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 8839,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 60239,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 994,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 136730,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 5457,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 10,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 79960,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 707480,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7128000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 8187,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 38008,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 37263,
             "unit": "ns"
           }
         ]
