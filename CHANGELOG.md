@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.13](https://github.com/scylladb/cqlsh-rs/compare/v0.5.12...v0.5.13) - 2026-07-07
+
+### Other
+
+- *(renovate)* show semver versions in GitHub Actions digest PRs
+
 ## [0.5.12](https://github.com/scylladb/cqlsh-rs/compare/v0.5.11...v0.5.12) - 2026-06-11
 
 ### Other

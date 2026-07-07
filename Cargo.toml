@@ -1,6 +1,6 @@
 [package]
 name = "cqlsh-rs"
-version = "0.5.12"
+version = "0.5.13"
 edition = "2021"
 description = "A Rust re-implementation of the Apache Cassandra cqlsh shell"
 license = "MIT"
