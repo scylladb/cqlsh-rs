@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785390732223,
+  "lastUpdate": 1785393882266,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -12280,6 +12280,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 41400,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "9828df145446c0f1bba2bb1b626fefc849918f52",
+          "message": "chore: commit Cargo.lock for reproducible/downstream builds\n\ncqlsh-rs is a binary crate, so the lockfile belongs in version control:\nit pins the exact dependency graph for `cargo install --locked`, makes CI\nruns reproducible, and is required by downstream packagers (nixpkgs needs\nit to compute dependency hashes).\n\nAlso adds a CI check (`cargo metadata --locked`) so the lockfile cannot\nsilently drift out of sync with Cargo.toml. As a side effect the\n`hashFiles('**/Cargo.lock')` cache keys already used by the bench\nworkflow now actually resolve to a file.\n\nCloses #172\n\nCo-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-30T09:34:55+03:00",
+          "tree_id": "fb1942801e6d43e43e5278205a2a4f1eb577c978",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/9828df145446c0f1bba2bb1b626fefc849918f52"
+        },
+        "date": 1785393881878,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28570,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 4014,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9554,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64638,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 837,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 144890,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7625,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 14,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 84787,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 763810,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7726000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9816,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 50160,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 37417,
             "unit": "ns"
           }
         ]
