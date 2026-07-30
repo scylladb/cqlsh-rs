@@ -23,6 +23,10 @@ jobs:
         run: |
           set -o pipefail
           cargo fmt --all -- --check 2>&1 | tee fmt-output.txt
+      # Cargo.lock is committed for downstream packagers (nixpkgs, distro builds).
+      # Fail if it is out of sync with Cargo.toml instead of letting it rot.
+      - name: Check Cargo.lock is up to date
+        run: cargo metadata --locked --format-version 1 > /dev/null
       - name: Upload fmt results
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
