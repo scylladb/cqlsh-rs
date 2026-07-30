@@ -109,9 +109,10 @@ jobs:
           auto-push: ${{ github.event_name == 'push' }}
           # Alert if any benchmark regresses >50% from baseline
           alert-threshold: '150%'
-          # Post PR comments only when token has write access (not fork PRs)
-          comment-on-alert: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-          comment-always: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          # Post PR comments only when the token has write access: not fork PRs,
+          # and not Dependabot PRs (same-repo but run with a read-only token)
+          comment-on-alert: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
+          comment-always: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
           # Don't fail the workflow — just alert
           fail-on-alert: false
           # Historical data location on gh-pages branch
