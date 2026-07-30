@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785414159860,
+  "lastUpdate": 1785423138822,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -12676,6 +12676,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40368,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "2a4bb9d4084f94ab5e0b038844ab41d67bdcac44",
+          "message": "ci(homebrew): drop the scheduled run, trigger per release instead\n\nmacOS runner minutes are expensive and nothing changes between formula\nchanges, so a weekly cron buys very little. Remove it:\n\n- No `schedule:` trigger. The formula is validated on pull requests that\n  touch it, and on demand via workflow_dispatch.\n- Skip the two macOS `install` jobs on pushes to main — the pull request\n  already ran them against the same files. Only `documented-flow`, which\n  needs the formula to be on main, runs there.\n- Because the release pipeline's formula bump commit carries a skip-ci\n  marker, dispatch the workflow explicitly after a successful bump. That is\n  one run per release, which is when a stale checksum would actually bite.\n\nNote: this message deliberately avoids writing that marker literally —\nGitHub honours it anywhere in a commit message and would skip CI for this\ncommit.\n\nCo-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-30T17:43:48+03:00",
+          "tree_id": "df3661f2e2ecf44f938aa810cb2e9dccb0f957e5",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/2a4bb9d4084f94ab5e0b038844ab41d67bdcac44"
+        },
+        "date": 1785423137918,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29042,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3638,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9259,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64394,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 844,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 154120,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7284,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85637,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 793420,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7838000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9686,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 48428,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40215,
             "unit": "ns"
           }
         ]
