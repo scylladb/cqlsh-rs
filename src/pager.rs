@@ -8,16 +8,98 @@
 //!
 //! Pager resolution order:
 //! 1. `$PAGER` environment variable (pipe mode — custom pager gets stdin)
-//! 2. `less` with stdin pipe (`less -R -S`)
+//! 2. `less` with stdin pipe, with flags matching the detected implementation
 //! 3. `more` as fallback (pipe mode)
 //! 4. Error if nothing available
 
 use std::io::Write;
 use std::process::{Child, Command, Stdio};
+use std::sync::OnceLock;
 
 use tempfile::NamedTempFile;
 
-pub fn page_content(content: &str, _title: &str) -> anyhow::Result<()> {
+/// Which `less` implementation is on `PATH`.
+///
+/// BusyBox (Alpine — and therefore our Docker image) ships `less` as an applet
+/// that shares little more than the name with GNU less:
+/// - `-P` (custom prompt) does not exist; BusyBox exits with a usage error,
+///   which leaves us piping rows into a dead process and shows nothing.
+/// - `-R` has the *opposite* meaning: BusyBox *strips* ANSI colors from the
+///   input, while GNU passes them through raw.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LessFlavor {
+    /// Real less (`less` upstream, GNU or POSIX-regex build) — the full flag
+    /// set is available.
+    Full,
+    /// The BusyBox applet: no `-P`, and `-R` strips colors instead of passing
+    /// them through.
+    BusyBox,
+    /// Something else answering to the name `less`; only `-S`, the one flag
+    /// every implementation agrees on, is safe to pass.
+    Unknown,
+}
+
+/// Classify `less --version` output. Real less prints its version to stdout and
+/// exits 0 (`less 590 (GNU regular expressions)`, or `(POSIX regular
+/// expressions)` for Alpine's build); BusyBox prints a usage error mentioning
+/// "BusyBox" and exits 1.
+fn classify_less(stdout: &[u8], stderr: &[u8], success: bool) -> LessFlavor {
+    let stdout = String::from_utf8_lossy(stdout);
+    let stderr = String::from_utf8_lossy(stderr);
+    if stdout.contains("BusyBox") || stderr.contains("BusyBox") {
+        LessFlavor::BusyBox
+    } else if success && stdout.contains("less") {
+        LessFlavor::Full
+    } else {
+        LessFlavor::Unknown
+    }
+}
+
+/// Detect the `less` implementation once per process.
+///
+/// `None` means `less` could not be executed at all, so callers should skip it
+/// and fall back to `more`.
+fn less_flavor() -> Option<LessFlavor> {
+    static FLAVOR: OnceLock<Option<LessFlavor>> = OnceLock::new();
+    *FLAVOR.get_or_init(|| {
+        let out = Command::new("less")
+            .arg("--version")
+            .stdin(Stdio::null())
+            .output()
+            .ok()?;
+        Some(classify_less(
+            &out.stdout,
+            &out.stderr,
+            out.status.success(),
+        ))
+    })
+}
+
+/// Build the argument list for `less`, tailored to the detected implementation.
+///
+/// - `-S` (chop long lines instead of wrapping) is understood everywhere.
+/// - `-P` (custom prompt) is real-less only; BusyBox exits with a usage error.
+/// - `-R` means opposite things: real less passes ANSI colors through (what we
+///   want), BusyBox *removes* them. Removing them is still the better BusyBox
+///   outcome — without `-R` it prints the escape sequences as literal text like
+///   `[38;5;13m`, so colored results become unreadable. Colors are lost either
+///   way there; `-R` at least leaves a clean monochrome table.
+fn less_args(flavor: LessFlavor, title: &str) -> Vec<String> {
+    match flavor {
+        LessFlavor::Full => {
+            let prompt = if title.is_empty() {
+                String::from("-Pline %lt/%L")
+            } else {
+                format!("-P{title}  line %lt/%L")
+            };
+            vec![String::from("-R"), String::from("-S"), prompt]
+        }
+        LessFlavor::BusyBox => vec![String::from("-S"), String::from("-R")],
+        LessFlavor::Unknown => vec![String::from("-S")],
+    }
+}
+
+pub fn page_content(content: &str, title: &str) -> anyhow::Result<()> {
     let mut tmp = NamedTempFile::new()?;
     tmp.write_all(content.as_bytes())?;
     tmp.flush()?;
@@ -36,9 +118,15 @@ pub fn page_content(content: &str, _title: &str) -> anyhow::Result<()> {
         }
     }
 
-    if let Ok(status) = Command::new("less").args(["-R", "-S"]).arg(path).status() {
-        if status.success() {
-            return Ok(());
+    if let Some(flavor) = less_flavor() {
+        if let Ok(status) = Command::new("less")
+            .args(less_args(flavor, title))
+            .arg(path)
+            .status()
+        {
+            if status.success() {
+                return Ok(());
+            }
         }
     }
 
@@ -130,14 +218,10 @@ pub fn page_stream(title: &str) -> anyhow::Result<PagerWriter> {
         }
     }
 
-    let prompt = if title.is_empty() {
-        String::from("-Pline %lt/%L")
-    } else {
-        format!("-P{title}  line %lt/%L")
-    };
-
-    if let Some(w) = spawn_piped(Command::new("less").args(["-R", "-S", &prompt])) {
-        return Ok(w);
+    if let Some(flavor) = less_flavor() {
+        if let Some(w) = spawn_piped(Command::new("less").args(less_args(flavor, title))) {
+            return Ok(w);
+        }
     }
 
     if let Some(w) = spawn_piped(&mut Command::new("more")) {
@@ -150,6 +234,96 @@ pub fn page_stream(title: &str) -> anyhow::Result<PagerWriter> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn classify_gnu_less_version_output() {
+        let stdout = b"less 590 (GNU regular expressions)\nCopyright (C) 1984-2021 Mark Nudelman\n";
+        assert_eq!(classify_less(stdout, b"", true), LessFlavor::Full);
+    }
+
+    #[test]
+    fn classify_alpine_less_package_version_output() {
+        // Alpine's `less` package is real less but reports POSIX regexes.
+        let stdout = b"less 685 (POSIX regular expressions)\n";
+        assert_eq!(classify_less(stdout, b"", true), LessFlavor::Full);
+    }
+
+    #[test]
+    fn classify_busybox_less_usage_error() {
+        // BusyBox rejects --version: usage goes to stderr and it exits 1.
+        let stderr = b"less: unrecognized option '--version'\n\
+                       BusyBox v1.37.0 (2025-12-16 14:19:28 UTC) multi-call binary.\n\n\
+                       Usage: less [-EFIMmNSRh~] [FILE]...\n";
+        assert_eq!(classify_less(b"", stderr, false), LessFlavor::BusyBox);
+    }
+
+    #[test]
+    fn classify_busybox_less_that_exits_zero() {
+        // Some BusyBox builds print usage on stdout and exit 0; the "BusyBox"
+        // marker must still win over the successful exit status.
+        let stdout = b"BusyBox v1.37.0 multi-call binary.\n\nUsage: less [-EFIMmNSRh~] [FILE]...\n";
+        assert_eq!(classify_less(stdout, b"", true), LessFlavor::BusyBox);
+    }
+
+    #[test]
+    fn classify_unrecognized_less_is_unknown() {
+        assert_eq!(classify_less(b"", b"", false), LessFlavor::Unknown);
+        assert_eq!(
+            classify_less(b"something else\n", b"", true),
+            LessFlavor::Unknown
+        );
+    }
+
+    #[test]
+    fn less_args_full_passes_colors_and_prompt() {
+        let args = less_args(LessFlavor::Full, "id | name");
+        assert_eq!(args, vec!["-R", "-S", "-Pid | name  line %lt/%L"]);
+    }
+
+    #[test]
+    fn less_args_full_without_title() {
+        let args = less_args(LessFlavor::Full, "");
+        assert_eq!(args, vec!["-R", "-S", "-Pline %lt/%L"]);
+    }
+
+    #[test]
+    fn less_args_busybox_strips_colors_and_drops_prompt() {
+        // -P is fatal on BusyBox; its -R removes color escapes, which beats
+        // rendering them as literal `[38;5;13m` text.
+        let args = less_args(LessFlavor::BusyBox, "id | name");
+        assert_eq!(args, vec!["-S", "-R"]);
+        assert!(!args.iter().any(|a| a.starts_with("-P")));
+    }
+
+    #[test]
+    fn less_args_unknown_uses_only_universal_flag() {
+        let args = less_args(LessFlavor::Unknown, "id | name");
+        assert_eq!(args, vec!["-S"]);
+    }
+
+    /// Checks the classifier against a real BusyBox, when one is installed
+    /// (Alpine images, most Debian/Ubuntu hosts). Skips silently otherwise.
+    #[test]
+    fn classify_real_busybox_less_when_available() {
+        let Ok(out) = Command::new("busybox")
+            .args(["less", "--version"])
+            .stdin(Stdio::null())
+            .output()
+        else {
+            return;
+        };
+        assert_eq!(
+            classify_less(&out.stdout, &out.stderr, out.status.success()),
+            LessFlavor::BusyBox
+        );
+    }
+
+    #[test]
+    fn less_flavor_detection_is_stable() {
+        // Whatever is installed on the test machine, detection must not panic
+        // and must be cached (same answer every call).
+        assert_eq!(less_flavor(), less_flavor());
+    }
 
     #[test]
     fn page_content_with_cat_pager() {
