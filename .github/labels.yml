@@ -17,3 +17,7 @@
 - name: performance
   color: "f9d0c4"
   description: "Performance-related changes"
+
+- name: skip-docker-image-tests
+  color: "c5def5"
+  description: "Do not run the Docker image test suite on this PR"

@@ -145,6 +145,50 @@ docker pull ghcr.io/scylladb/cqlsh-rs:latest
 docker pull ghcr.io/scylladb/cqlsh-rs:1.0.0  # specific version
 ```
 
+#### Testing the image
+
+The image is covered by black-box tests that drive it through a real PTY
+(`tests/docker/`, run by the `Docker Image Tests` workflow). They catch
+image-level problems the Rust suite cannot see, such as a missing runtime
+dependency or BusyBox standing in for a GNU tool.
+
+These are pytest + `pexpect` rather than Rust, deliberately: nothing in them
+touches cqlsh-rs internals — they only run `docker run` and assert on what a
+user sees, so the language buys nothing in reuse. What they need is a
+well-worn pty driver, and `pexpect` is that. The Rust options (`portable-pty`,
+`expectrl`) mean hand-rolling expect-with-alternatives and the transcript
+capture that makes a failure readable, for a suite that must not be compiled
+into the binary's test graph anyway. The repo already runs Python for the
+comparison benchmarks (`benchmarks/python_cqlsh/`), so this adds no new
+toolchain — and `uv` keeps the setup to a single command.
+
+To run them against a locally built image:
+
+```bash
+# 1. Build the image the way the release pipeline does
+cargo build --release --target x86_64-unknown-linux-musl
+mkdir -p docker-build
+cp target/x86_64-unknown-linux-musl/release/cqlsh-rs docker-build/cqlsh-rs-amd64
+docker build --build-arg TARGETARCH=amd64 -t cqlsh-rs:ci .
+
+# 2. Start a database on a user-defined network
+docker network create cqlsh-ci-net
+docker run -d --name cqlsh-ci-db --network cqlsh-ci-net \
+  scylladb/scylla:2026.1 --smp 1 --memory 512M --overprovisioned 1
+
+# 3. Run the tests — uv resolves pytest/pexpect from tests/docker/pyproject.toml
+cd tests/docker && uv run pytest
+```
+
+Set `CQLSH_DOCKER_IMAGE` to test an already published tag instead, e.g.
+`CQLSH_DOCKER_IMAGE=ghcr.io/scylladb/cqlsh-rs:latest`. The workflow accepts the
+same via its `image` input on `workflow_dispatch`.
+
+The suite runs automatically on PRs touching `Dockerfile`, `src/**`,
+`Cargo.toml` or `tests/docker/**`, and on every push to `main`. Add the
+`skip-docker-image-tests` label to a PR to skip the musl build when the change
+cannot affect the packaged image.
+
 ## License
 
 [MIT](LICENSE)

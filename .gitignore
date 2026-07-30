@@ -1,3 +1,8 @@
 /target
 .worktrees/
 integration-output.log
+docker-build/
+target-musl-docker/
+__pycache__/
+.pytest_cache/
+.venv/
