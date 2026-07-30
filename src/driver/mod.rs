@@ -44,8 +44,6 @@ pub struct ConnectionConfig {
     pub ssl_config: Option<SslConfig>,
     /// Protocol version (None = auto-negotiate).
     pub protocol_version: Option<u8>,
-    /// Whether this connection is using a Unix domain socket (auto-detected).
-    pub unix_socket: bool,
 }
 
 /// SSL/TLS configuration options.

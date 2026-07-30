@@ -2,6 +2,8 @@
 //!
 //! These tests start a separate ScyllaDB container with `--maintenance-socket workdir`
 //! and a bind mount, then connect cqlsh-rs via the exposed `cql.m` socket file.
+//! Set `CQLSH_TEST_MAINTENANCE_SOCKET` to a socket path to run against an
+//! externally provisioned instance instead (no Docker required).
 //!
 //! Key lessons from development:
 //! - Use `--maintenance-socket workdir` (not `listen`) — `listen` is misinterpreted as a path.
@@ -19,7 +21,7 @@ mod unix {
 
     use assert_cmd::Command;
     use predicates::prelude::*;
-    use testcontainers::core::{Mount, WaitFor};
+    use testcontainers::core::{ExecCommand, Mount, WaitFor};
     use testcontainers::runners::SyncRunner;
     use testcontainers::{GenericImage, ImageExt};
 
@@ -44,19 +46,39 @@ mod unix {
     }
 
     struct UdsScylla {
-        _container: testcontainers::Container<GenericImage>,
-        socket_dir: tempfile::TempDir,
+        /// `Some` when this fixture started its own container; `None` when an
+        /// externally provisioned socket is used.
+        _container: Option<testcontainers::Container<GenericImage>>,
+        _socket_dir: Option<tempfile::TempDir>,
+        socket: PathBuf,
     }
 
     impl UdsScylla {
+        /// Use the socket provided via `CQLSH_TEST_MAINTENANCE_SOCKET` (the
+        /// `[maintenance]` category contract in `tests/test_categories.toml`)
+        /// when set, otherwise start a ScyllaDB container with a maintenance
+        /// socket exposed through a bind mount.
         fn start() -> Self {
+            if let Ok(path) = std::env::var("CQLSH_TEST_MAINTENANCE_SOCKET") {
+                let socket = PathBuf::from(path);
+                wait_for_socket(&socket, Duration::from_secs(30));
+                return UdsScylla {
+                    _container: None,
+                    _socket_dir: None,
+                    socket,
+                };
+            }
+
             let socket_dir = tempfile::TempDir::new().expect("create temp dir for UDS");
             // Make writable by container process (runs as root or uid 999)
             std::fs::set_permissions(socket_dir.path(), std::fs::Permissions::from_mode(0o777))
                 .expect("chmod temp dir");
             let host_path = socket_dir.path().to_str().unwrap().to_string();
 
-            let container = GenericImage::new("scylladb/scylla", "latest")
+            // Pinned like the other fixtures (tests/integration/helpers.rs) so
+            // image updates can't silently change maintenance-socket behavior.
+            // 2025.1 matches the CI integration matrix.
+            let container = GenericImage::new("scylladb/scylla", "2025.1")
                 .with_wait_for(WaitFor::message_on_stderr(
                     "Starting listening for maintenance CQL clients",
                 ))
@@ -79,19 +101,23 @@ mod unix {
 
             let sock = socket_path(socket_dir.path());
             wait_for_socket(&sock, Duration::from_secs(30));
+            // Scylla creates cql.m under the container's uid/gid; make it
+            // connectable from the host test process regardless of the
+            // image's default socket mode.
+            container
+                .exec(ExecCommand::new(["chmod", "0666", "/var/lib/scylla/cql.m"]))
+                .expect("chmod maintenance socket");
             std::thread::sleep(Duration::from_secs(5));
 
             UdsScylla {
-                _container: container,
-                socket_dir,
+                _container: Some(container),
+                _socket_dir: Some(socket_dir),
+                socket: sock,
             }
         }
 
         fn socket(&self) -> String {
-            socket_path(self.socket_dir.path())
-                .to_str()
-                .unwrap()
-                .to_string()
+            self.socket.to_str().unwrap().to_string()
         }
     }
 
@@ -164,20 +190,28 @@ mod unix {
     }
 
     #[test]
-    #[ignore = "requires Docker"]
+    #[ignore = "integration"]
     fn test_uds_rejects_ssl_combination() {
-        let scylla = UdsScylla::start();
+        // The SSL+UDS combination is rejected client-side before any
+        // connection is attempted, so a bare listening socket is enough —
+        // no ScyllaDB container (or Docker) needed.
+        let dir = tempfile::TempDir::new().expect("create temp dir");
+        let sock = dir.path().join("cql.m");
+        let _listener =
+            std::os::unix::net::UnixListener::bind(&sock).expect("bind placeholder UDS");
 
         Command::cargo_bin("cqlsh-rs")
             .unwrap()
             .args([
-                &scylla.socket(),
+                sock.to_str().unwrap(),
                 "--ssl",
                 "-e",
                 "SELECT * FROM system.local;",
             ])
             .assert()
             .failure()
-            .stderr(predicate::str::contains("SSL").or(predicate::str::contains("ssl")));
+            .stderr(predicate::str::contains(
+                "SSL is not supported with Unix domain socket connections",
+            ));
     }
 }

@@ -110,7 +110,9 @@ cqlsh-rs --cqlshrc /path/to/cqlshrc
 # Set timeouts
 cqlsh-rs --connect-timeout 30 --request-timeout 60
 
-# Connect via Unix domain socket (ScyllaDB maintenance socket, Linux/macOS only)
+# Connect via Unix domain socket (ScyllaDB maintenance socket, Linux/macOS only).
+# Note: bridged over a loopback TCP port for the session, so other local users
+# can reach the socket while cqlsh-rs is running.
 cqlsh-rs /var/run/scylla/cql.sock
 ```
 
