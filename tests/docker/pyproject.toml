@@ -1,0 +1,19 @@
+[project]
+name = "cqlsh-rs-docker-tests"
+version = "0.1.0"
+description = "Black-box tests for the cqlsh-rs Docker image, driven through a real PTY"
+requires-python = ">=3.10"
+
+[dependency-groups]
+dev = [
+    "pexpect>=4.9",
+    "pytest>=7.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "-v"
+python_files = ["test_*.py"]
+testpaths = ["."]
+
+[tool.uv]
+required-version = ">=0.5.0"

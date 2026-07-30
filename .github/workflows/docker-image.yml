@@ -1,0 +1,152 @@
+name: Docker Image Tests
+
+# Black-box tests for the published artifact: build the Alpine image exactly the
+# way the release pipeline builds it, then drive it through a real PTY against a
+# live ScyllaDB. The Rust suite runs a locally built binary on a glibc host, so
+# image-level regressions (missing runtime deps, BusyBox vs GNU tooling, the
+# non-root user) are invisible to it — see #175.
+#
+# Runs by default on anything that can change the image, and on every push to
+# main. Add the `skip-docker-image-tests` label to a PR to opt out when the
+# musl build is not worth it (e.g. a `src/**` change that cannot affect the
+# packaged artifact) — main still covers it at merge.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    paths:
+      - "Dockerfile"
+      - "src/**"
+      - "Cargo.toml"
+      # Tracked since #172 — a lockfile-only dependency bump (Renovate) still
+      # changes the binary baked into the image.
+      - "Cargo.lock"
+      - "tests/docker/**"
+      - ".github/workflows/docker-image.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Test an existing image instead of building one (e.g. ghcr.io/scylladb/cqlsh-rs:latest)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CQLSH_DOCKER_NETWORK: cqlsh-ci-net
+  CQLSH_DB_HOST: cqlsh-ci-db
+  CQLSH_DB_PORT: "9042"
+  # One database is enough here: this job tests the *image*, while DB/version
+  # compatibility is already covered by the integration matrix in ci.yml.
+  DB_IMAGE: scylladb/scylla:2026.1
+  DB_ARGS: "--smp 1 --memory 512M --overprovisioned 1 --skip-wait-for-gossip-to-settle 0"
+
+jobs:
+  docker-image-tests:
+    name: Docker image
+    runs-on: ubuntu-latest
+    if: >-
+      !contains(github.event.pull_request.labels.*.name, 'skip-docker-image-tests')
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      # ---------------------------------------------------------------------
+      # Image under test: either an existing tag (manual dispatch with the
+      # `image` input) or one built from this commit with the same musl binary
+      # the release pipeline ships.
+      # ---------------------------------------------------------------------
+      - name: Resolve image under test
+        id: image
+        run: |
+          if [ -n "${{ inputs.image }}" ]; then
+            echo "name=${{ inputs.image }}" >> "$GITHUB_OUTPUT"
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=cqlsh-rs:ci" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.image.outputs.build == 'true'
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        if: steps.image.outputs.build == 'true'
+        with:
+          key: docker-image-tests
+
+      - name: Install musl-tools
+        if: steps.image.outputs.build == 'true'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build musl binary
+        if: steps.image.outputs.build == 'true'
+        env:
+          RUSTFLAGS: ""
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Build image
+        if: steps.image.outputs.build == 'true'
+        run: |
+          mkdir -p docker-build
+          cp target/x86_64-unknown-linux-musl/release/cqlsh-rs docker-build/cqlsh-rs-amd64
+          chmod +x docker-build/cqlsh-rs-amd64
+          docker build --build-arg TARGETARCH=amd64 -t cqlsh-rs:ci .
+
+      - name: Pull image
+        if: steps.image.outputs.build == 'false'
+        run: docker pull ${{ steps.image.outputs.name }}
+
+      # ---------------------------------------------------------------------
+      # Database on a user-defined network so the image can reach it by name,
+      # exactly like a user pointing the image at a hostname.
+      # ---------------------------------------------------------------------
+      - name: Start database
+        run: |
+          docker network create "$CQLSH_DOCKER_NETWORK"
+          docker run -d --name "$CQLSH_DB_HOST" \
+            --network "$CQLSH_DOCKER_NETWORK" \
+            $DB_IMAGE $DB_ARGS
+          echo "Waiting for $DB_IMAGE to be ready..."
+          for i in $(seq 1 60); do
+            if docker exec "$CQLSH_DB_HOST" cqlsh -e "SELECT now() FROM system.local;" >/dev/null 2>&1; then
+              echo "database ready after ${i} attempt(s)"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "database failed to become ready"
+              docker logs "$CQLSH_DB_HOST"
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Run Docker image tests
+        working-directory: tests/docker
+        env:
+          CQLSH_DOCKER_IMAGE: ${{ steps.image.outputs.name }}
+        run: |
+          set -o pipefail
+          uv run --python 3.12 pytest --color=yes 2>&1 | tee "$GITHUB_WORKSPACE/docker-image-tests.log"
+        timeout-minutes: 10
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: docker-image-tests
+          path: docker-image-tests.log
+          retention-days: 5
+
+      - name: Database logs on failure
+        if: failure()
+        run: docker logs "$CQLSH_DB_HOST" | tail -100
