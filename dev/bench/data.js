@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785399020857,
+  "lastUpdate": 1785413303428,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -12478,6 +12478,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39756,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "55967c0f9bf66cfa30829df46c3f8a1a9fb61327",
+          "message": "ci: test the Docker image end-to-end through a PTY\n\nThe Rust suite runs a locally built binary on a glibc host, so nothing\nverified the artifact users actually run. #175 was the result: the Alpine\nimage shipped `less` only as a BusyBox applet, and every interactive SELECT\nrendered nothing while all 650+ tests stayed green.\n\nAdds `tests/docker/test_docker_image.py` — pytest + pexpect, treating the\nimage as a black box:\n\n* batch mode: `--version`, `-e \"SELECT ...\"`, non-root uid, and no paging\n  either with or without a tty\n* image contents: `less` is real less, not the BusyBox applet\n* interactive mode over a real PTY: banner and prompt, paged SELECT (rows on\n  screen, `q` returns to the prompt), PAGING OFF, DESCRIBE, tab completion,\n  Ctrl-D exit\n\nAssertions match only text the pager can produce — the table frame and the\n`(N rows)` footer — because the REPL echoes and re-highlights what you type,\nso matching a column name would match the echo and pass on a broken pager.\nPager error strings are matched as expect alternatives so a regression fails\nin a second with the transcript attached instead of timing out silently.\n\nThe \"batch does not page\" case is checked twice, because the no-tty half\ncannot regress on its own: the second runs `docker run -t` with `$PAGER` set\nto a sentinel that would swallow the table, so paging `-e` output whenever\nstdout is a terminal shows up as missing rows rather than passing quietly.\n\nPython rather than Rust is deliberate. These tests touch no cqlsh-rs\ninternals — they run `docker run` and assert on what a user sees — so Rust\nbuys no reuse, while `pexpect` provides the pty driving, expect-with-\nalternatives and transcript capture that a Rust harness would hand-roll.\nThey also need a built image and a live database, so they could never be a\nplain `cargo test`. The repo already runs pytest under uv for the comparison\nbenchmarks; `tests/docker/pyproject.toml` mirrors that layout, with a\ncommitted lockfile, so setup is `cd tests/docker && uv run pytest`.\n\nThe `Docker Image Tests` workflow builds the image from the same musl binary\nthe release pipeline uses, runs the suite against a live ScyllaDB on a\nuser-defined network, and can also point at an already published tag via its\n`image` input. It triggers on paths that can change the image (including\n`Cargo.lock`, tracked since #172, since a lockfile-only bump still changes\nthe binary) and on every push to main; the `skip-docker-image-tests` label\nopts a PR out of the ~5 min musl build when the change cannot affect the\npackaged artifact.\n\nCo-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-30T14:59:57+03:00",
+          "tree_id": "1954f030b4c7d36388d70dc0779d15f2ca0e422e",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/55967c0f9bf66cfa30829df46c3f8a1a9fb61327"
+        },
+        "date": 1785413303018,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29155,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3578,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9339,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64512,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 846,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 155470,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7411,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86258,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 794710,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7877500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10599,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 49003,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39934,
             "unit": "ns"
           }
         ]
