@@ -7,18 +7,20 @@
 #   brew tap scylladb/cqlsh-rs https://github.com/scylladb/cqlsh-rs
 #   brew install cqlsh-rs
 #
-# The `version`, `url` and `sha256` fields are rewritten automatically after
-# every release by the `update-homebrew-formula` job in
+# The `url` and `sha256` fields are rewritten automatically after every release
+# by the "Update Homebrew formula" step of the release pipeline in
 # .github/workflows/ci.yml. To refresh them by hand:
 #
 #   python3 scripts/update_homebrew_formula.py 0.5.13
+#
+# The version is deliberately not declared: Homebrew scans it from the release
+# URL, and `brew audit --strict` rejects a redundant `version` line.
 #
 # CI installs and tests this formula on macOS — see .github/workflows/homebrew.yml.
 
 class CqlshRs < Formula
   desc "Rust re-implementation of the Cassandra cqlsh CQL shell"
   homepage "https://github.com/scylladb/cqlsh-rs"
-  version "0.5.13"
   license "MIT"
 
   livecheck do
