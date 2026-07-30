@@ -272,10 +272,10 @@ jobs:
 
           Download the appropriate binary for your platform from the assets below.
 
-          ### Homebrew (macOS)
+          ### Homebrew (macOS / Linux)
 
           \`\`\`bash
-          brew tap scylladb/cqlsh-rs
+          brew tap scylladb/cqlsh-rs https://github.com/scylladb/cqlsh-rs
           brew install cqlsh-rs
           \`\`\`
 

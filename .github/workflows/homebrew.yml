@@ -1,0 +1,201 @@
+name: Homebrew
+
+# Validates the Homebrew formula that lives in this repository (this repo
+# doubles as its own tap — see Formula/cqlsh-rs.rb).
+#
+# Jobs:
+#   checksums       — verifies every archive referenced by the formula exists and
+#                     matches its recorded SHA256 (covers all four platforms,
+#                     including the Intel/ARM Linux ones, from a Linux runner)
+#   install         — real `brew install` + `brew test` on macOS runners
+#   documented-flow — runs the exact commands from README.md against the live
+#                     GitHub repo; only meaningful once the formula is on main
+
+on:
+  pull_request:
+    paths:
+      - 'Formula/**'
+      - 'scripts/update_homebrew_formula.py'
+      - '.github/workflows/homebrew.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'Formula/**'
+  schedule:
+    # Weekly canary: catches a release that forgot to bump the formula, or a
+    # tap/asset URL that stopped resolving.
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Verify the release archives the formula points at (all platforms)
+  # ---------------------------------------------------------------------------
+  checksums:
+    name: Verify formula checksums
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Download and verify every archive in the formula
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import re
+          import sys
+          import tarfile
+          import urllib.request
+          from pathlib import Path
+
+          formula = Path("Formula/cqlsh-rs.rb").read_text(encoding="utf-8")
+          pairs = re.findall(r'url "([^"]+)"\s*\n\s*sha256 "([0-9a-f]{64})"', formula)
+          if len(pairs) != 4:
+              sys.exit(f"expected 4 url/sha256 pairs in the formula, found {len(pairs)}")
+
+          version = re.search(r'^\s*version "([^"]+)"', formula, re.MULTILINE).group(1)
+          failed = False
+          for url, expected in pairs:
+              if f"/v{version}/" not in url or f"-{version}-" not in url:
+                  print(f"::error::{url} does not match version {version}")
+                  failed = True
+                  continue
+              try:
+                  with urllib.request.urlopen(url, timeout=120) as response:
+                      body = response.read()
+              except Exception as exc:  # noqa: BLE001
+                  print(f"::error::cannot download {url}: {exc}")
+                  failed = True
+                  continue
+
+              digest = hashlib.sha256(body).hexdigest()
+              name = url.rsplit("/", 1)[-1]
+              if digest != expected:
+                  print(f"::error::{name}: sha256 mismatch (formula {expected}, actual {digest})")
+                  failed = True
+                  continue
+
+              Path(name).write_bytes(body)
+              with tarfile.open(name) as tar:
+                  members = [m.name.split("/")[-1] for m in tar.getmembers()]
+              if "cqlsh-rs" not in members:
+                  print(f"::error::{name}: archive does not contain a cqlsh-rs binary")
+                  failed = True
+                  continue
+
+              print(f"ok  {name}  {digest}")
+
+          sys.exit(1 if failed else 0)
+          PY
+
+      - name: Warn when the formula lags the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          formula_version=$(sed -n 's/^[[:space:]]*version "\(.*\)"/\1/p' Formula/cqlsh-rs.rb | head -1)
+          latest=$(gh release view --repo "${{ github.repository }}" --json tagName -q .tagName)
+          latest="${latest#v}"
+          if [ "$formula_version" != "$latest" ]; then
+            echo "::warning::Formula pins v${formula_version} but the latest release is v${latest}." \
+                 "Run: python3 scripts/update_homebrew_formula.py ${latest}"
+          else
+            echo "Formula is at the latest release (v${latest})"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Install and test the formula through Homebrew on macOS
+  # ---------------------------------------------------------------------------
+  install:
+    name: brew install (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        # macos-latest is Apple Silicon; macos-15-intel covers the x86_64 URL.
+        os: [macos-latest, macos-15-intel]
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      # Stage the formula as a real tap so the install path is identical to
+      # what users get from `brew tap scylladb/cqlsh-rs <url>`.
+      - name: Stage Formula/ as a local tap
+        run: |
+          tap_dir="$(brew --repository)/Library/Taps/scylladb/homebrew-cqlsh-rs"
+          mkdir -p "$tap_dir/Formula"
+          cp Formula/cqlsh-rs.rb "$tap_dir/Formula/"
+          git -C "$tap_dir" init -q -b main
+          git -C "$tap_dir" add -A
+          git -C "$tap_dir" -c user.email=ci@example.com -c user.name=CI commit -qm "CI tap"
+          brew tap
+
+      - name: brew style
+        run: brew style scylladb/cqlsh-rs/cqlsh-rs
+
+      - name: brew audit
+        run: brew audit --strict --online scylladb/cqlsh-rs/cqlsh-rs
+
+      - name: brew install
+        run: brew install --verbose scylladb/cqlsh-rs/cqlsh-rs
+
+      - name: brew test
+        run: brew test --verbose scylladb/cqlsh-rs/cqlsh-rs
+
+      - name: Smoke test the installed binary
+        run: |
+          set -x
+          prefix="$(brew --prefix)"
+          expected="$(sed -n 's/^[[:space:]]*version "\(.*\)"/\1/p' Formula/cqlsh-rs.rb | head -1)"
+
+          command -v cqlsh-rs
+          # The binary keeps Python cqlsh's program name in --version output.
+          cqlsh-rs --version | tee version.txt
+          grep -qx "cqlsh ${expected}" version.txt
+          cqlsh-rs --help > /dev/null
+
+          # The right architecture slice was selected by on_arm/on_intel.
+          file -bL "$(command -v cqlsh-rs)"
+          file -bL "$(command -v cqlsh-rs)" | grep -q "$(uname -m)"
+
+          # Man page and completions were generated during install.
+          test -f "$prefix/share/man/man1/cqlsh-rs.1"
+          test -f "$prefix/share/zsh/site-functions/_cqlsh-rs"
+          test -f "$prefix/etc/bash_completion.d/cqlsh-rs"
+          test -f "$prefix/share/fish/vendor_completions.d/cqlsh-rs.fish"
+
+          # A failed connection must exit 2 with cqlsh's message, not panic.
+          set +e
+          out=$(cqlsh-rs 127.0.0.1 1 -e "SELECT now() FROM system.local" 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          test "$rc" -eq 2
+          echo "$out" | grep -q "Unable to connect to any servers"
+
+      - name: brew uninstall
+        run: brew uninstall scylladb/cqlsh-rs/cqlsh-rs
+
+  # ---------------------------------------------------------------------------
+  # Run the exact commands documented in README.md against the live repo
+  # ---------------------------------------------------------------------------
+  documented-flow:
+    name: Documented tap flow
+    # On a pull request the formula is not on main yet, so tapping the remote
+    # would test the previous state of the tap rather than this change.
+    if: github.event_name != 'pull_request'
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: brew tap + brew install (as documented)
+        run: |
+          brew tap scylladb/cqlsh-rs https://github.com/${{ github.repository }}
+          brew install cqlsh-rs
+          cqlsh-rs --version

@@ -595,6 +595,30 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # This repository doubles as its own Homebrew tap, so the formula has to
+      # be re-pointed at the archives that were just published. The checksums
+      # come from the file generated above, not from the release, so this works
+      # even before the assets are downloadable.
+      - name: Update Homebrew formula
+        run: |
+          python3 scripts/update_homebrew_formula.py \
+            "${{ needs.release.outputs.version }}" \
+            --sums release/SHA256SUMS.txt
+
+      - name: Commit updated formula to main
+        run: |
+          if git diff --quiet Formula/cqlsh-rs.rb; then
+            echo "Homebrew formula already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/cqlsh-rs.rb
+          git commit -m "chore(homebrew): point formula at ${{ needs.release.outputs.tag }} [skip ci]"
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
+
   # ---------------------------------------------------------------------------
   # Build and push multi-arch Docker image
   # ---------------------------------------------------------------------------

@@ -49,7 +49,7 @@ Build, test, and distribute cqlsh-rs as a single static binary across all target
 | 3 | Automated GitHub Releases on tag push | Release workflow |
 | 4 | Binary naming convention (`cqlsh-rs-{version}-{target}`) | Release artifacts |
 | 5 | SHA256 checksum generation | Checksum files |
-| 6 | Homebrew formula | `homebrew-tap` repo |
+| 6 | Homebrew formula (this repo doubles as the tap) | `Formula/cqlsh-rs.rb` |
 | 7 | `cargo install cqlsh-rs` (crates.io publish) | `Cargo.toml` metadata |
 | 8 | Docker image (multi-arch) | `Dockerfile` |
 | 9 | Man page generation | `docs/cqlsh-rs.1` |
@@ -96,7 +96,7 @@ Tag push (v1.0.0)
 - [ ] GitHub Releases are automated on tag push
 - [ ] SHA256 checksums are provided for all artifacts
 - [ ] `cargo install cqlsh-rs` works
-- [ ] Homebrew formula works on macOS
+- [x] Homebrew formula works on macOS (tested in CI by `.github/workflows/homebrew.yml`)
 - [ ] Docker image is available
 - [ ] Binary size is <15MB
 
