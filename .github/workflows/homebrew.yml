@@ -10,6 +10,10 @@ name: Homebrew
 #   install         — real `brew install` + `brew test` on macOS runners
 #   documented-flow — runs the exact commands from README.md against the live
 #                     GitHub repo; only meaningful once the formula is on main
+#
+# Deliberately no scheduled run: macOS runner minutes are expensive and there is
+# nothing to re-check between formula changes. Run it by hand from the Actions
+# tab (workflow_dispatch) if a tap problem is ever reported.
 
 on:
   pull_request:
@@ -21,10 +25,6 @@ on:
     branches: [main]
     paths:
       - 'Formula/**'
-  schedule:
-    # Weekly canary: catches a release that forgot to bump the formula, or a
-    # tap/asset URL that stopped resolving.
-    - cron: '17 6 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -121,6 +121,11 @@ jobs:
   # ---------------------------------------------------------------------------
   install:
     name: brew install (${{ matrix.os }})
+    # Skipped on pushes to main: the pull request that changed the formula
+    # already ran this against the same files, so re-running two macOS jobs on
+    # the merge commit only burns minutes. `documented-flow` below is the part
+    # that genuinely needs main.
+    if: github.event_name != 'push'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     strategy:
