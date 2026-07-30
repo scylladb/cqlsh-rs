@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.14](https://github.com/scylladb/cqlsh-rs/compare/v0.5.13...v0.5.14) - 2026-07-30
+
+### Fixed
+
+- *(pager)* detect BusyBox less instead of assuming GNU flags
+
+### Other
+
+- test the Docker image end-to-end through a PTY
+- commit Cargo.lock for reproducible/downstream builds
+
 ## [0.5.13](https://github.com/scylladb/cqlsh-rs/compare/v0.5.12...v0.5.13) - 2026-07-07
 
 ### Other
