@@ -2,7 +2,10 @@ FROM alpine:3.23
 
 ARG TARGETARCH
 
-RUN apk add --no-cache ca-certificates tzdata
+# `less` is the interactive pager for query results. Alpine only provides a
+# BusyBox applet by default, which lacks GNU flags (-P) and inverts -R, so the
+# real GNU less is installed explicitly.
+RUN apk add --no-cache ca-certificates tzdata less
 
 COPY docker-build/cqlsh-rs-${TARGETARCH} /usr/local/bin/cqlsh-rs
 
