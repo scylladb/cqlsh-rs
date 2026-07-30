@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785393882266,
+  "lastUpdate": 1785399020857,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -12379,6 +12379,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 37417,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "394e81563900abad6e0d9d1c1b2d0ed7a5ce3b8d",
+          "message": "fix(pager): detect BusyBox less instead of assuming GNU flags\n\nInteractive SELECT output was blank in the Alpine Docker image: the pager\nalways invoked `less -R -S -P<prompt>`, but Alpine only ships `less` as a\nBusyBox applet. BusyBox has no `-P`, so it exited with a usage error and we\nkept piping rows into a dead process. Its `-R` also means the opposite of\nGNU's (\"remove color escape codes in input\" vs \"pass them through\").\n\n`less --version` is now probed once per process and classified:\n\n* real less (GNU or Alpine's POSIX-regex build) -> `-R -S -P<prompt>`\n* BusyBox applet                                -> `-S -R`\n* unrecognized `less`                           -> `-S` only\n* `less` not executable at all                  -> skip straight to `more`\n\nBusyBox gets `-R` deliberately: colors cannot survive there either way, and\nwithout it BusyBox prints the escape sequences as literal `[38;5;13m` text\nall over the table.\n\nThe Dockerfile also installs the real `less` package, so the image keeps the\nprompt line and colored output rather than the degraded BusyBox path.\n\nCloses #175\n\nCo-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-07-30T11:02:01+03:00",
+          "tree_id": "a5efde7e81633743b9814d5512048ea0fef5e9db",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/394e81563900abad6e0d9d1c1b2d0ed7a5ce3b8d"
+        },
+        "date": 1785399020468,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28803,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3715,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9325,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 64818,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 860,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 154940,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7365,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 11,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86252,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 797200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7953800,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9604,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 49189,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39756,
             "unit": "ns"
           }
         ]
