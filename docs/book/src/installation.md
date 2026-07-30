@@ -61,7 +61,7 @@ brew install cqlsh-rs
 brew update && brew upgrade cqlsh-rs
 ```
 
-The formula ([`Formula/cqlsh-rs.rb`](https://github.com/scylladb/cqlsh-rs/blob/main/Formula/cqlsh-rs.rb))
+The formula (`Formula/cqlsh-rs.rb` in the repository)
 downloads the pre-built release binary for your platform and also installs the
 `cqlsh-rs(1)` man page and bash/zsh/fish completions.
 
