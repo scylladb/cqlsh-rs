@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Update Formula/cqlsh-rs.rb to point at a released version.
 
-Reads the SHA256SUMS.txt asset published with the GitHub Release and rewrites
-the ``version``, ``url`` and ``sha256`` fields of the Homebrew formula in place.
+Reads the SHA256SUMS.txt asset published with the GitHub Release and rewrites the
+``url`` and ``sha256`` fields of the Homebrew formula in place. Homebrew scans the
+version from the release URL, so the formula declares no ``version`` field.
 
 Usage:
     python3 scripts/update_homebrew_formula.py 0.5.14
@@ -63,17 +64,12 @@ def fetch_checksums(repo: str, version: str, sums_file: Path | None) -> dict[str
 
 
 def render(formula: str, repo: str, version: str, checksums: dict[str, str]) -> str:
-    """Return ``formula`` with version/url/sha256 rewritten for ``version``."""
-    updated, count = re.subn(
-        r'^(\s*)version "[^"]*"',
-        rf'\g<1>version "{version}"',
-        formula,
-        count=1,
-        flags=re.MULTILINE,
-    )
-    if count != 1:
-        sys.exit("error: no `version \"...\"` line found in formula")
+    """Return ``formula`` with every url/sha256 pair rewritten for ``version``.
 
+    The formula has no ``version`` field on purpose — Homebrew scans it from the
+    release URL, and ``brew audit --strict`` rejects a redundant declaration.
+    """
+    updated = formula
     for target in TARGETS:
         archive = f"cqlsh-rs-{version}-{target}.tar.gz"
         digest = checksums.get(archive)

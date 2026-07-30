@@ -60,7 +60,14 @@ jobs:
           if len(pairs) != 4:
               sys.exit(f"expected 4 url/sha256 pairs in the formula, found {len(pairs)}")
 
-          version = re.search(r'^\s*version "([^"]+)"', formula, re.MULTILINE).group(1)
+          # The formula has no `version` field (brew scans it from the URL, and
+          # `brew audit --strict` rejects a redundant one), so derive it here.
+          versions = {re.search(r"/download/v([^/]+)/", url).group(1) for url, _ in pairs}
+          if len(versions) != 1:
+              sys.exit(f"formula URLs point at more than one version: {sorted(versions)}")
+          version = versions.pop()
+          print(f"formula version: {version}")
+
           failed = False
           for url, expected in pairs:
               if f"/v{version}/" not in url or f"-{version}-" not in url:
@@ -99,7 +106,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          formula_version=$(sed -n 's/^[[:space:]]*version "\(.*\)"/\1/p' Formula/cqlsh-rs.rb | head -1)
+          formula_version=$(sed -n 's|.*/releases/download/v\([^/]*\)/.*|\1|p' Formula/cqlsh-rs.rb | head -1)
           latest=$(gh release view --repo "${{ github.repository }}" --json tagName -q .tagName)
           latest="${latest#v}"
           if [ "$formula_version" != "$latest" ]; then
@@ -153,7 +160,7 @@ jobs:
         run: |
           set -x
           prefix="$(brew --prefix)"
-          expected="$(sed -n 's/^[[:space:]]*version "\(.*\)"/\1/p' Formula/cqlsh-rs.rb | head -1)"
+          expected="$(sed -n 's|.*/releases/download/v\([^/]*\)/.*|\1|p' Formula/cqlsh-rs.rb | head -1)"
 
           command -v cqlsh-rs
           # The binary keeps Python cqlsh's program name in --version output.
