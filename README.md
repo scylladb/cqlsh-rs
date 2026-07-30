@@ -43,10 +43,16 @@ cqlsh-rs 10.0.0.1 -e "DESCRIBE KEYSPACES"  # one-shot query
 
 ### Homebrew (macOS / Linux)
 
+This repository is its own Homebrew tap, so the tap URL has to be given explicitly
+(there is no separate `homebrew-cqlsh-rs` repository):
+
 ```bash
-brew tap scylladb/cqlsh-rs
+brew tap scylladb/cqlsh-rs https://github.com/scylladb/cqlsh-rs
 brew install cqlsh-rs
 ```
+
+Upgrades come from `brew update && brew upgrade cqlsh-rs`. The formula installs the
+pre-built release binary plus the man page and shell completions.
 
 ### Cargo (from crates.io)
 

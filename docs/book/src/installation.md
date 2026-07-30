@@ -20,25 +20,56 @@ The binary is installed to `~/.cargo/bin/cqlsh-rs`.
 
 Download pre-built binaries from [GitHub Releases](https://github.com/scylladb/cqlsh-rs/releases):
 
+Archive names include the version, e.g. `cqlsh-rs-0.5.13-x86_64-unknown-linux-musl.tar.gz`:
+
 | Platform | Architecture | Archive |
 |----------|-------------|---------|
-| Linux | x86_64 | `cqlsh-rs-x86_64-unknown-linux-gnu.tar.gz` |
-| Linux | aarch64 | `cqlsh-rs-aarch64-unknown-linux-gnu.tar.gz` |
-| macOS | x86_64 | `cqlsh-rs-x86_64-apple-darwin.tar.gz` |
-| macOS | Apple Silicon | `cqlsh-rs-aarch64-apple-darwin.tar.gz` |
-| Windows | x86_64 | `cqlsh-rs-x86_64-pc-windows-msvc.zip` |
+| Linux | x86_64 | `cqlsh-rs-<version>-x86_64-unknown-linux-musl.tar.gz` |
+| Linux | aarch64 | `cqlsh-rs-<version>-aarch64-unknown-linux-musl.tar.gz` |
+| macOS | x86_64 | `cqlsh-rs-<version>-x86_64-apple-darwin.tar.gz` |
+| macOS | Apple Silicon | `cqlsh-rs-<version>-aarch64-apple-darwin.tar.gz` |
+| Windows | x86_64 | `cqlsh-rs-<version>-x86_64-pc-windows-msvc.zip` |
+
+The Linux archives are statically linked against musl, so they run on any
+distribution regardless of its glibc version.
 
 ```bash
 # Example: Linux x86_64
-curl -LO https://github.com/scylladb/cqlsh-rs/releases/latest/download/cqlsh-rs-x86_64-unknown-linux-gnu.tar.gz
-tar xzf cqlsh-rs-x86_64-unknown-linux-gnu.tar.gz
-sudo mv cqlsh-rs /usr/local/bin/
+VERSION=0.5.13
+curl -LO "https://github.com/scylladb/cqlsh-rs/releases/download/v${VERSION}/cqlsh-rs-${VERSION}-x86_64-unknown-linux-musl.tar.gz"
+tar xzf "cqlsh-rs-${VERSION}-x86_64-unknown-linux-musl.tar.gz"
+sudo install "cqlsh-rs-${VERSION}-x86_64-unknown-linux-musl/cqlsh-rs" /usr/local/bin/
+```
+
+Each release also ships a `SHA256SUMS.txt` for verification:
+
+```bash
+curl -LO "https://github.com/scylladb/cqlsh-rs/releases/download/v${VERSION}/SHA256SUMS.txt"
+sha256sum --check --ignore-missing SHA256SUMS.txt
 ```
 
 ## Homebrew (macOS/Linux)
 
+The `cqlsh-rs` repository doubles as its own Homebrew tap — there is no separate
+`homebrew-cqlsh-rs` repository, so the tap URL must be passed explicitly:
+
 ```bash
-brew install scylladb/tap/cqlsh-rs
+brew tap scylladb/cqlsh-rs https://github.com/scylladb/cqlsh-rs
+brew install cqlsh-rs
+
+# later
+brew update && brew upgrade cqlsh-rs
+```
+
+The formula ([`Formula/cqlsh-rs.rb`](https://github.com/scylladb/cqlsh-rs/blob/main/Formula/cqlsh-rs.rb))
+downloads the pre-built release binary for your platform and also installs the
+`cqlsh-rs(1)` man page and bash/zsh/fish completions.
+
+To remove it:
+
+```bash
+brew uninstall cqlsh-rs
+brew untap scylladb/cqlsh-rs
 ```
 
 ## Docker
