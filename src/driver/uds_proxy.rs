@@ -7,9 +7,40 @@
 //! # Platform support
 //! All UDS-specific code is guarded with `#[cfg(unix)]`.  Non-Unix builds
 //! compile the stubs that always return `false` / an error.
+//!
+//! # Security
+//! The proxy listens on an ephemeral TCP port bound to `127.0.0.1`.  While the
+//! session is open, any local process that can connect to loopback can reach
+//! the Unix socket through the proxy, bypassing the socket file's ownership
+//! and mode checks.  This matches the trust model of an interactive
+//! single-user shell, but is a real widening of the socket's trust boundary
+//! on multi-user hosts — don't rely on socket file permissions for isolation
+//! there.  Native UDS support in the driver (SP21b, tracked in
+//! [scylladb/scylla-rust-driver#1616]) will remove the proxy and this caveat.
+//!
+//! [scylladb/scylla-rust-driver#1616]: https://github.com/scylladb/scylla-rust-driver/issues/1616
 
 #[cfg(unix)]
 use anyhow::Context as _;
+
+/// Errors for user-visible UDS misconfiguration, distinguishable from generic
+/// connection failures (which cqlsh reports with its own compatible message).
+#[derive(Debug, thiserror::Error)]
+pub enum UdsError {
+    /// SSL/TLS cannot be layered over the TCP-to-UDS proxy.
+    #[error("SSL is not supported with Unix domain socket connections")]
+    SslNotSupported,
+    /// UDS connections require a Unix platform.
+    #[error("Unix domain sockets are not supported on this platform")]
+    NotSupportedOnPlatform,
+}
+
+/// Returns `true` if `host` is written like a filesystem path (`/…` or `./…`)
+/// rather than a hostname.  Used to give a clear error on platforms without
+/// Unix socket support, where [`is_unix_socket`] can never return `true`.
+pub fn looks_like_uds_path(host: &str) -> bool {
+    host.starts_with('/') || host.starts_with("./")
+}
 
 /// Returns `true` if `path` refers to a Unix domain socket on the filesystem.
 ///
@@ -46,12 +77,6 @@ impl Drop for UdsProxy {
         self.abort_handle.abort();
     }
 }
-
-// ── UdsProxy (non-unix stub) ───────────────────────────────────────────────
-
-/// Stub type so that `Option<UdsProxy>` compiles on all platforms.
-#[cfg(not(unix))]
-pub struct UdsProxy;
 
 // ── start_uds_proxy (unix) ─────────────────────────────────────────────────
 
@@ -119,45 +144,6 @@ async fn relay_connection(mut tcp_stream: tokio::net::TcpStream, path: String) {
     }
 }
 
-/// Address translator that redirects all driver connections to the local proxy.
-///
-/// The scylla-rust-driver discovers cluster topology and opens connections to
-/// each node's `rpc_address`.  When connecting through a UDS proxy, all those
-/// addresses must be redirected to the proxy's local TCP port.
-#[cfg(unix)]
-#[derive(Debug, Clone)]
-pub struct ProxyAddressTranslator {
-    proxy_addr: std::net::SocketAddr,
-}
-
-#[cfg(unix)]
-impl ProxyAddressTranslator {
-    pub fn new(proxy_addr: std::net::SocketAddr) -> Self {
-        Self { proxy_addr }
-    }
-}
-
-#[cfg(unix)]
-#[async_trait::async_trait]
-impl scylla::policies::address_translator::AddressTranslator for ProxyAddressTranslator {
-    async fn translate_address(
-        &self,
-        _untranslated_peer: &scylla::policies::address_translator::UntranslatedPeer,
-    ) -> Result<std::net::SocketAddr, scylla::errors::TranslationError> {
-        Ok(self.proxy_addr)
-    }
-}
-
-// ── start_uds_proxy (non-unix stub) ───────────────────────────────────────
-
-/// Non-Unix stub — always returns an error.
-#[cfg(not(unix))]
-pub async fn start_uds_proxy(
-    _socket_path: &str,
-) -> anyhow::Result<(std::net::SocketAddr, UdsProxy)> {
-    anyhow::bail!("Unix domain sockets are not supported on this platform")
-}
-
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 #[cfg(all(test, unix))]
@@ -175,6 +161,17 @@ mod tests {
         let mut p = std::env::temp_dir();
         p.push(format!("cqlsh_rs_test_{}_{suffix}", std::process::id()));
         p
+    }
+
+    // ── looks_like_uds_path tests ──────────────────────────────────────────
+
+    #[test]
+    fn test_looks_like_uds_path() {
+        assert!(looks_like_uds_path("/var/run/scylla/cql.m"));
+        assert!(looks_like_uds_path("./cql.m"));
+        assert!(!looks_like_uds_path("localhost"));
+        assert!(!looks_like_uds_path("192.168.1.1"));
+        assert!(!looks_like_uds_path("scylla.example.com"));
     }
 
     // ── is_unix_socket tests ───────────────────────────────────────────────
@@ -225,8 +222,8 @@ mod tests {
 
     // ── proxy tests ────────────────────────────────────────────────────────
 
-    /// Spawn a simple UDS echo server using the blocking std API in a thread.
-    /// Returns the socket path and a drop-guard that removes it on cleanup.
+    /// Bind a UDS at `path` and echo bytes back on every connection, using
+    /// the blocking std API in detached background threads.
     fn spawn_echo_server(path: &std::path::Path) {
         let _ = std::fs::remove_file(path);
         let listener = UnixListener::bind(path).expect("echo server bind");

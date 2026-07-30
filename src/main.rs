@@ -62,9 +62,11 @@ async fn main() -> Result<()> {
     let mut session = match CqlSession::connect(&config).await {
         Ok(session) => session,
         Err(e) => {
-            let err_str = format!("{e:#}");
-            if err_str.contains("SSL") || err_str.contains("ssl") || err_str.contains("Unix") {
-                eprintln!("{err_str}");
+            // UDS misconfiguration (SSL over UDS, unsupported platform) carries
+            // its own user-facing message; everything else keeps the
+            // cqlsh-compatible connection error format.
+            if let Some(uds_err) = e.downcast_ref::<cqlsh_rs::driver::uds_proxy::UdsError>() {
+                eprintln!("{uds_err}");
             } else {
                 eprintln!(
                     "Connection error: ('Unable to connect to any servers', \
