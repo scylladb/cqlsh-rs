@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785658068580,
+  "lastUpdate": 1785659518066,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -12973,6 +12973,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40845,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "2a34cc2b7ab80dec0598f56f9cd069b5d6cb004d",
+          "message": "fix(driver): address MSRV and test-isolation review feedback\n\n- Replace `cfg_select!` (stabilized only in Rust 1.95) with ordinary\n  `#[cfg]` blocks in `is_unix_socket` so the module compiles on the\n  Rust 1.70+ toolchains the README advertises.\n- Generate a unique per-run keyspace in `test_uds_ddl_dml_query` instead\n  of the fixed `uds_test` name, so runs against a persistent external\n  instance (`CQLSH_TEST_MAINTENANCE_SOCKET`) cannot collide with or drop\n  pre-existing data.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-08-02T11:23:20+03:00",
+          "tree_id": "d4622e7e3252f818cdd33ac110513576dd43c8bd",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/2a34cc2b7ab80dec0598f56f9cd069b5d6cb004d"
+        },
+        "date": 1785659517413,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28871,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3569,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9130,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 62407,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 842,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 153170,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7509,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 86182,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 787610,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7876300,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9718,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 50181,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39353,
             "unit": "ns"
           }
         ]
