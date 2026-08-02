@@ -14,6 +14,7 @@ use configparser::ini::Ini;
 use thiserror::Error;
 
 use crate::cli::CliArgs;
+use crate::client_routes::{parse_client_routes, ClientRoutesSettings};
 
 /// Errors specific to configuration loading.
 #[derive(Error, Debug)]
@@ -39,6 +40,7 @@ pub struct CqlshrcConfig {
     pub copy_to: CopyToSection,
     pub copy_from: CopyFromSection,
     pub tracing: TracingSection,
+    pub client_routes: ClientRoutesSection,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -129,14 +131,34 @@ pub struct TracingSection {
     pub max_trace_wait: Option<f64>,
 }
 
+/// The `[client_routes]` section (PrivateLink / Private Service Connect).
+#[derive(Debug, Clone, Default)]
+pub struct ClientRoutesSection {
+    /// Comma- or newline-separated `CONNECTION_ID[=ADDRESS]` specifications.
+    pub proxies: Option<String>,
+    /// Whether the driver may use shard-aware ports with client routes.
+    pub advanced_shard_awareness: Option<bool>,
+}
+
 impl CqlshrcConfig {
+    /// Build the INI parser used for cqlshrc files.
+    ///
+    /// Case-sensitive, and with multi-line values enabled so indented
+    /// continuation lines behave as they do in Python's `configparser` — the
+    /// form Python cqlsh documents for `[client_routes] proxies`.
+    fn new_ini() -> Ini {
+        let mut ini = Ini::new_cs();
+        ini.set_multiline(true);
+        ini
+    }
+
     /// Load a cqlshrc file from the given path. Returns default config if file doesn't exist.
     pub fn load(path: &Path) -> Result<Self> {
         if !path.exists() {
             return Ok(Self::default());
         }
 
-        let mut ini = Ini::new_cs(); // case-sensitive
+        let mut ini = Self::new_ini();
         ini.load(path).map_err(|e| ConfigError::ParseError {
             path: path.display().to_string(),
             reason: e,
@@ -147,7 +169,7 @@ impl CqlshrcConfig {
 
     /// Parse a cqlshrc from a string (useful for testing).
     pub fn parse(content: &str) -> Result<Self> {
-        let mut ini = Ini::new_cs();
+        let mut ini = Self::new_ini();
         ini.read(content.to_string())
             .map_err(|e| ConfigError::ParseError {
                 path: "<string>".to_string(),
@@ -278,7 +300,25 @@ impl CqlshrcConfig {
                     .get("tracing", "max_trace_wait")
                     .and_then(|v| v.parse().ok()),
             },
+            client_routes: ClientRoutesSection {
+                proxies: ini.get("client_routes", "proxies"),
+                advanced_shard_awareness: ini
+                    .get("client_routes", "advanced_shard_awareness")
+                    .map(|v| parse_bool(&v)),
+            },
         }
+    }
+}
+
+/// Format a `host:port` contact point, bracketing bare IPv6 literals.
+///
+/// `[::1]:9042` is the only spelling the driver can parse; `::1:9042` is
+/// ambiguous. Addresses that are already bracketed are left alone.
+fn join_host_port(address: &str, port: u16) -> String {
+    if address.contains(':') && !address.starts_with('[') {
+        format!("[{address}]:{port}")
+    } else {
+        format!("{address}:{port}")
     }
 }
 
@@ -318,6 +358,11 @@ pub struct MergedConfig {
     pub cqlshrc_path: PathBuf,
     pub cqlshrc: CqlshrcConfig,
     pub fetch_size: i32,
+    /// Resolved client-routes (PrivateLink) settings.
+    pub client_routes: ClientRoutesSettings,
+    /// Additional contact points as `host:port` strings. Empty means the single
+    /// `host`/`port` pair above; only client routes populate this today.
+    pub contact_points: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -381,12 +426,13 @@ impl MergedConfig {
         cqlshrc_path: PathBuf,
     ) -> Self {
         // Host: CLI > env > cqlshrc > default
-        let host = cli
+        let explicit_host = cli
             .host
             .clone()
             .or_else(|| env.host.clone())
-            .or_else(|| cqlshrc.connection.hostname.clone())
-            .unwrap_or_else(|| DEFAULT_HOST.to_string());
+            .or_else(|| cqlshrc.connection.hostname.clone());
+        let host_was_explicit = explicit_host.is_some();
+        let mut host = explicit_host.unwrap_or_else(|| DEFAULT_HOST.to_string());
 
         // Port: CLI > env > cqlshrc > default
         let port = cli
@@ -394,6 +440,52 @@ impl MergedConfig {
             .or(env.port)
             .or(cqlshrc.connection.port)
             .unwrap_or(DEFAULT_PORT);
+
+        // Client routes: CLI replaces cqlshrc wholesale, as in Python cqlsh.
+        // Invalid specs are reported by CliArgs::validate and load_config; here
+        // they degrade to "no routes" so build() stays infallible.
+        let client_routes = ClientRoutesSettings {
+            routes: if cli.client_route.is_empty() {
+                cqlshrc
+                    .client_routes
+                    .proxies
+                    .as_deref()
+                    .and_then(|v| parse_client_routes([v]).ok())
+                    .unwrap_or_default()
+            } else {
+                parse_client_routes(cli.client_route.iter().map(String::as_str)).unwrap_or_default()
+            },
+            advanced_shard_awareness: if cli.no_client_routes_advanced_shard_awareness {
+                false
+            } else if cli.client_routes_advanced_shard_awareness {
+                true
+            } else {
+                cqlshrc
+                    .client_routes
+                    .advanced_shard_awareness
+                    .unwrap_or(false)
+            },
+        };
+
+        // With client routes and no explicit host, the route address overrides
+        // are the only contact points the client can reach — use them, as
+        // Python cqlsh does. `host` follows the first one so the prompt and
+        // connection errors name something meaningful.
+        let mut contact_points = Vec::new();
+        if client_routes.is_enabled() && !host_was_explicit {
+            let addresses: Vec<&str> = client_routes
+                .routes
+                .iter()
+                .filter_map(|route| route.address.as_deref())
+                .collect();
+            if let Some(first) = addresses.first() {
+                host = (*first).to_string();
+                contact_points = addresses
+                    .iter()
+                    .map(|address| join_host_port(address, port))
+                    .collect();
+            }
+        }
 
         // Username: CLI > cqlshrc
         let username = cli
@@ -488,6 +580,8 @@ impl MergedConfig {
             cqlshrc_path,
             cqlshrc,
             fetch_size,
+            client_routes,
+            contact_points,
         }
     }
 }
@@ -514,6 +608,21 @@ pub fn load_config(cli: &CliArgs) -> Result<MergedConfig> {
     let cqlshrc_path = resolve_cqlshrc_path(cli.cqlshrc.as_deref());
     let cqlshrc = CqlshrcConfig::load(&cqlshrc_path)
         .with_context(|| format!("loading cqlshrc from {}", cqlshrc_path.display()))?;
+
+    // Routes from cqlshrc bypass CliArgs::validate, so re-check them here.
+    if let Some(proxies) = cqlshrc.client_routes.proxies.as_deref() {
+        if cli.client_route.is_empty() {
+            let routes =
+                parse_client_routes([proxies]).map_err(|reason| ConfigError::InvalidValue {
+                    key: "[client_routes] proxies".to_string(),
+                    reason,
+                })?;
+            if !routes.is_empty() && cli.ssl {
+                anyhow::bail!(crate::cli::CLIENT_ROUTES_SSL_CONFLICT);
+            }
+        }
+    }
+
     let env = EnvConfig::from_env();
     Ok(MergedConfig::build(cli, &env, cqlshrc, cqlshrc_path))
 }
@@ -794,6 +903,9 @@ max_trace_wait = 10.0
             secure_connect_bundle: None,
             completions: None,
             generate_man: false,
+            client_route: Vec::new(),
+            client_routes_advanced_shard_awareness: false,
+            no_client_routes_advanced_shard_awareness: false,
         }
     }
 
@@ -1053,5 +1165,237 @@ max_trace_wait = 10.0
     fn copy_to_empty_begintoken() {
         let config = CqlshrcConfig::parse("[copy-to]\nbegintoken = \n").unwrap();
         assert!(config.copy_to.begintoken.is_none());
+    }
+
+    // --- [client_routes] section ---
+
+    #[test]
+    fn client_routes_section_parsed() {
+        let config = CqlshrcConfig::parse(
+            "[client_routes]\nproxies = conn-a=proxy-a.example.com,conn-b\n\
+             advanced_shard_awareness = true\n",
+        )
+        .unwrap();
+        assert_eq!(
+            config.client_routes.proxies.as_deref(),
+            Some("conn-a=proxy-a.example.com,conn-b")
+        );
+        assert_eq!(config.client_routes.advanced_shard_awareness, Some(true));
+    }
+
+    #[test]
+    fn client_routes_multiline_proxies_parsed() {
+        // Python's configparser joins indented continuation lines; the
+        // multi-line form is what Python cqlsh documents for `proxies`.
+        let config = CqlshrcConfig::parse(
+            "[client_routes]\nproxies = conn-a=proxy-a.example.com,\n          conn-b\n",
+        )
+        .unwrap();
+        let routes =
+            parse_client_routes([config.client_routes.proxies.as_deref().unwrap()]).unwrap();
+        assert_eq!(routes.len(), 2);
+        assert_eq!(routes[0].connection_id, "conn-a");
+        assert_eq!(routes[0].address.as_deref(), Some("proxy-a.example.com"));
+        assert_eq!(routes[1].connection_id, "conn-b");
+        assert!(routes[1].address.is_none());
+    }
+
+    #[test]
+    fn multiline_does_not_disturb_other_sections() {
+        let config = CqlshrcConfig::parse(
+            "[connection]\nhostname = 10.0.0.1\nport = 9043\n\n[ui]\ncolor = on\n",
+        )
+        .unwrap();
+        assert_eq!(config.connection.hostname.as_deref(), Some("10.0.0.1"));
+        assert_eq!(config.connection.port, Some(9043));
+        assert_eq!(config.ui.color, Some(true));
+    }
+
+    #[test]
+    fn client_routes_from_cqlshrc_merged() {
+        let cli = default_cli();
+        let cqlshrc =
+            CqlshrcConfig::parse("[client_routes]\nproxies = conn-a=proxy-a.example.com\n")
+                .unwrap();
+        let config =
+            MergedConfig::build(&cli, &EnvConfig::default(), cqlshrc, default_cqlshrc_path());
+
+        assert!(config.client_routes.is_enabled());
+        assert_eq!(config.client_routes.routes.len(), 1);
+        assert_eq!(config.client_routes.routes[0].connection_id, "conn-a");
+        assert!(!config.client_routes.advanced_shard_awareness);
+    }
+
+    #[test]
+    fn cli_client_routes_replace_cqlshrc() {
+        let mut cli = default_cli();
+        cli.client_route = vec!["cli-conn".to_string()];
+        let cqlshrc =
+            CqlshrcConfig::parse("[client_routes]\nproxies = file-conn=proxy.example.com\n")
+                .unwrap();
+        let config =
+            MergedConfig::build(&cli, &EnvConfig::default(), cqlshrc, default_cqlshrc_path());
+
+        assert_eq!(config.client_routes.routes.len(), 1);
+        assert_eq!(config.client_routes.routes[0].connection_id, "cli-conn");
+        // The cqlshrc route provided an address; the CLI one did not, so no
+        // contact point is derived from it.
+        assert!(config.contact_points.is_empty());
+        assert_eq!(config.host, "127.0.0.1");
+    }
+
+    #[test]
+    fn advanced_shard_awareness_precedence() {
+        let cqlshrc =
+            CqlshrcConfig::parse("[client_routes]\nadvanced_shard_awareness = true\n").unwrap();
+
+        let config = MergedConfig::build(
+            &default_cli(),
+            &EnvConfig::default(),
+            cqlshrc.clone(),
+            default_cqlshrc_path(),
+        );
+        assert!(config.client_routes.advanced_shard_awareness);
+
+        let mut cli = default_cli();
+        cli.no_client_routes_advanced_shard_awareness = true;
+        let config =
+            MergedConfig::build(&cli, &EnvConfig::default(), cqlshrc, default_cqlshrc_path());
+        assert!(!config.client_routes.advanced_shard_awareness);
+
+        let mut cli = default_cli();
+        cli.client_routes_advanced_shard_awareness = true;
+        let config = MergedConfig::build(
+            &cli,
+            &EnvConfig::default(),
+            CqlshrcConfig::default(),
+            default_cqlshrc_path(),
+        );
+        assert!(config.client_routes.advanced_shard_awareness);
+    }
+
+    #[test]
+    fn contact_points_derived_from_route_addresses() {
+        let mut cli = default_cli();
+        cli.client_route =
+            vec!["conn-a=proxy-a.example.com,conn-b=proxy-b.example.com".to_string()];
+        let config = MergedConfig::build(
+            &cli,
+            &EnvConfig::default(),
+            CqlshrcConfig::default(),
+            default_cqlshrc_path(),
+        );
+
+        assert_eq!(config.host, "proxy-a.example.com");
+        assert_eq!(
+            config.contact_points,
+            ["proxy-a.example.com:9042", "proxy-b.example.com:9042"]
+        );
+    }
+
+    #[test]
+    fn explicit_host_wins_over_route_addresses() {
+        let mut cli = default_cli();
+        cli.host = Some("seed.example.com".to_string());
+        cli.client_route = vec!["conn-a=proxy-a.example.com".to_string()];
+        let config = MergedConfig::build(
+            &cli,
+            &EnvConfig::default(),
+            CqlshrcConfig::default(),
+            default_cqlshrc_path(),
+        );
+        assert_eq!(config.host, "seed.example.com");
+        assert!(config.contact_points.is_empty());
+
+        // Same for a host from the environment...
+        let mut cli = default_cli();
+        cli.client_route = vec!["conn-a=proxy-a.example.com".to_string()];
+        let env = EnvConfig {
+            host: Some("env.example.com".to_string()),
+            ..EnvConfig::default()
+        };
+        let config =
+            MergedConfig::build(&cli, &env, CqlshrcConfig::default(), default_cqlshrc_path());
+        assert_eq!(config.host, "env.example.com");
+        assert!(config.contact_points.is_empty());
+
+        // ...and from cqlshrc.
+        let mut cli = default_cli();
+        cli.client_route = vec!["conn-a=proxy-a.example.com".to_string()];
+        let cqlshrc = CqlshrcConfig::parse("[connection]\nhostname = file.example.com\n").unwrap();
+        let config =
+            MergedConfig::build(&cli, &EnvConfig::default(), cqlshrc, default_cqlshrc_path());
+        assert_eq!(config.host, "file.example.com");
+        assert!(config.contact_points.is_empty());
+    }
+
+    #[test]
+    fn contact_points_bracket_ipv6_literals() {
+        let mut cli = default_cli();
+        cli.client_route = vec!["conn-a=::1".to_string()];
+        let config = MergedConfig::build(
+            &cli,
+            &EnvConfig::default(),
+            CqlshrcConfig::default(),
+            default_cqlshrc_path(),
+        );
+        assert_eq!(config.contact_points, ["[::1]:9042"]);
+        // `host` keeps the unbracketed form — it is only displayed.
+        assert_eq!(config.host, "::1");
+    }
+
+    #[test]
+    fn join_host_port_forms() {
+        assert_eq!(
+            join_host_port("proxy.example.com", 9042),
+            "proxy.example.com:9042"
+        );
+        assert_eq!(join_host_port("10.0.0.1", 9042), "10.0.0.1:9042");
+        assert_eq!(join_host_port("::1", 9042), "[::1]:9042");
+        assert_eq!(join_host_port("[::1]", 9042), "[::1]:9042");
+    }
+
+    #[test]
+    fn contact_points_use_resolved_port() {
+        let mut cli = default_cli();
+        cli.port = Some(19042);
+        cli.client_route = vec!["conn-a=proxy-a.example.com".to_string()];
+        let config = MergedConfig::build(
+            &cli,
+            &EnvConfig::default(),
+            CqlshrcConfig::default(),
+            default_cqlshrc_path(),
+        );
+        assert_eq!(config.contact_points, ["proxy-a.example.com:19042"]);
+    }
+
+    #[test]
+    fn load_config_rejects_cqlshrc_routes_with_ssl() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cqlshrc");
+        std::fs::write(&path, "[client_routes]\nproxies = conn-a\n").unwrap();
+
+        let mut cli = default_cli();
+        cli.cqlshrc = Some(path.display().to_string());
+        cli.ssl = true;
+
+        let err = load_config(&cli).unwrap_err().to_string();
+        assert_eq!(err, crate::cli::CLIENT_ROUTES_SSL_CONFLICT);
+    }
+
+    #[test]
+    fn load_config_rejects_invalid_cqlshrc_route_spec() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cqlshrc");
+        std::fs::write(&path, "[client_routes]\nproxies = =proxy-a.example.com\n").unwrap();
+
+        let mut cli = default_cli();
+        cli.cqlshrc = Some(path.display().to_string());
+
+        let err = load_config(&cli).unwrap_err().to_string();
+        assert!(
+            err.contains("empty connection id"),
+            "unexpected error: {err}"
+        );
     }
 }

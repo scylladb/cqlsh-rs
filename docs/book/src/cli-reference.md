@@ -26,6 +26,9 @@ cqlsh-rs [OPTIONS] [host] [port]
 | `--request-timeout SECONDS` | | Per-request timeout in seconds | 10 |
 | `--protocol-version VERSION` | | Native protocol version (1-6) | auto-negotiate |
 | `--secure-connect-bundle BUNDLE` | `-b` | Secure connect bundle for Astra DB | |
+| `--client-route CONNECTION_ID[=ADDRESS]` | | Enable [client routes](configuration/client-routes.md) (PrivateLink). Repeatable | off |
+| `--client-routes-advanced-shard-awareness` | | Use shard-aware ports with client routes | off |
+| `--no-client-routes-advanced-shard-awareness` | | Do not use shard-aware ports with client routes | |
 
 ### Authentication
 

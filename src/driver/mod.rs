@@ -44,6 +44,10 @@ pub struct ConnectionConfig {
     pub ssl_config: Option<SslConfig>,
     /// Protocol version (None = auto-negotiate).
     pub protocol_version: Option<u8>,
+    /// Client routes (PrivateLink) settings; no routes means disabled.
+    pub client_routes: crate::client_routes::ClientRoutesSettings,
+    /// Extra contact points as `host:port`. Empty means just `host`:`port`.
+    pub contact_points: Vec<String>,
 }
 
 /// SSL/TLS configuration options.

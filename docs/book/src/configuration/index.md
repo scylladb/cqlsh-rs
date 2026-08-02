@@ -53,6 +53,9 @@ ingestrate = 100000
 
 [tracing]
 max_trace_wait = 10.0
+
+[client_routes]
+proxies = my-connection-id
 ```
 
 ## Sections
@@ -67,6 +70,7 @@ max_trace_wait = 10.0
 | [`[csv]`](csv.md) | CSV field size limits |
 | [`[copy]` / `[copy-to]` / `[copy-from]`](copy.md) | COPY command defaults |
 | [`[tracing]`](tracing.md) | Tracing wait times |
+| [`[client_routes]`](client-routes.md) | Client routes for PrivateLink / proxy deployments |
 
 ## Precedence
 

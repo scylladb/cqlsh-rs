@@ -1109,6 +1109,8 @@ mod tests {
             fetch_size: 100,
             cqlshrc_path: PathBuf::from("/dev/null"),
             cqlshrc: CqlshrcConfig::default(),
+            client_routes: crate::client_routes::ClientRoutesSettings::default(),
+            contact_points: Vec::new(),
         }
     }
 
