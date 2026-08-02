@@ -276,6 +276,7 @@ jobs:
 
           \`\`\`bash
           brew tap scylladb/cqlsh-rs https://github.com/scylladb/cqlsh-rs
+          brew trust scylladb/cqlsh-rs
           brew install cqlsh-rs
           \`\`\`
 

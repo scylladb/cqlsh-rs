@@ -55,11 +55,15 @@ The `cqlsh-rs` repository doubles as its own Homebrew tap — there is no separa
 
 ```bash
 brew tap scylladb/cqlsh-rs https://github.com/scylladb/cqlsh-rs
+brew trust scylladb/cqlsh-rs
 brew install cqlsh-rs
 
 # later
 brew update && brew upgrade cqlsh-rs
 ```
+
+The `brew trust` step is required by newer Homebrew versions, which refuse to
+install formulae from third-party taps that haven't been explicitly trusted.
 
 The formula (`Formula/cqlsh-rs.rb` in the repository)
 downloads the pre-built release binary for your platform and also installs the

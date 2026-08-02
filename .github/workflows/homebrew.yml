@@ -147,6 +147,9 @@ jobs:
           git -C "$tap_dir" init -q -b main
           git -C "$tap_dir" add -A
           git -C "$tap_dir" -c user.email=ci@example.com -c user.name=CI commit -qm "CI tap"
+          # Homebrew refuses to load formulae from untrusted third-party taps
+          # in non-interactive sessions, so trust the tap up front.
+          brew trust scylladb/cqlsh-rs
           brew tap
 
       - name: brew style
@@ -209,5 +212,6 @@ jobs:
       - name: brew tap + brew install (as documented)
         run: |
           brew tap scylladb/cqlsh-rs https://github.com/${{ github.repository }}
+          brew trust scylladb/cqlsh-rs
           brew install cqlsh-rs
           cqlsh-rs --version
