@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.15](https://github.com/scylladb/cqlsh-rs/compare/v0.5.14...v0.5.15) - 2026-08-02
+
+### Fixed
+
+- *(homebrew)* drop redundant version field from the formula
+- *(homebrew)* make the documented Homebrew install path actually work
+
+### Other
+
+- *(homebrew)* trust the tap before installing from it
+- *(homebrew)* drop the scheduled run, trigger per release instead
+- *(book)* don't link to a formula path that isn't on main yet
+
 ## [0.5.14](https://github.com/scylladb/cqlsh-rs/compare/v0.5.13...v0.5.14) - 2026-07-30
 
 ### Fixed
