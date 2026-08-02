@@ -144,13 +144,27 @@ mod unix {
         let scylla = UdsScylla::start();
         let sock = scylla.socket();
 
+        // Unique per-run keyspace so runs against a persistent external
+        // instance (CQLSH_TEST_MAINTENANCE_SOCKET) never collide with —
+        // or drop — pre-existing data.
+        let ks = format!(
+            "uds_test_{:x}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+                % 0xFFFFFF
+        );
+
         Command::cargo_bin("cqlsh-rs")
             .unwrap()
             .args([
                 &sock,
                 "-e",
-                "CREATE KEYSPACE IF NOT EXISTS uds_test \
-                 WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};",
+                &format!(
+                    "CREATE KEYSPACE IF NOT EXISTS {ks} \
+                     WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': 1}};"
+                ),
             ])
             .assert()
             .success();
@@ -160,7 +174,7 @@ mod unix {
             .args([
                 &sock,
                 "-e",
-                "CREATE TABLE uds_test.items (id int PRIMARY KEY, val text);",
+                &format!("CREATE TABLE {ks}.items (id int PRIMARY KEY, val text);"),
             ])
             .assert()
             .success();
@@ -170,21 +184,25 @@ mod unix {
             .args([
                 &sock,
                 "-e",
-                "INSERT INTO uds_test.items (id, val) VALUES (42, 'hello-uds');",
+                &format!("INSERT INTO {ks}.items (id, val) VALUES (42, 'hello-uds');"),
             ])
             .assert()
             .success();
 
         Command::cargo_bin("cqlsh-rs")
             .unwrap()
-            .args([&sock, "-e", "SELECT * FROM uds_test.items WHERE id = 42;"])
+            .args([
+                &sock,
+                "-e",
+                &format!("SELECT * FROM {ks}.items WHERE id = 42;"),
+            ])
             .assert()
             .success()
             .stdout(predicate::str::contains("hello-uds"));
 
         Command::cargo_bin("cqlsh-rs")
             .unwrap()
-            .args([&sock, "-e", "DROP KEYSPACE IF EXISTS uds_test;"])
+            .args([&sock, "-e", &format!("DROP KEYSPACE IF EXISTS {ks};")])
             .assert()
             .success();
     }
