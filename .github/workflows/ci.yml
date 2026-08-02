@@ -283,12 +283,14 @@ jobs:
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       # `system.client_routes` and the /v2/client-routes REST endpoints need
       # ScyllaDB 2026.1 or later; the tests skip themselves on older builds.
-      # The REST API binds to localhost by default, hence --api-address.
+      # The REST API binds to localhost inside the container by default, hence
+      # --api-address. It is unauthenticated and can manage routes, so the host
+      # side of that mapping is bound to loopback rather than every interface.
       - name: Start ScyllaDB with the REST API exposed
         run: |
           docker run -d --name testdb-client-routes \
-            -p 9042:9042 \
-            -p 10000:10000 \
+            -p 127.0.0.1:9042:9042 \
+            -p 127.0.0.1:10000:10000 \
             scylladb/scylla:2026.1 \
             --smp 1 --memory 512M --overprovisioned 1 \
             --skip-wait-for-gossip-to-settle 0 \

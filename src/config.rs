@@ -15,6 +15,7 @@ use thiserror::Error;
 
 use crate::cli::CliArgs;
 use crate::client_routes::{parse_client_routes, ClientRoutesSettings};
+use crate::driver::join_host_port;
 
 /// Errors specific to configuration loading.
 #[derive(Error, Debug)]
@@ -307,18 +308,6 @@ impl CqlshrcConfig {
                     .map(|v| parse_bool(&v)),
             },
         }
-    }
-}
-
-/// Format a `host:port` contact point, bracketing bare IPv6 literals.
-///
-/// `[::1]:9042` is the only spelling the driver can parse; `::1:9042` is
-/// ambiguous. Addresses that are already bracketed are left alone.
-fn join_host_port(address: &str, port: u16) -> String {
-    if address.contains(':') && !address.starts_with('[') {
-        format!("[{address}]:{port}")
-    } else {
-        format!("{address}:{port}")
     }
 }
 
