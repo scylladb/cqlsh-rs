@@ -63,7 +63,8 @@ pub fn is_unix_socket(path: &str) -> bool {
 
 // ── UdsProxy (unix) ────────────────────────────────────────────────────────
 
-/// RAII handle that aborts the background proxy listener task when dropped.
+/// RAII handle that aborts the background proxy listener task — and with it
+/// every active relay connection — when dropped.
 ///
 /// Obtain one via [`start_uds_proxy`].
 #[cfg(unix)]
@@ -84,7 +85,9 @@ impl Drop for UdsProxy {
 /// the Unix domain socket at `socket_path`.
 ///
 /// Returns the bound `SocketAddr` (pass it to the driver as the contact point)
-/// and a [`UdsProxy`] RAII guard.  Dropping the guard aborts the listener.
+/// and a [`UdsProxy`] RAII guard.  Dropping the guard aborts the listener and
+/// every relay connection it has accepted, so access to the socket ends with
+/// the session.
 ///
 /// The proxy accepts connections in a loop and spawns a bidirectional copy
 /// task per connection using [`tokio::io::copy_bidirectional`], which handles
@@ -113,16 +116,25 @@ pub async fn start_uds_proxy(
 
 #[cfg(unix)]
 async fn accept_loop(listener: tokio::net::TcpListener, socket_path: String) {
+    // Relays are owned by this JoinSet rather than detached with
+    // `tokio::spawn`: aborting the accept loop drops the set, which aborts
+    // every in-flight relay, so dropping `UdsProxy` cuts off established
+    // connections too — not just new ones.
+    let mut relays = tokio::task::JoinSet::new();
     loop {
-        match listener.accept().await {
-            Ok((tcp_stream, _peer)) => {
-                let path = socket_path.clone();
-                tokio::spawn(relay_connection(tcp_stream, path));
-            }
-            Err(e) => {
-                tracing::debug!("UDS proxy listener error: {e}");
-                break;
-            }
+        tokio::select! {
+            accepted = listener.accept() => match accepted {
+                Ok((tcp_stream, _peer)) => {
+                    relays.spawn(relay_connection(tcp_stream, socket_path.clone()));
+                }
+                Err(e) => {
+                    tracing::debug!("UDS proxy listener error: {e}");
+                    break;
+                }
+            },
+            // Reap finished relays so the set doesn't grow with connection
+            // count over the session's lifetime.
+            Some(_) = relays.join_next() => {}
         }
     }
 }
@@ -305,6 +317,41 @@ mod tests {
 
         let result = TcpStream::connect(addr).await;
         assert!(result.is_err(), "proxy should be stopped after drop");
+
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    #[tokio::test]
+    async fn test_proxy_drop_closes_established_relays() {
+        let socket_path = temp_socket_path("relay_drop_srv");
+        spawn_echo_server(&socket_path);
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+        let (addr, proxy) = start_uds_proxy(socket_path.to_str().unwrap())
+            .await
+            .expect("start_uds_proxy");
+
+        let mut tcp = TcpStream::connect(addr).await.expect("connect to proxy");
+        tcp.write_all(b"ping").await.expect("write");
+        let mut buf = [0u8; 4];
+        tcp.read_exact(&mut buf)
+            .await
+            .expect("relay should echo while proxy is alive");
+        assert_eq!(&buf, b"ping");
+
+        drop(proxy);
+
+        let mut rest = Vec::new();
+        let read = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            tcp.read_to_end(&mut rest),
+        )
+        .await
+        .expect("established relay should be severed by drop, not left alive");
+        // EOF (`Ok(0)`) and connection reset (`Err`) both prove the relay died.
+        if let Ok(n) = read {
+            assert_eq!(n, 0, "expected EOF on the severed relay");
+        }
 
         let _ = std::fs::remove_file(&socket_path);
     }
