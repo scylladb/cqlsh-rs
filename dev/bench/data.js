@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785423138822,
+  "lastUpdate": 1785657390229,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -12775,6 +12775,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40215,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "df806d7bf3ab4d045fd8cad4a16edc51c67d0a48",
+          "message": "ci(homebrew): trust the tap before installing from it\n\nNewer Homebrew refuses to load formulae from untrusted third-party taps\nin non-interactive sessions, which broke the documented-flow job on main\n(run 30553142665). Add `brew trust scylladb/cqlsh-rs` after tapping in\nboth Homebrew CI jobs, and document the same step in the README, the\nbook, and the generated release notes so the published install\ninstructions keep working.\n\nCo-Authored-By: Claude Fable 5 <noreply@anthropic.com>",
+          "timestamp": "2026-08-02T10:47:02+03:00",
+          "tree_id": "3b071524d1404789f0faa979e3ba6ec24f09fb9d",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/df806d7bf3ab4d045fd8cad4a16edc51c67d0a48"
+        },
+        "date": 1785657389468,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 27366,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3344,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 8608,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 59584,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 1009,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 135880,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 5599,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 10,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85789,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 775490,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7812000,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 8304,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 41313,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 37160,
             "unit": "ns"
           }
         ]
