@@ -47,17 +47,17 @@ pub fn looks_like_uds_path(host: &str) -> bool {
 /// Uses `std::fs::metadata` which follows symlinks, so a symlink pointing at
 /// a socket will return `true`.  Always returns `false` on non-Unix platforms.
 pub fn is_unix_socket(path: &str) -> bool {
-    cfg_select! {
-        unix => {
-            use std::os::unix::fs::FileTypeExt;
-            std::fs::metadata(path)
-                .map(|m| m.file_type().is_socket())
-                .unwrap_or(false)
-        }
-        _ => {
-            let _ = path;
-            false
-        }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::FileTypeExt;
+        std::fs::metadata(path)
+            .map(|m| m.file_type().is_socket())
+            .unwrap_or(false)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+        false
     }
 }
 
