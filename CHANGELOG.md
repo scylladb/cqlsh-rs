@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.16](https://github.com/scylladb/cqlsh-rs/compare/v0.5.15...v0.5.16) - 2026-08-02
+
+### Added
+
+- *(driver)* add Unix domain socket support via TCP-to-UDS proxy
+
+### Fixed
+
+- *(driver)* address MSRV and test-isolation review feedback
+- *(driver)* cancel active relay connections when the UDS proxy drops
+- *(ci)* skip benchmark PR comments for Dependabot PRs
+- *(driver)* address review feedback on UDS proxy
+- *(ci)* skip benchmark PR comments on fork PRs
+- *(driver)* don't overwrite UDS proxy address translator
+- resolve clippy and rustfmt warnings from rebase
+
+### Other
+
+- remove .sisyphus from tracking and add to .gitignore
+- *(driver)* apply review feedback from wprzytula
+- *(homebrew)* point formula at v0.5.15 [skip ci]
+
 ## [0.5.15](https://github.com/scylladb/cqlsh-rs/compare/v0.5.14...v0.5.15) - 2026-08-02
 
 ### Fixed
