@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785827112796,
+  "lastUpdate": 1785874056031,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -13171,6 +13171,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 36507,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "7f30e0ac9a432fa1e14df0a55b44d342c557efaf",
+          "message": "fix(pager): stop mutating $PAGER in tests so cargo test cannot hang on a TTY\n\n`cargo test` hung on an interactive terminal at\npager::tests::page_content_with_cat_pager:\n\n    [?1049h[24;1H[?1h=hello world\n    test title  line 1/1\n    test pager::tests::page_content_with_cat_pager has been running for over 60 seconds\n\nThat status line is less's, produced by less_args(Full, \"test title\") —\nproof a test which had set PAGER=cat ended up in the less fallback.\n\nEach of the 13 pager tests set and then removed the process-global PAGER\nvariable while libtest ran them on parallel threads, so one test's\nremove_var could land between another's set_var and its page_content\ncall. The victim then found no PAGER and fell through to the real `less`,\nwhich is spawned with inherited stdin/stdout: on a terminal it enters the\nalternate screen and waits for `q`, hanging the whole run. Piped stdout\nhides this, because a non-interactive less just copies its input to stdout\nand exits 0 — which is why CI never caught it.\n\nSerializing the tests with a mutex would not have been enough. Writing the\nenvironment races with every other thread that reads it —\nresolve_history_path in src/repl.rs calls std::env::var, reached by\nrepl::tests::history_enabled_returns_path — and on Unix a concurrent\nsetenv/getenv is a data race that no test-local mutex fixes, since the\nreaders do not hold it. So take the pager as a parameter instead: private\npage_content_with / page_stream_with carry it explicitly, the public\npage_content / page_stream stay thin wrappers that read $PAGER, and no\ntest touches process-global state at all.\n\nTwo tests also asserted nothing reliable. `grep -q` / `wc -l` only proved\npage_content returned Ok, and a non-zero exit from $PAGER is ignored while\nresolution walks on to `less` — so a regression emptying the temp file\nwould still return Ok on a pipe, or seize a real terminal, rather than\nfail. Replace them with a /bin/sh probe that copies the file it is handed\nto a known path and always exits 0, then assert on the captured bytes. Its\nscript body is a constant that derives its own output path from `$0`\nrather than interpolating the temp path, so a TMPDIR containing shell\nmetacharacters cannot rewrite the redirection; it is cfg(unix), since it\nneeds /bin/sh and $PAGER is a POSIX concept.\n\nVerified under a real pty (script -qec): 6 consecutive `cargo test --lib`\nruns and `cargo test --all-features` pass, where the same loop previously\nhung past a 10 minute timeout. Mutating the expected bytes fails\npage_content_writes_temp_file deterministically. With TMPDIR set to a\ndirectory named `tmp;dir$x&y` the probe tests pass, and fail on the\nearlier interpolating version. Compiling with every cfg(unix) forced off\n(cargo check --all-targets --all-features) is clean, covering the Windows\ntarget.\n\nCo-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>",
+          "timestamp": "2026-08-04T22:58:47+03:00",
+          "tree_id": "8fa4be28f8de8eb2fd044d16a021b8e557261fac",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/7f30e0ac9a432fa1e14df0a55b44d342c557efaf"
+        },
+        "date": 1785874054197,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29139,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3741,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9266,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 62987,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 839,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 143760,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 8129,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 13,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85645,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 772500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7731500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9877,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 52772,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39126,
             "unit": "ns"
           }
         ]
