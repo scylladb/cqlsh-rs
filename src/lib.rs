@@ -1,6 +1,7 @@
 //! cqlsh-rs library — exposes modules for benchmarks and integration tests.
 
 pub mod cli;
+pub mod client_routes;
 pub mod colorizer;
 pub mod completer;
 pub mod config;
@@ -63,6 +64,8 @@ pub async fn run_cql_in_process(
         fetch_size: 100,
         cqlshrc_path: PathBuf::from("/dev/null"),
         cqlshrc: CqlshrcConfig::default(),
+        client_routes: client_routes::ClientRoutesSettings::default(),
+        contact_points: Vec::new(),
     };
 
     let mut session = session::CqlSession::connect(&config).await?;

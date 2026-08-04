@@ -44,6 +44,23 @@ pub struct ConnectionConfig {
     pub ssl_config: Option<SslConfig>,
     /// Protocol version (None = auto-negotiate).
     pub protocol_version: Option<u8>,
+    /// Client routes (PrivateLink) settings; no routes means disabled.
+    pub client_routes: crate::client_routes::ClientRoutesSettings,
+    /// Extra contact points as `host:port`. Empty means just `host`:`port`.
+    pub contact_points: Vec<String>,
+}
+
+/// Format a `host:port` contact point, bracketing bare IPv6 literals.
+///
+/// `[::1]:9042` is the only spelling the driver can parse; `::1:9042` is
+/// ambiguous. Addresses that are already bracketed, hostnames, and IPv4
+/// literals are passed through unchanged.
+pub fn join_host_port(address: &str, port: u16) -> String {
+    if address.contains(':') && !address.starts_with('[') {
+        format!("[{address}]:{port}")
+    } else {
+        format!("{address}:{port}")
+    }
 }
 
 /// SSL/TLS configuration options.

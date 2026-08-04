@@ -124,6 +124,9 @@ cqlsh-rs --connect-timeout 30 --request-timeout 60
 # Note: bridged over a loopback TCP port for the session, so other local users
 # can reach the socket while cqlsh-rs is running.
 cqlsh-rs /var/run/scylla/cql.sock
+
+# Connect through a PrivateLink / proxy deployment (ScyllaDB 2026.1+)
+cqlsh-rs --client-route my-connection-id my-endpoint.example.com
 ```
 
 ### Environment variables
@@ -162,6 +165,9 @@ color = on
 datetimeformat = %Y-%m-%d %H:%M:%S%z
 float_precision = 5
 encoding = utf-8
+
+[client_routes]
+proxies = my-connection-id
 ```
 
 Configuration precedence: **CLI flags > environment variables > cqlshrc > defaults**.

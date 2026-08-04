@@ -39,7 +39,14 @@ fn help_flag_shows_usage() {
         .stdout(predicate::str::contains("--connect-timeout"))
         .stdout(predicate::str::contains("--request-timeout"))
         .stdout(predicate::str::contains("--cqlshrc"))
-        .stdout(predicate::str::contains("--completions"));
+        .stdout(predicate::str::contains("--completions"))
+        .stdout(predicate::str::contains("--client-route"))
+        .stdout(predicate::str::contains(
+            "--client-routes-advanced-shard-awareness",
+        ))
+        .stdout(predicate::str::contains(
+            "--no-client-routes-advanced-shard-awareness",
+        ));
 }
 
 #[test]
@@ -440,4 +447,114 @@ fn file_flag_attempts_connection() {
         .args(["-f", cql_file.to_str().unwrap(), "--connect-timeout", "1"])
         .assert()
         .code(2);
+}
+
+// --- Client routes (PrivateLink) ---
+
+#[test]
+fn client_route_flag_accepted() {
+    // Reaches the connection attempt (exit 2), i.e. the flag itself parses and
+    // the client-routes session builder is configured without error.
+    cmd()
+        .args([
+            "--client-route",
+            "conn-a=10.255.255.1",
+            "--connect-timeout",
+            "1",
+        ])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn client_route_flag_repeats() {
+    cmd()
+        .args([
+            "--client-route",
+            "conn-a=10.255.255.1",
+            "--client-route",
+            "conn-b",
+            "--connect-timeout",
+            "1",
+        ])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn client_routes_advanced_shard_awareness_flag_accepted() {
+    cmd()
+        .args([
+            "--client-route",
+            "conn-a=10.255.255.1",
+            "--client-routes-advanced-shard-awareness",
+            "--connect-timeout",
+            "1",
+        ])
+        .assert()
+        .code(2);
+}
+
+#[test]
+fn client_route_derives_contact_point_from_address() {
+    cmd()
+        .args([
+            "--client-route",
+            "conn-a=proxy-a.example.com",
+            "--debug",
+            "--connect-timeout",
+            "1",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("Using client routes: true"))
+        .stderr(predicate::str::contains(
+            "Debug: resolved host=proxy-a.example.com",
+        ))
+        .stderr(predicate::str::contains(
+            "Debug: contact points=proxy-a.example.com:9042",
+        ));
+}
+
+#[test]
+fn client_route_conflicts_with_ssl() {
+    cmd()
+        .args(["--client-route", "conn-a", "--ssl"])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains(
+            "Client routes do not support SSL/TLS",
+        ));
+}
+
+#[test]
+fn client_route_rejects_empty_connection_id() {
+    cmd()
+        .args(["--client-route", "=proxy-a.example.com"])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("has empty connection id"));
+}
+
+#[test]
+fn client_route_rejects_empty_address_override() {
+    cmd()
+        .args(["--client-route", "conn-a="])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains("has empty address override"));
+}
+
+#[test]
+fn conflicting_shard_awareness_flags_rejected() {
+    cmd()
+        .args([
+            "--client-routes-advanced-shard-awareness",
+            "--no-client-routes-advanced-shard-awareness",
+        ])
+        .assert()
+        .code(1)
+        .stderr(predicate::str::contains(
+            "--no-client-routes-advanced-shard-awareness",
+        ));
 }
