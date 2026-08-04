@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.17](https://github.com/scylladb/cqlsh-rs/compare/v0.5.16...v0.5.17) - 2026-08-04
+
+### Fixed
+
+- *(pager)* stop mutating $PAGER in tests so cargo test cannot hang on a TTY
+
+### Other
+
+- *(homebrew)* point formula at v0.5.16 [skip ci]
+
 ## [0.5.16](https://github.com/scylladb/cqlsh-rs/compare/v0.5.15...v0.5.16) - 2026-08-02
 
 ### Added
