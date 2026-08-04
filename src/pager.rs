@@ -100,13 +100,24 @@ fn less_args(flavor: LessFlavor, title: &str) -> Vec<String> {
 }
 
 pub fn page_content(content: &str, title: &str) -> anyhow::Result<()> {
+    page_content_with(content, title, std::env::var("PAGER").ok().as_deref())
+}
+
+/// [`page_content`] with `$PAGER` supplied explicitly.
+///
+/// Taking the pager as an argument keeps the tests off `std::env::set_var`.
+/// Writing the environment races with every other thread that reads it —
+/// `resolve_history_path` in `src/repl.rs` calls `std::env::var` — and on Unix a
+/// concurrent `setenv`/`getenv` is a data race no test-local mutex can fix,
+/// since the readers do not hold that mutex.
+fn page_content_with(content: &str, title: &str, pager: Option<&str>) -> anyhow::Result<()> {
     let mut tmp = NamedTempFile::new()?;
     tmp.write_all(content.as_bytes())?;
     tmp.flush()?;
 
     let path = tmp.path();
 
-    if let Ok(pager_env) = std::env::var("PAGER") {
+    if let Some(pager_env) = pager {
         let parts: Vec<&str> = pager_env.split_whitespace().collect();
         if let Some((cmd, args)) = parts.split_first() {
             let status = Command::new(cmd).args(args).arg(path).status();
@@ -197,6 +208,12 @@ impl Drop for PagerWriter {
 /// all rows in our process memory. On drop, an end-of-results marker is written and
 /// we wait for the user to quit the pager.
 pub fn page_stream(title: &str) -> anyhow::Result<PagerWriter> {
+    page_stream_with(title, std::env::var("PAGER").ok().as_deref())
+}
+
+/// [`page_stream`] with `$PAGER` supplied explicitly — see [`page_content_with`]
+/// for why the tests need this seam.
+fn page_stream_with(title: &str, pager: Option<&str>) -> anyhow::Result<PagerWriter> {
     let spawn_piped = |cmd: &mut Command| -> Option<PagerWriter> {
         if let Ok(mut child) = cmd.stdin(Stdio::piped()).spawn() {
             let stdin = child.stdin.take()?;
@@ -209,7 +226,7 @@ pub fn page_stream(title: &str) -> anyhow::Result<PagerWriter> {
         }
     };
 
-    if let Ok(pager_env) = std::env::var("PAGER") {
+    if let Some(pager_env) = pager {
         let parts: Vec<&str> = pager_env.split_whitespace().collect();
         if let Some((cmd, args)) = parts.split_first() {
             if let Some(w) = spawn_piped(Command::new(cmd).args(args)) {
@@ -234,6 +251,70 @@ pub fn page_stream(title: &str) -> anyhow::Result<PagerWriter> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A stand-in `$PAGER` that copies the file it is handed to a path the test
+    /// can read back, and always exits 0.
+    ///
+    /// Exiting 0 unconditionally is the point. `page_content_with` only treats
+    /// the custom pager as done when it *succeeds* — a non-zero exit sends it on
+    /// to the real `less`, which both masks the failure (the call still returns
+    /// `Ok`) and can seize a real terminal. So a probe must never fail; assert on
+    /// the bytes it captured instead of on the return value alone.
+    ///
+    /// Unix-only: it relies on `/bin/sh`, and `$PAGER` is a POSIX concept.
+    #[cfg(unix)]
+    struct CapturingPager {
+        dir: tempfile::TempDir,
+    }
+
+    #[cfg(unix)]
+    impl CapturingPager {
+        fn new() -> Self {
+            let probe = Self {
+                dir: tempfile::tempdir().unwrap(),
+            };
+            // The script body is a constant: it derives its own output path from
+            // `$0` (the script's own path) rather than having the temp path
+            // interpolated in. Interpolating would break on a TMPDIR holding
+            // shell metacharacters such as `;`, `$` or `&`, and `${0%probe.sh}`
+            // stays correct and quoted whatever the directory is called.
+            std::fs::write(
+                probe.script(),
+                "cat \"$1\" > \"${0%probe.sh}captured\"\nexit 0\n",
+            )
+            .unwrap();
+            probe
+        }
+
+        fn script(&self) -> std::path::PathBuf {
+            self.dir.path().join("probe.sh")
+        }
+
+        fn captured(&self) -> std::path::PathBuf {
+            self.dir.path().join("captured")
+        }
+
+        /// The pager command: `/bin/sh <script>`, so no execute bit is needed.
+        ///
+        /// The pager string is whitespace-split, so a temp path containing a
+        /// space would silently mangle the command and drop us into the `less`
+        /// fallback. Fail loudly here instead.
+        fn pager_value(&self) -> String {
+            let script = self.script();
+            let script = script.to_str().expect("temp path is UTF-8");
+            assert!(
+                !script.contains(char::is_whitespace),
+                "temp path {script} contains whitespace; the pager string is whitespace-split"
+            );
+            format!("/bin/sh {script}")
+        }
+
+        /// The bytes the pager actually received, as UTF-8.
+        fn captured_content(&self) -> String {
+            std::fs::read_to_string(self.captured())
+                .expect("pager probe did not run; page_content took a fallback path")
+        }
+    }
 
     #[test]
     fn classify_gnu_less_version_output() {
@@ -327,79 +408,61 @@ mod tests {
 
     #[test]
     fn page_content_with_cat_pager() {
-        std::env::set_var("PAGER", "cat");
-        let result = page_content("hello world\n", "test title");
-        std::env::remove_var("PAGER");
-        assert!(result.is_ok());
+        assert!(page_content_with("hello world\n", "test title", Some("cat")).is_ok());
     }
 
     #[test]
     fn page_content_with_true_pager() {
-        std::env::set_var("PAGER", "true");
-        let result = page_content("test content", "");
-        std::env::remove_var("PAGER");
-        assert!(result.is_ok());
+        assert!(page_content_with("test content", "", Some("true")).is_ok());
     }
 
+    #[cfg(unix)]
     #[test]
     fn page_content_writes_temp_file() {
-        std::env::set_var("PAGER", "grep -q hello");
-        let result = page_content("hello world", "title");
-        std::env::remove_var("PAGER");
-        assert!(result.is_ok());
+        let probe = CapturingPager::new();
+        assert!(page_content_with("hello world", "title", Some(&probe.pager_value())).is_ok());
+        assert_eq!(probe.captured_content(), "hello world");
     }
 
     #[test]
     fn page_content_empty_string() {
-        std::env::set_var("PAGER", "true");
-        let result = page_content("", "empty");
-        std::env::remove_var("PAGER");
-        assert!(result.is_ok());
+        assert!(page_content_with("", "empty", Some("true")).is_ok());
     }
 
     #[test]
     fn page_content_large_content() {
         let content = "x".repeat(100_000);
-        std::env::set_var("PAGER", "true");
-        let result = page_content(&content, "big");
-        std::env::remove_var("PAGER");
-        assert!(result.is_ok());
+        assert!(page_content_with(&content, "big", Some("true")).is_ok());
     }
 
+    #[cfg(unix)]
     #[test]
     fn page_content_multiline() {
         let content = "line1\nline2\nline3\n";
-        std::env::set_var("PAGER", "wc -l");
-        let result = page_content(content, "lines");
-        std::env::remove_var("PAGER");
-        assert!(result.is_ok());
+        let probe = CapturingPager::new();
+        assert!(page_content_with(content, "lines", Some(&probe.pager_value())).is_ok());
+        assert_eq!(probe.captured_content(), content);
     }
 
     #[test]
     fn page_stream_with_cat() {
-        std::env::set_var("PAGER", "cat");
-        let mut writer = page_stream("test").unwrap();
+        let mut writer = page_stream_with("test", Some("cat")).unwrap();
         writer.write_all(b"streaming content\n").unwrap();
         drop(writer);
-        std::env::remove_var("PAGER");
     }
 
     #[test]
     fn page_stream_write_multiple() {
-        std::env::set_var("PAGER", "cat");
-        let mut writer = page_stream("").unwrap();
+        let mut writer = page_stream_with("", Some("cat")).unwrap();
         writer.write_all(b"line 1\n").unwrap();
         writer.write_all(b"line 2\n").unwrap();
         drop(writer);
-        std::env::remove_var("PAGER");
     }
 
     #[test]
     fn pager_writer_is_file_mode_with_child() {
-        std::env::set_var("PAGER", "cat");
-        let writer = page_stream("title").unwrap();
+        let writer = page_stream_with("title", Some("cat")).unwrap();
         assert!(writer.is_file_mode());
-        std::env::remove_var("PAGER");
     }
 
     #[test]
@@ -433,25 +496,21 @@ mod tests {
 
     #[test]
     fn page_stream_empty_title() {
-        std::env::set_var("PAGER", "true");
-        let writer = page_stream("");
-        std::env::remove_var("PAGER");
-        assert!(writer.is_ok());
+        assert!(page_stream_with("", Some("true")).is_ok());
     }
 
     #[test]
     fn page_stream_nonempty_title() {
-        std::env::set_var("PAGER", "true");
-        let writer = page_stream("my table");
-        std::env::remove_var("PAGER");
-        assert!(writer.is_ok());
+        assert!(page_stream_with("my table", Some("true")).is_ok());
     }
 
     #[test]
     fn pager_writer_drop_writes_end_marker() {
-        std::env::set_var("PAGER", "cat");
-        let writer = page_stream("").unwrap();
+        let writer = page_stream_with("", Some("cat")).unwrap();
         drop(writer);
-        std::env::remove_var("PAGER");
     }
+
+    // Note: the `pager == None` branch is intentionally untested. Exercising it
+    // means letting resolution reach the real `less`, which on a terminal is the
+    // interactive hang these tests exist to prevent.
 }
