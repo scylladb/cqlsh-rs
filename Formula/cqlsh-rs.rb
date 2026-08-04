@@ -30,25 +30,25 @@ class CqlshRs < Formula
 
   on_macos do
     on_arm do
-      url "https://github.com/scylladb/cqlsh-rs/releases/download/v0.5.15/cqlsh-rs-0.5.15-aarch64-apple-darwin.tar.gz"
-      sha256 "cd57c4970896385918a5107cba35e3cc60dd0bae4417032eb19ee661c7f7e16c"
+      url "https://github.com/scylladb/cqlsh-rs/releases/download/v0.5.16/cqlsh-rs-0.5.16-aarch64-apple-darwin.tar.gz"
+      sha256 "d49fee2c746bb8cfd036b563a3a79ff8482599528605b620c625083f6625f3e7"
     end
 
     on_intel do
-      url "https://github.com/scylladb/cqlsh-rs/releases/download/v0.5.15/cqlsh-rs-0.5.15-x86_64-apple-darwin.tar.gz"
-      sha256 "cb29389acab6b1a0bfada4c7dbde35929b5ce5504fa77c4bf374a89191e3f377"
+      url "https://github.com/scylladb/cqlsh-rs/releases/download/v0.5.16/cqlsh-rs-0.5.16-x86_64-apple-darwin.tar.gz"
+      sha256 "ae8d80155c65386e8f9f29c0f11796b10d6d4880cbac927cc4cc6a80795531b6"
     end
   end
 
   on_linux do
     on_arm do
-      url "https://github.com/scylladb/cqlsh-rs/releases/download/v0.5.15/cqlsh-rs-0.5.15-aarch64-unknown-linux-musl.tar.gz"
-      sha256 "90c0b373b3fbbba7525299193fd134341665682c61e24bf3f8f958fe80d83aa5"
+      url "https://github.com/scylladb/cqlsh-rs/releases/download/v0.5.16/cqlsh-rs-0.5.16-aarch64-unknown-linux-musl.tar.gz"
+      sha256 "3a994058d9e98c28220056e7f0b936525e51be2fe2505ac36b4622e30bb76c37"
     end
 
     on_intel do
-      url "https://github.com/scylladb/cqlsh-rs/releases/download/v0.5.15/cqlsh-rs-0.5.15-x86_64-unknown-linux-musl.tar.gz"
-      sha256 "0ac31ec4d3d206d2117475147adac4f4c8cf28717f65db13c06fe7db6d6d918d"
+      url "https://github.com/scylladb/cqlsh-rs/releases/download/v0.5.16/cqlsh-rs-0.5.16-x86_64-unknown-linux-musl.tar.gz"
+      sha256 "32d688414ca11c8d6c946e63d7aa4bb4cf60dba35281bcd873ea5c591dee9cb8"
     end
   end
 
