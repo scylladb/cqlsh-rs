@@ -313,8 +313,9 @@ fn parse_use_command(query: &str) -> Option<String> {
         .map(|s| s.trim())?;
 
     // Remove quotes if present
-    let keyspace = if (keyspace.starts_with('"') && keyspace.ends_with('"'))
-        || (keyspace.starts_with('\'') && keyspace.ends_with('\''))
+    let keyspace = if keyspace.len() >= 2
+        && ((keyspace.starts_with('"') && keyspace.ends_with('"'))
+            || (keyspace.starts_with('\'') && keyspace.ends_with('\'')))
     {
         keyspace[1..keyspace.len() - 1].to_string()
     } else {

@@ -128,13 +128,25 @@ pub async fn execute_copy_to(
 ) -> Result<()> {
     // Build SELECT query
     let col_spec = match &cmd.columns {
-        Some(cols) => cols.iter().map(|c| format_identifier(c)).collect::<Vec<_>>().join(", "),
+        Some(cols) => cols
+            .iter()
+            .map(|c| format_identifier(c))
+            .collect::<Vec<_>>()
+            .join(", "),
         None => "*".to_string(),
     };
 
     let table_spec = match (&cmd.keyspace, current_keyspace) {
-        (Some(ks), _) => format!("{}.{}", format_identifier(ks), format_identifier(&cmd.table)),
-        (None, Some(ks)) => format!("{}.{}", format_identifier(ks), format_identifier(&cmd.table)),
+        (Some(ks), _) => format!(
+            "{}.{}",
+            format_identifier(ks),
+            format_identifier(&cmd.table)
+        ),
+        (None, Some(ks)) => format!(
+            "{}.{}",
+            format_identifier(ks),
+            format_identifier(&cmd.table)
+        ),
         (None, None) => format_identifier(&cmd.table),
     };
 
@@ -621,18 +633,18 @@ fn parse_bool_option(val: &str) -> Result<bool> {
 }
 
 /// Convert a string into a quoted CQL identifier
-/// 
+///
 /// e.g. `Isn't this "strange"` -> `"Isn't this ""strange"""`
 fn format_identifier(str: &str) -> String {
     let mut identifier = str.replace("\"", "\"\"");
     identifier.insert(0, '"');
     identifier.push('"');
     identifier
-} 
+}
 
 /// Convert a CQL identifier into a string, removing quotes or lower-casing
 fn parse_identifier(identifier: &str) -> String {
-    if identifier.starts_with("\"") && identifier.ends_with("\"") {
+    if identifier.len() >= 2 && identifier.starts_with("\"") && identifier.ends_with("\"") {
         identifier[1..identifier.len() - 1].replace("\"\"", "\"")
     } else {
         identifier.to_lowercase()
@@ -1185,8 +1197,16 @@ pub async fn execute_copy_from(
 
     // Resolve keyspace and table spec
     let table_spec = match (&cmd.keyspace, current_keyspace) {
-        (Some(ks), _) => format!("{}.{}", format_identifier(ks), format_identifier(&cmd.table)),
-        (None, Some(ks)) => format!("{}.{}", format_identifier(ks), format_identifier(&cmd.table)),
+        (Some(ks), _) => format!(
+            "{}.{}",
+            format_identifier(ks),
+            format_identifier(&cmd.table)
+        ),
+        (None, Some(ks)) => format!(
+            "{}.{}",
+            format_identifier(ks),
+            format_identifier(&cmd.table)
+        ),
         (None, None) => format_identifier(&cmd.table),
     };
 
@@ -1603,7 +1623,7 @@ mod tests {
         );
     }
 
-   #[test]
+    #[test]
     fn parse_copy_to_with_quoted_identifiers() {
         let cmd = parse_copy_to(r#"COPY "Ks"."Table" ("Col1", "Col2") TO '/tmp/out.csv'"#).unwrap();
         assert_eq!(cmd.keyspace, Some("Ks".to_string()));
@@ -1680,9 +1700,12 @@ mod tests {
 
     #[test]
     fn format_identifier_complex() {
-        assert_eq!(format_identifier("That's \"strange\""), "\"That's \"\"strange\"\"\"".to_string())
+        assert_eq!(
+            format_identifier("That's \"strange\""),
+            "\"That's \"\"strange\"\"\"".to_string()
+        )
     }
-    
+
     #[test]
     fn parse_identifier_simple() {
         assert_eq!(parse_identifier("\"simple_id\""), "simple_id".to_string())
@@ -1695,9 +1718,12 @@ mod tests {
 
     #[test]
     fn parse_identifier_complex() {
-        assert_eq!(parse_identifier("\"That's \"\"strange\"\"\""), "That's \"strange\"".to_string())
+        assert_eq!(
+            parse_identifier("\"That's \"\"strange\"\"\""),
+            "That's \"strange\"".to_string()
+        )
     }
-    
+
     #[test]
     fn default_options() {
         let opts = CopyOptions::default();
@@ -1755,7 +1781,8 @@ mod tests {
 
     #[test]
     fn parse_copy_from_with_quoted_identifiers() {
-        let cmd = parse_copy_from(r#"COPY "Ks"."Table" ("Col1", "Col2") FROM '/tmp/in.csv'"#).unwrap();
+        let cmd =
+            parse_copy_from(r#"COPY "Ks"."Table" ("Col1", "Col2") FROM '/tmp/in.csv'"#).unwrap();
         assert_eq!(cmd.keyspace, Some("Ks".to_string()));
         assert_eq!(cmd.table, "Table");
         assert_eq!(
