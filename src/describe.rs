@@ -524,7 +524,10 @@ async fn index_ddl(
                 .first()
                 .and_then(|r| r.get_by_name("create_statement", &result.columns))
             {
-                return stmt.to_string().trim_end().to_string();
+                // ScyllaDB omits the `;` for custom indexes (vector, full-text, ...).
+                let stmt = stmt.to_string();
+                let stmt = stmt.trim_end().trim_end_matches(';');
+                return format!("{stmt};");
             }
         }
         Err(e) => tracing::debug!("server-side {query} failed, rebuilding client-side: {e}"),
