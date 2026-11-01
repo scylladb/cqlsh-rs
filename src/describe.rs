@@ -524,7 +524,7 @@ async fn index_ddl(
                 .first()
                 .and_then(|r| r.get_by_name("create_statement", &result.columns))
             {
-                // ScyllaDB omits the `;` for custom indexes (vector, full-text, ...).
+                // ScyllaDB omits the `;` for custom indexes (vector, full-text, ...), SCYLLADB-5905.
                 let stmt = stmt.to_string();
                 let stmt = stmt.trim_end().trim_end_matches(';');
                 return format!("{stmt};");
