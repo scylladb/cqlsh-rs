@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793542781390,
+  "lastUpdate": 1793547937939,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -13468,6 +13468,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 35194,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b5d15ba427a4d044bab823e321f85d4e3a31e297",
+          "message": "fix(describe): use server-side DESCRIBE INDEX for CREATE INDEX statements (#200)\n\n* fix(describe): use server-side DESCRIBE INDEX for CREATE INDEX statements\n\nDESCRIBE INDEX/TABLE/KEYSPACE rebuilt CREATE INDEX from the `target`\noption alone, which dropped CUSTOM/USING/WITH OPTIONS for custom indexes\n(vector, full-text) and cut JSON targets (local, vector, full-text\nindexes) at the first comma.\n\nAsk the server for the exact statement via `DESCRIBE INDEX ks.idx`\n(ScyllaDB, Cassandra 4.0+) and fall back to the client-side rebuild on\nservers without server-side DESCRIBE.\n\nFixes #199\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* test(describe): skip local-index test on servers without local indexes\n\n`CREATE INDEX ... ((p), v)` is ScyllaDB-only; Cassandra 4.1/5.0 reject it\nwith a SyntaxException, which failed the Cassandra integration jobs.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* fix(describe): log why server-side DESCRIBE INDEX fell back\n\nA transient error (e.g. a timeout) on a server that supports DESCRIBE\nsilently fell back to the client-side rebuild; log it at debug level.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* fix(describe): terminate server-side CREATE CUSTOM INDEX with a semicolon\n\nScyllaDB's custom_index::describe_with_target (vector, full-text, pattern\nindexes) builds create_statement without a trailing `;`, so the printed\nstatement could not be replayed as-is. Append one when missing.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n* docs(describe): reference SCYLLADB-5905 for the missing custom-index semicolon\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n\n---------\n\nCo-authored-by: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-01T17:34:11+02:00",
+          "tree_id": "7c214a6910bdc581046df737728c3d154141d264",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/b5d15ba427a4d044bab823e321f85d4e3a31e297"
+        },
+        "date": 1793547937093,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29083,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3670,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9308,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65701,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 845,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 154120,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7202,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 11,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 81626,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 749960,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7517500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10095,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 46383,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 41100,
             "unit": "ns"
           }
         ]
