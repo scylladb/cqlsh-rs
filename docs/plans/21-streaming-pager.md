@@ -32,7 +32,7 @@ This is unacceptable for large result sets. The correct behavior (matching Pytho
 | REQ-01 | Requirement | Default SELECT queries use server-side paging (page_size from config or default 100) |
 | REQ-02 | Requirement | Rows are fetched from the server only when the pager needs more content to display |
 | REQ-03 | Requirement | Memory usage is bounded — only buffered pages + rendered output in the pager |
-| REQ-04 | Requirement | The pager displays rows incrementally as they arrive (no waiting for full result) |
+| REQ-04 | Requirement | The pager displays rows incrementally as they arrive (no waiting for full result). The first screen is held back: if the result ends within one screen it is printed directly and no pager starts (#184) |
 | REQ-05 | Requirement | Non-paged mode (piped output, `--no-pager`) still works and streams to stdout |
 | CON-01 | Constraint | Must not break existing formatting (tabular, expanded, colorized) |
 | CON-02 | Constraint | streampager supports streaming via `add_stream()` with `impl Read` — use this |

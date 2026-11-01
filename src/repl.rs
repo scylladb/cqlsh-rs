@@ -645,55 +645,49 @@ fn dispatch_input<'a>(
                             .collect::<Vec<_>>()
                             .join(" | ");
 
-                        match crate::pager::page_stream(&col_title) {
-                            Ok(mut pipe_writer) => {
-                                use futures::StreamExt;
-                                let is_file_mode = pipe_writer.is_file_mode();
-                                let mut fmt = if shell.expand {
-                                    formatter::StreamingTableFormatter::new_expanded(
-                                        row_stream.columns.clone(),
-                                        &shell.colorizer,
-                                        &mut pipe_writer,
-                                    )
-                                } else {
-                                    formatter::StreamingTableFormatter::new(
-                                        row_stream.columns.clone(),
-                                        &shell.colorizer,
-                                        &mut pipe_writer,
-                                        100,
-                                    )
-                                };
-                                let mut row_count: usize = 0;
-                                while let Some(row_result) = row_stream.rows.next().await {
-                                    match row_result {
-                                        Ok(row) => {
-                                            if fmt.add_row(row).is_err() {
-                                                break;
-                                            }
-                                            row_count += 1;
-                                            let _ = fmt.flush_writer();
-                                            if !is_file_mode && row_count.is_multiple_of(1000) {
-                                                eprint!("\rFetched {row_count} rows...");
-                                            }
-                                        }
-                                        Err(e) => {
-                                            let msg = format!("Error fetching row: {e}");
-                                            eprintln!("{}", shell.colorizer.colorize_error(&msg));
-                                            break;
-                                        }
+                        let mut pipe_writer = crate::pager::page_stream(&col_title);
+                        use futures::StreamExt;
+                        let is_file_mode = pipe_writer.is_file_mode();
+                        let mut fmt = if shell.expand {
+                            formatter::StreamingTableFormatter::new_expanded(
+                                row_stream.columns.clone(),
+                                &shell.colorizer,
+                                &mut pipe_writer,
+                            )
+                        } else {
+                            formatter::StreamingTableFormatter::new(
+                                row_stream.columns.clone(),
+                                &shell.colorizer,
+                                &mut pipe_writer,
+                                100,
+                            )
+                        };
+                        let mut row_count: usize = 0;
+                        while let Some(row_result) = row_stream.rows.next().await {
+                            match row_result {
+                                Ok(row) => {
+                                    if fmt.add_row(row).is_err() {
+                                        break;
+                                    }
+                                    row_count += 1;
+                                    let _ = fmt.flush_writer();
+                                    if !is_file_mode && row_count.is_multiple_of(1000) {
+                                        eprint!("\rFetched {row_count} rows...");
                                     }
                                 }
-                                if row_count >= 1000 && !is_file_mode {
-                                    eprintln!("\rFetched {row_count} rows.   ");
+                                Err(e) => {
+                                    let msg = format!("Error fetching row: {e}");
+                                    eprintln!("{}", shell.colorizer.colorize_error(&msg));
+                                    break;
                                 }
-                                let _ = fmt.finish();
-                                // pipe_writer dropped here; pager thread finishes
-                                return;
-                            }
-                            Err(_) => {
-                                // Pager failed to start — fall through to non-streaming path
                             }
                         }
+                        if row_count >= 1000 && !is_file_mode {
+                            eprintln!("\rFetched {row_count} rows.   ");
+                        }
+                        let _ = fmt.finish();
+                        // pipe_writer dropped here: prints short output or waits for the pager
+                        return;
                     } else {
                         // No columns (non-SELECT result) — fall through to non-streaming path
                     }

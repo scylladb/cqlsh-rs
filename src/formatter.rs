@@ -104,12 +104,13 @@ pub fn print_expanded(result: &CqlResult, colorizer: &CqlColorizer, writer: &mut
                 .get(col_idx)
                 .map(|v| colorizer.colorize_value(v))
                 .unwrap_or_else(|| colorizer.colorize_value(&crate::driver::types::CqlValue::Null));
+            // Pad on the plain name: the colorized one carries ANSI bytes.
+            let pad = " ".repeat(max_col_width - col.name.chars().count());
             writeln!(
                 writer,
-                " {:>width$} | {}",
+                " {pad}{} | {}",
                 colorizer.colorize_header(&col.name),
-                value,
-                width = max_col_width
+                value
             )
             .ok();
         }
@@ -568,7 +569,12 @@ impl<'w> StreamingTableFormatter<'w> {
     }
 
     fn write_expanded_row(&mut self, row: &CqlRow) -> std::io::Result<()> {
-        let max_col_width = self.columns.iter().map(|c| c.name.len()).max().unwrap_or(0);
+        let max_col_width = self
+            .columns
+            .iter()
+            .map(|c| c.name.chars().count())
+            .max()
+            .unwrap_or(0);
 
         writeln!(self.writer, "@ Row {}", self.row_count)?;
         writeln!(self.writer, "{}", "-".repeat(max_col_width + 10))?;
@@ -581,12 +587,12 @@ impl<'w> StreamingTableFormatter<'w> {
                     self.colorizer
                         .colorize_value(&crate::driver::types::CqlValue::Null)
                 });
+            let pad = " ".repeat(max_col_width - col.name.chars().count());
             writeln!(
                 self.writer,
-                " {:>width$} | {}",
+                " {pad}{} | {}",
                 self.colorizer.colorize_header(&col.name),
-                value,
-                width = max_col_width
+                value
             )?;
         }
         writeln!(self.writer)?;

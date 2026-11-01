@@ -1,19 +1,22 @@
 //! Output pager for displaying large result sets.
 //!
+//! Output that fits on one screen is printed directly; the pager is only
+//! started once it would overflow the terminal (#184).
+//!
 //! Two modes:
 //! - **Batch** (`page_content`): write all content to temp file, open with pager.
-//! - **Streaming** (`page_stream`): pipe rows directly to `less` stdin.
-//!   `less` stores received bytes in its own internal buffer and allows full
-//!   backward scrolling. Data appears as it arrives; no polling required.
+//! - **Streaming** (`page_stream`): hold rows back until they overflow one
+//!   screen, then pipe them to the pager's stdin. `less` stores received bytes
+//!   in its own internal buffer and allows full backward scrolling.
 //!
 //! Pager resolution order:
 //! 1. `$PAGER` environment variable (pipe mode — custom pager gets stdin)
 //! 2. `less` with stdin pipe, with flags matching the detected implementation
 //! 3. `more` as fallback (pipe mode)
-//! 4. Error if nothing available
+//! 4. Batch: error; streaming: print to stdout
 
 use std::io::Write;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::OnceLock;
 
 use tempfile::NamedTempFile;
@@ -99,8 +102,27 @@ fn less_args(flavor: LessFlavor, title: &str) -> Vec<String> {
     }
 }
 
+/// Rows available for output before paging is worth it: the terminal height
+/// minus one line for the prompt that follows. `usize::MAX` when the height
+/// is unknown, so we never page blindly.
+fn screen_rows() -> usize {
+    crossterm::terminal::size()
+        .map(|(_, h)| (h as usize).saturating_sub(1))
+        .unwrap_or(usize::MAX)
+}
+
+/// True when `content` has fewer lines than `rows`, i.e. it fits on screen.
+fn fits(content: &[u8], rows: usize) -> bool {
+    content.iter().filter(|&&b| b == b'\n').count() < rows
+}
+
 pub fn page_content(content: &str, title: &str) -> anyhow::Result<()> {
-    page_content_with(content, title, std::env::var("PAGER").ok().as_deref())
+    page_content_with(
+        content,
+        title,
+        std::env::var("PAGER").ok().as_deref(),
+        screen_rows(),
+    )
 }
 
 /// [`page_content`] with `$PAGER` supplied explicitly.
@@ -110,7 +132,17 @@ pub fn page_content(content: &str, title: &str) -> anyhow::Result<()> {
 /// `resolve_history_path` in `src/repl.rs` calls `std::env::var` — and on Unix a
 /// concurrent `setenv`/`getenv` is a data race no test-local mutex can fix,
 /// since the readers do not hold that mutex.
-fn page_content_with(content: &str, title: &str, pager: Option<&str>) -> anyhow::Result<()> {
+fn page_content_with(
+    content: &str,
+    title: &str,
+    pager: Option<&str>,
+    rows: usize,
+) -> anyhow::Result<()> {
+    if fits(content.as_bytes(), rows) {
+        print!("{content}");
+        return Ok(());
+    }
+
     let mut tmp = NamedTempFile::new()?;
     tmp.write_all(content.as_bytes())?;
     tmp.flush()?;
@@ -152,100 +184,143 @@ fn page_content_with(content: &str, title: &str, pager: Option<&str>) -> anyhow:
 
 /// A writable handle that streams rows to a pager.
 ///
-/// Rows are piped directly to the pager's stdin. The pager buffers received
-/// data internally (less stores it in its own temp file) and allows full
-/// backward scrolling without holding everything in our process memory.
+/// Output is held back until it overflows one screen: if the stream ends first
+/// it is printed straight to stdout and no pager is started (like `less -F`,
+/// but independent of which pager is configured). Once it overflows, the pager
+/// is spawned and fed the held-back bytes, then rows are piped through as they
+/// arrive. The pager buffers received data internally (less stores it in its
+/// own temp file) and allows full backward scrolling.
 pub struct PagerWriter {
-    stdin: Option<std::process::ChildStdin>,
-    child: Option<Child>,
+    sink: Sink,
+}
+
+enum Sink {
+    /// Not yet a full screen of output; no pager running.
+    Pending {
+        buf: Vec<u8>,
+        rows: usize,
+        pager: Option<String>,
+        title: String,
+    },
+    /// A pager process owns the terminal.
+    Pager { stdin: ChildStdin, child: Child },
+    /// No pager could be started; write straight to stdout.
+    Stdout,
 }
 
 impl PagerWriter {
-    /// Returns true when a child pager process owns the terminal.
-    /// In that case stderr writes would corrupt the pager display.
+    /// Returns true when a child pager process owns (or may take over) the
+    /// terminal. In that case stderr writes would corrupt the pager display.
     pub fn is_file_mode(&self) -> bool {
-        self.child.is_some()
+        !matches!(self.sink, Sink::Stdout)
     }
 }
 
 impl Write for PagerWriter {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        match self.stdin.as_mut() {
-            Some(stdin) => stdin.write(buf),
-            None => Err(std::io::Error::new(
-                std::io::ErrorKind::BrokenPipe,
-                "pager stdin closed",
-            )),
+    fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
+        match &mut self.sink {
+            Sink::Pager { stdin, .. } => stdin.write(data),
+            Sink::Stdout => std::io::stdout().write(data),
+            Sink::Pending {
+                buf,
+                rows,
+                pager,
+                title,
+            } => {
+                buf.extend_from_slice(data);
+                if !fits(buf, *rows) {
+                    let buf = std::mem::take(buf);
+                    self.sink = match spawn_pager(pager.as_deref(), title) {
+                        Some((stdin, child)) => Sink::Pager { stdin, child },
+                        None => Sink::Stdout,
+                    };
+                    self.write_all(&buf)?;
+                }
+                Ok(data.len())
+            }
         }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        match self.stdin.as_mut() {
-            Some(stdin) => stdin.flush(),
-            None => Ok(()),
+        match &mut self.sink {
+            Sink::Pager { stdin, .. } => stdin.flush(),
+            Sink::Stdout => std::io::stdout().flush(),
+            Sink::Pending { .. } => Ok(()),
         }
     }
 }
 
 impl Drop for PagerWriter {
     fn drop(&mut self) {
-        if let Some(mut stdin) = self.stdin.take() {
-            let _ = writeln!(
-                stdin,
-                "\n\x1b[2m-- end of results (press q to quit) --\x1b[0m"
-            );
-        }
-        if let Some(mut child) = self.child.take() {
-            let _ = child.wait();
+        match std::mem::replace(&mut self.sink, Sink::Stdout) {
+            Sink::Pending { buf, .. } => {
+                let mut out = std::io::stdout();
+                let _ = out.write_all(&buf);
+                let _ = out.flush();
+            }
+            Sink::Pager {
+                mut stdin,
+                mut child,
+            } => {
+                let _ = writeln!(
+                    stdin,
+                    "\n\x1b[2m-- end of results (press q to quit) --\x1b[0m"
+                );
+                drop(stdin);
+                let _ = child.wait();
+            }
+            Sink::Stdout => {}
         }
     }
 }
 
-/// Spawn a pager for streaming output, returning a [`PagerWriter`] to write rows into.
-///
-/// All pager variants receive data via piped stdin. `less` buffers received bytes
-/// in its own internal temp file, enabling full backward scrolling without holding
-/// all rows in our process memory. On drop, an end-of-results marker is written and
-/// we wait for the user to quit the pager.
-pub fn page_stream(title: &str) -> anyhow::Result<PagerWriter> {
-    page_stream_with(title, std::env::var("PAGER").ok().as_deref())
-}
-
-/// [`page_stream`] with `$PAGER` supplied explicitly — see [`page_content_with`]
-/// for why the tests need this seam.
-fn page_stream_with(title: &str, pager: Option<&str>) -> anyhow::Result<PagerWriter> {
-    let spawn_piped = |cmd: &mut Command| -> Option<PagerWriter> {
-        if let Ok(mut child) = cmd.stdin(Stdio::piped()).spawn() {
-            let stdin = child.stdin.take()?;
-            Some(PagerWriter {
-                stdin: Some(stdin),
-                child: Some(child),
-            })
-        } else {
-            None
-        }
+/// Start a pager reading from a stdin pipe: `$PAGER`, then `less`, then `more`.
+fn spawn_pager(pager: Option<&str>, title: &str) -> Option<(ChildStdin, Child)> {
+    let spawn_piped = |cmd: &mut Command| -> Option<(ChildStdin, Child)> {
+        let mut child = cmd.stdin(Stdio::piped()).spawn().ok()?;
+        let stdin = child.stdin.take()?;
+        Some((stdin, child))
     };
 
     if let Some(pager_env) = pager {
         let parts: Vec<&str> = pager_env.split_whitespace().collect();
         if let Some((cmd, args)) = parts.split_first() {
-            if let Some(w) = spawn_piped(Command::new(cmd).args(args)) {
-                return Ok(w);
+            if let Some(p) = spawn_piped(Command::new(cmd).args(args)) {
+                return Some(p);
             }
         }
     }
 
     if let Some(flavor) = less_flavor() {
-        if let Some(w) = spawn_piped(Command::new("less").args(less_args(flavor, title))) {
-            return Ok(w);
+        if let Some(p) = spawn_piped(Command::new("less").args(less_args(flavor, title))) {
+            return Some(p);
         }
     }
 
-    if let Some(w) = spawn_piped(&mut Command::new("more")) {
-        return Ok(w);
-    }
+    spawn_piped(&mut Command::new("more"))
+}
 
-    anyhow::bail!("no external pager available")
+/// Create a [`PagerWriter`] for streaming output.
+///
+/// Rows are buffered until they overflow the screen; only then is a pager
+/// spawned (see [`PagerWriter`]). On drop, short output is printed directly,
+/// or an end-of-results marker is written and we wait for the user to quit
+/// the pager.
+pub fn page_stream(title: &str) -> PagerWriter {
+    page_stream_with(title, std::env::var("PAGER").ok().as_deref(), screen_rows())
+}
+
+/// [`page_stream`] with `$PAGER` and the screen height supplied explicitly —
+/// see [`page_content_with`] for why the tests need this seam.
+fn page_stream_with(title: &str, pager: Option<&str>, rows: usize) -> PagerWriter {
+    PagerWriter {
+        sink: Sink::Pending {
+            buf: Vec::new(),
+            rows,
+            pager: pager.map(String::from),
+            title: title.to_string(),
+        },
+    }
 }
 
 #[cfg(test)]
@@ -280,7 +355,7 @@ mod tests {
             // stays correct and quoted whatever the directory is called.
             std::fs::write(
                 probe.script(),
-                "cat \"$1\" > \"${0%probe.sh}captured\"\nexit 0\n",
+                "cat ${1:+\"$1\"} > \"${0%probe.sh}captured\"\nexit 0\n",
             )
             .unwrap();
             probe
@@ -408,31 +483,31 @@ mod tests {
 
     #[test]
     fn page_content_with_cat_pager() {
-        assert!(page_content_with("hello world\n", "test title", Some("cat")).is_ok());
+        assert!(page_content_with("hello world\n", "test title", Some("cat"), 0).is_ok());
     }
 
     #[test]
     fn page_content_with_true_pager() {
-        assert!(page_content_with("test content", "", Some("true")).is_ok());
+        assert!(page_content_with("test content", "", Some("true"), 0).is_ok());
     }
 
     #[cfg(unix)]
     #[test]
     fn page_content_writes_temp_file() {
         let probe = CapturingPager::new();
-        assert!(page_content_with("hello world", "title", Some(&probe.pager_value())).is_ok());
+        assert!(page_content_with("hello world", "title", Some(&probe.pager_value()), 0).is_ok());
         assert_eq!(probe.captured_content(), "hello world");
     }
 
     #[test]
     fn page_content_empty_string() {
-        assert!(page_content_with("", "empty", Some("true")).is_ok());
+        assert!(page_content_with("", "empty", Some("true"), 0).is_ok());
     }
 
     #[test]
     fn page_content_large_content() {
         let content = "x".repeat(100_000);
-        assert!(page_content_with(&content, "big", Some("true")).is_ok());
+        assert!(page_content_with(&content, "big", Some("true"), 0).is_ok());
     }
 
     #[cfg(unix)]
@@ -440,20 +515,20 @@ mod tests {
     fn page_content_multiline() {
         let content = "line1\nline2\nline3\n";
         let probe = CapturingPager::new();
-        assert!(page_content_with(content, "lines", Some(&probe.pager_value())).is_ok());
+        assert!(page_content_with(content, "lines", Some(&probe.pager_value()), 0).is_ok());
         assert_eq!(probe.captured_content(), content);
     }
 
     #[test]
     fn page_stream_with_cat() {
-        let mut writer = page_stream_with("test", Some("cat")).unwrap();
+        let mut writer = page_stream_with("test", Some("cat"), 0);
         writer.write_all(b"streaming content\n").unwrap();
         drop(writer);
     }
 
     #[test]
     fn page_stream_write_multiple() {
-        let mut writer = page_stream_with("", Some("cat")).unwrap();
+        let mut writer = page_stream_with("", Some("cat"), 0);
         writer.write_all(b"line 1\n").unwrap();
         writer.write_all(b"line 2\n").unwrap();
         drop(writer);
@@ -461,52 +536,70 @@ mod tests {
 
     #[test]
     fn pager_writer_is_file_mode_with_child() {
-        let writer = page_stream_with("title", Some("cat")).unwrap();
+        let writer = page_stream_with("title", Some("cat"), 0);
         assert!(writer.is_file_mode());
     }
 
     #[test]
-    fn pager_writer_is_file_mode_without_child() {
-        let writer = PagerWriter {
-            stdin: None,
-            child: None,
-        };
+    fn pager_writer_is_not_file_mode_on_stdout() {
+        let writer = PagerWriter { sink: Sink::Stdout };
         assert!(!writer.is_file_mode());
     }
 
     #[test]
-    fn pager_writer_write_without_stdin_returns_broken_pipe() {
-        let mut writer = PagerWriter {
-            stdin: None,
-            child: None,
-        };
-        let result = writer.write(b"data");
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::BrokenPipe);
+    fn fits_counts_lines_against_rows() {
+        assert!(fits(b"a\nb\n", 3));
+        assert!(!fits(b"a\nb\nc\n", 3));
+        assert!(!fits(b"", 0));
+        assert!(fits(b"anything", usize::MAX));
     }
 
+    /// Issue #184: output that fits on screen must not start the pager.
+    #[cfg(unix)]
     #[test]
-    fn pager_writer_flush_without_stdin_ok() {
-        let mut writer = PagerWriter {
-            stdin: None,
-            child: None,
-        };
-        assert!(writer.flush().is_ok());
+    fn page_content_short_output_skips_pager() {
+        let probe = CapturingPager::new();
+        assert!(page_content_with("one line\n", "t", Some(&probe.pager_value()), 10).is_ok());
+        assert!(!probe.captured().exists(), "pager ran for short output");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn page_stream_short_output_skips_pager() {
+        let probe = CapturingPager::new();
+        let mut writer = page_stream_with("t", Some(&probe.pager_value()), 10);
+        writer.write_all(b"row 1\nrow 2\n").unwrap();
+        drop(writer);
+        assert!(!probe.captured().exists(), "pager ran for short output");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn page_stream_long_output_pages_everything() {
+        let probe = CapturingPager::new();
+        let mut writer = page_stream_with("t", Some(&probe.pager_value()), 2);
+        writer.write_all(b"row 1\n").unwrap();
+        writer.write_all(b"row 2\n").unwrap();
+        writer.write_all(b"row 3\n").unwrap();
+        drop(writer);
+        let got = probe.captured_content();
+        assert!(got.starts_with("row 1\nrow 2\nrow 3\n"), "got {got:?}");
+        assert!(got.contains("end of results"));
     }
 
     #[test]
     fn page_stream_empty_title() {
-        assert!(page_stream_with("", Some("true")).is_ok());
+        drop(page_stream_with("", Some("true"), 0));
     }
 
     #[test]
     fn page_stream_nonempty_title() {
-        assert!(page_stream_with("my table", Some("true")).is_ok());
+        drop(page_stream_with("my table", Some("true"), 0));
     }
 
     #[test]
     fn pager_writer_drop_writes_end_marker() {
-        let writer = page_stream_with("", Some("cat")).unwrap();
+        let writer = page_stream_with("", Some("cat"), 0);
         drop(writer);
     }
 
