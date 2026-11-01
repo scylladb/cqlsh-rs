@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.18](https://github.com/scylladb/cqlsh-rs/compare/v0.5.17...v0.5.18) - 2026-11-01
+
+### Fixed
+
+- *(describe)* use server-side DESCRIBE INDEX for CREATE INDEX statements ([#200](https://github.com/scylladb/cqlsh-rs/pull/200))
+- *(deps)* bump async-trait to 0.1.92 to fix clippy double_must_use ([#202](https://github.com/scylladb/cqlsh-rs/pull/202))
+
+### Other
+
+- *(homebrew)* point formula at v0.5.17 [skip ci]
+
 ## [0.5.17](https://github.com/scylladb/cqlsh-rs/compare/v0.5.16...v0.5.17) - 2026-08-04
 
 ### Fixed
