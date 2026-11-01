@@ -117,6 +117,48 @@ fn test_describe_index_on_non_pk_column() {
     drop_test_keyspace(scylla, &ks);
 }
 
+/// A local secondary index stores a JSON target (`{"pk":["p"],"ck":["v"]}`);
+/// DESCRIBE must print it as CQL, not as a fragment of that JSON (#199).
+#[test]
+#[ignore = "requires Docker"]
+fn test_describe_local_index_json_target() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "desc_lidx");
+
+    execute_cql(
+        scylla,
+        &format!("CREATE TABLE {ks}.t (p int, c int, v text, PRIMARY KEY (p, c))"),
+    )
+    .success();
+    // Local indexes are ScyllaDB-only; Cassandra rejects the syntax.
+    let created = execute_cql(scylla, &format!("CREATE INDEX lidx ON {ks}.t ((p), v)"))
+        .get_output()
+        .status
+        .success();
+    if !created {
+        eprintln!("skipping: server does not support local secondary indexes");
+        drop_test_keyspace(scylla, &ks);
+        return;
+    }
+
+    for cmd in [
+        format!("DESCRIBE INDEX {ks}.lidx"),
+        format!("DESCRIBE TABLE {ks}.t"),
+    ] {
+        let output = execute_cql_output_direct(scylla, &cmd);
+        let idx_line = output
+            .lines()
+            .find(|l| l.contains("CREATE INDEX lidx"))
+            .unwrap_or_default();
+        assert!(
+            idx_line.contains("((p), v)") && !idx_line.contains('{'),
+            "{cmd} should print the local index target as CQL: {output}"
+        );
+    }
+
+    drop_test_keyspace(scylla, &ks);
+}
+
 // ---------------------------------------------------------------------------
 // DESCRIBE MATERIALIZED VIEW <name>
 // ---------------------------------------------------------------------------

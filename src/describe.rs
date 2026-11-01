@@ -494,16 +494,46 @@ async fn describe_index(
         .map(|v| v.to_string())
         .unwrap_or_default();
 
-    // Extract target column from options map
-    // The options map contains 'target' key with the indexed column
-    let target = extract_map_value(&options, "target").unwrap_or_else(|| "unknown".to_string());
-
-    write!(
-        writer,
-        "{}",
-        format_index_ddl(&keyspace, &idx_name, &table_name, &target)
-    )?;
+    let ddl = index_ddl(session, &keyspace, &idx_name, &table_name, &options).await;
+    write!(writer, "\n{ddl}\n\n")?;
     Ok(())
+}
+
+/// CREATE INDEX statement for an index.
+///
+/// Prefers the server-side `DESCRIBE INDEX` (ScyllaDB, Cassandra 4.0+), which is
+/// the only correct source for custom indexes (`USING ... WITH OPTIONS`) and
+/// JSON targets (local / vector / full-text indexes). Falls back to rebuilding
+/// a plain `CREATE INDEX` from the `target` option on servers without it.
+async fn index_ddl(
+    session: &CqlSession,
+    keyspace: &str,
+    index_name: &str,
+    table_name: &str,
+    options: &str,
+) -> String {
+    let query = format!(
+        "DESCRIBE INDEX {}.{}",
+        quote_if_needed(keyspace),
+        quote_if_needed(index_name)
+    );
+    match session.execute_query(&query).await {
+        Ok(result) => {
+            if let Some(stmt) = result
+                .rows
+                .first()
+                .and_then(|r| r.get_by_name("create_statement", &result.columns))
+            {
+                // ScyllaDB omits the `;` for custom indexes (vector, full-text, ...), SCYLLADB-5905.
+                let stmt = stmt.to_string();
+                let stmt = stmt.trim_end().trim_end_matches(';');
+                return format!("{stmt};");
+            }
+        }
+        Err(e) => tracing::debug!("server-side {query} failed, rebuilding client-side: {e}"),
+    }
+    let target = extract_map_value(options, "target").unwrap_or_else(|| "unknown".to_string());
+    format_index_ddl(keyspace, index_name, table_name, &target)
 }
 
 /// DESCRIBE MATERIALIZED VIEW <name> — show CREATE MATERIALIZED VIEW statement.
@@ -1076,16 +1106,8 @@ async fn write_table_indexes(
             .map(|v| v.to_string())
             .unwrap_or_default();
 
-        let target = extract_map_value(&options, "target").unwrap_or_else(|| "unknown".to_string());
-
-        writeln!(
-            writer,
-            "CREATE INDEX {} ON {}.{} ({});",
-            quote_if_needed(&idx_name),
-            quote_if_needed(keyspace),
-            quote_if_needed(&tbl_name),
-            target
-        )?;
+        let ddl = index_ddl(session, keyspace, &idx_name, &tbl_name, &options).await;
+        writeln!(writer, "{ddl}")?;
     }
 
     Ok(())
@@ -1244,7 +1266,7 @@ fn strip_quotes(s: &str) -> &str {
 /// Format a CREATE INDEX DDL string.
 fn format_index_ddl(keyspace: &str, index_name: &str, table_name: &str, target: &str) -> String {
     format!(
-        "\nCREATE INDEX {} ON {}.{} ({});\n\n",
+        "CREATE INDEX {} ON {}.{} ({});",
         quote_if_needed(index_name),
         quote_if_needed(keyspace),
         quote_if_needed(table_name),
