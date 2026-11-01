@@ -517,14 +517,17 @@ async fn index_ddl(
         quote_if_needed(keyspace),
         quote_if_needed(index_name)
     );
-    if let Ok(result) = session.execute_query(&query).await {
-        if let Some(stmt) = result
-            .rows
-            .first()
-            .and_then(|r| r.get_by_name("create_statement", &result.columns))
-        {
-            return stmt.to_string().trim_end().to_string();
+    match session.execute_query(&query).await {
+        Ok(result) => {
+            if let Some(stmt) = result
+                .rows
+                .first()
+                .and_then(|r| r.get_by_name("create_statement", &result.columns))
+            {
+                return stmt.to_string().trim_end().to_string();
+            }
         }
+        Err(e) => tracing::debug!("server-side {query} failed, rebuilding client-side: {e}"),
     }
     let target = extract_map_value(options, "target").unwrap_or_else(|| "unknown".to_string());
     format_index_ddl(keyspace, index_name, table_name, &target)
