@@ -747,7 +747,7 @@ impl CqlDriver for ScyllaDriver {
 
     async fn use_keyspace(&self, keyspace: &str) -> Result<()> {
         self.session
-            .use_keyspace(keyspace, false)
+            .use_keyspace(keyspace, true)
             .await
             .with_context(|| format!("switching to keyspace: {keyspace}"))?;
         Ok(())
