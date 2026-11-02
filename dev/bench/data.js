@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793616321382,
+  "lastUpdate": 1793626788833,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -13765,6 +13765,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39903,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "94e196247ae15cf670fd7058cbadbb67b843e499",
+          "message": "test(docker): page a multi-screen result, add short-SELECT no-pager test\n\nThe pager test used a 1-row SELECT, which now fits on screen and prints\ninline (#184), so sending 'q' left it waiting for a prompt. Query\nsystem_schema.columns instead, and cover the short case separately.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T15:29:29+02:00",
+          "tree_id": "66485eb01159336ebd4a7f4f4670883dbbde1357",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/94e196247ae15cf670fd7058cbadbb67b843e499"
+        },
+        "date": 1793626788355,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 28761,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3571,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9326,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65066,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 877,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 154980,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7319,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 81711,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 751310,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7533400,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10746,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 47283,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40483,
             "unit": "ns"
           }
         ]
