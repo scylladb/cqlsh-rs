@@ -306,17 +306,30 @@ def test_interactive_select_displays_rows_through_pager(spawn_interactive):
     """The regression test for #175: rows must actually reach the screen.
 
     Colors are forced on with `-C` because the color path is what made the
-    `-R` flag semantics matter.
+    `-R` flag semantics matter. The query returns hundreds of rows, more than
+    the 24-line pty, because output that fits on one screen skips the pager
+    (#184). The "(N rows)" footer is off-screen, so only the border is checked.
     """
     child = spawn_interactive("-C")
     child.expect(PROMPT)
-    child.sendline("SELECT release_version FROM system.local;")
+    child.sendline("SELECT keyspace_name, column_name FROM system_schema.columns;")
     expect_rows(child, TABLE_BORDER)  # the table frame drawn inside the pager
-    expect_rows(child)  # ... and the "(1 row)" footer after it
     assert_pager_healthy(LOG.text())
     # 'q' quits the pager and returns to the prompt.
     child.send("q")
     child.expect(PROMPT)
+    child.sendline("exit")
+    child.expect(pexpect.EOF)
+
+
+def test_interactive_short_select_skips_pager(spawn_interactive):
+    """#184: a result that fits on screen prints inline, no `q` needed."""
+    child = spawn_interactive("-C")
+    child.expect(PROMPT)
+    child.sendline("SELECT release_version FROM system.local;")
+    expect_rows(child)
+    child.expect(PROMPT)
+    assert_pager_healthy(LOG.text())
     child.sendline("exit")
     child.expect(pexpect.EOF)
 
