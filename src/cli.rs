@@ -37,6 +37,22 @@ pub struct CliArgs {
     #[arg(long = "ssl")]
     pub ssl: bool,
 
+    /// Enable client routes. Repeat for each CONNECTION_ID[=ADDRESS].
+    #[arg(
+        long = "client-route",
+        value_name = "CONNECTION_ID[=ADDRESS]",
+        action = clap::ArgAction::Append
+    )]
+    pub client_route: Vec<String>,
+
+    /// Use shard-aware ports with client routes
+    #[arg(long = "client-routes-advanced-shard-awareness")]
+    pub client_routes_advanced_shard_awareness: bool,
+
+    /// Do not use shard-aware ports with client routes
+    #[arg(long = "no-client-routes-advanced-shard-awareness")]
+    pub no_client_routes_advanced_shard_awareness: bool,
+
     /// Disable file I/O commands (COPY, SOURCE, CAPTURE)
     #[arg(long = "no-file-io")]
     pub no_file_io: bool,
@@ -146,9 +162,39 @@ impl CliArgs {
             }
         }
 
+        if self.client_routes_advanced_shard_awareness
+            && self.no_client_routes_advanced_shard_awareness
+        {
+            return Err(
+                "Cannot use both --client-routes-advanced-shard-awareness and \
+                 --no-client-routes-advanced-shard-awareness"
+                    .to_string(),
+            );
+        }
+
+        if !self.client_route.is_empty() {
+            // Surface bad specs at startup rather than as a connection failure.
+            crate::client_routes::parse_client_routes(
+                self.client_route.iter().map(String::as_str),
+            )?;
+
+            if self.ssl {
+                return Err(CLIENT_ROUTES_SSL_CONFLICT.to_string());
+            }
+        }
+
         Ok(())
     }
 }
+
+/// Error message for the unsupported client-routes + TLS combination.
+///
+/// The Rust driver does not support TLS together with client routes, so reject
+/// the combination up front instead of surfacing an opaque driver error. Shared
+/// with the post-merge check in [`crate::config`], which also catches routes
+/// coming from `cqlshrc`.
+pub const CLIENT_ROUTES_SSL_CONFLICT: &str =
+    "Client routes do not support SSL/TLS; cannot use --client-route with --ssl";
 
 #[cfg(test)]
 mod tests {
@@ -189,6 +235,9 @@ mod tests {
         assert!(args.serial_consistency_level.is_none());
         assert!(args.browser.is_none());
         assert!(args.secure_connect_bundle.is_none());
+        assert!(args.client_route.is_empty());
+        assert!(!args.client_routes_advanced_shard_awareness);
+        assert!(!args.no_client_routes_advanced_shard_awareness);
     }
 
     #[test]
@@ -423,5 +472,54 @@ mod tests {
     fn unknown_flag_produces_error() {
         let result = CliArgs::try_parse_from(["cqlsh-rs", "--nonexistent"]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn client_route_repeats_accumulate() {
+        let args = parse(&[
+            "--client-route",
+            "conn-a=proxy-a.example.com",
+            "--client-route",
+            "conn-b",
+        ]);
+        assert_eq!(args.client_route, ["conn-a=proxy-a.example.com", "conn-b"]);
+        assert!(args.validate().is_ok());
+    }
+
+    #[test]
+    fn client_route_rejects_bad_spec() {
+        let args = parse(&["--client-route", "=proxy-a.example.com"]);
+        assert!(args.validate().unwrap_err().contains("empty connection id"));
+    }
+
+    #[test]
+    fn client_route_conflicts_with_ssl() {
+        let args = parse(&["--client-route", "conn-a", "--ssl"]);
+        assert_eq!(args.validate().unwrap_err(), CLIENT_ROUTES_SSL_CONFLICT);
+    }
+
+    #[test]
+    fn conflicting_shard_awareness_flags_rejected() {
+        let args = parse(&[
+            "--client-routes-advanced-shard-awareness",
+            "--no-client-routes-advanced-shard-awareness",
+        ]);
+        assert!(args
+            .validate()
+            .unwrap_err()
+            .contains("--no-client-routes-advanced-shard-awareness"));
+    }
+
+    #[test]
+    fn shard_awareness_flags_parse_individually() {
+        let args = parse(&["--client-routes-advanced-shard-awareness"]);
+        assert!(args.client_routes_advanced_shard_awareness);
+        assert!(!args.no_client_routes_advanced_shard_awareness);
+        assert!(args.validate().is_ok());
+
+        let args = parse(&["--no-client-routes-advanced-shard-awareness"]);
+        assert!(!args.client_routes_advanced_shard_awareness);
+        assert!(args.no_client_routes_advanced_shard_awareness);
+        assert!(args.validate().is_ok());
     }
 }

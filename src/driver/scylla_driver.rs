@@ -13,8 +13,11 @@ use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{Datelike, Timelike};
 use futures::{StreamExt, TryStreamExt};
+use scylla::client::client_routes::{ClientRoutesConfig, ClientRoutesProxy};
 use scylla::client::session::Session;
-use scylla::client::session_builder::SessionBuilder;
+use scylla::client::session_builder::{
+    ClientRoutesSessionBuilder, GenericSessionBuilder, SessionBuilder, SessionBuilderKind,
+};
 use scylla::response::query_result::QueryResult;
 use scylla::statement::prepared::PreparedStatement;
 use scylla::statement::Statement;
@@ -23,6 +26,8 @@ use scylla::value::{
     CqlValue as ScyllaCqlValue, CqlVarint, Row,
 };
 use uuid::Uuid;
+
+use crate::client_routes::ClientRoutesSettings;
 
 use super::types::{CqlColumn, CqlResult, CqlRow, CqlRowStream, CqlValue};
 use super::{
@@ -502,14 +507,101 @@ impl ScyllaDriver {
             *self.last_trace_id.lock().unwrap() = Some(trace_id);
         }
     }
+
+    /// Apply the session options that are independent of the builder mode.
+    ///
+    /// Generic over the builder kind so the default and client-routes paths in
+    /// [`Self::connect`] share it — they are distinct types (`DefaultMode` vs
+    /// `ClientRoutesMode`), but these options live on the shared impl block.
+    fn apply_common_options<K: SessionBuilderKind>(
+        mut builder: GenericSessionBuilder<K>,
+        config: &ConnectionConfig,
+    ) -> GenericSessionBuilder<K> {
+        // cqlsh is a single-user interactive tool — one connection per host suffices
+        // and avoids connection explosion when using a proxy translator.
+        builder = builder.pool_size(scylla::client::PoolSize::PerHost(
+            std::num::NonZeroUsize::new(1).unwrap(),
+        ));
+
+        // Authentication
+        if let (Some(username), Some(password)) = (&config.username, &config.password) {
+            builder = builder.user(username, password);
+        }
+
+        builder = builder.connection_timeout(Duration::from_secs(config.connect_timeout));
+
+        if let Some(keyspace) = &config.keyspace {
+            builder = builder.use_keyspace(keyspace, false);
+        }
+
+        builder
+    }
+}
+
+/// Translate cqlsh-rs client-route settings into the driver's configuration.
+fn build_client_routes_config(settings: &ClientRoutesSettings) -> Result<ClientRoutesConfig> {
+    let proxies = settings
+        .routes
+        .iter()
+        .map(|route| {
+            let proxy = ClientRoutesProxy::new_with_connection_id(route.connection_id.clone());
+            match &route.address {
+                Some(address) => proxy.with_overridden_hostname(address.clone()),
+                None => proxy,
+            }
+        })
+        .collect();
+
+    ClientRoutesConfig::new(proxies).context("building client routes configuration")
+}
+
+/// Build the session builder for client-routes mode.
+///
+/// Separate from [`ScyllaDriver::connect`] so the resulting configuration can
+/// be asserted in unit tests without a live cluster — `GenericSessionBuilder`
+/// exposes its `config`, so contact points and the shard-aware port setting are
+/// both observable.
+///
+/// The driver supplies its own address translator (driven by
+/// `system.client_routes`) and rejects both a user-supplied one and TLS, so
+/// neither is configured here; the TLS combination is refused earlier, during
+/// config validation.
+fn build_client_routes_session_builder(
+    config: &ConnectionConfig,
+    addr: &str,
+) -> Result<ClientRoutesSessionBuilder> {
+    let settings = &config.client_routes;
+    let mut builder = ClientRoutesSessionBuilder::new(build_client_routes_config(settings)?);
+
+    builder = if config.contact_points.is_empty() {
+        builder.known_node(addr)
+    } else {
+        builder.known_nodes(&config.contact_points)
+    };
+
+    builder = ScyllaDriver::apply_common_options(builder, config);
+
+    // ClientRoutesSessionBuilder::new disables the shard-aware port because
+    // ScyllaDB Cloud client-routes deployments do not support it yet; re-enable
+    // on request. Note that `system.client_routes` publishes no shard-aware
+    // port, so today this only lifts the driver-side veto — it is accepted for
+    // parity with Python cqlsh's flag.
+    if settings.advanced_shard_awareness {
+        builder = builder.disallow_shard_aware_port(false);
+    }
+
+    Ok(builder)
 }
 
 #[async_trait]
 impl CqlDriver for ScyllaDriver {
     async fn connect(config: &ConnectionConfig) -> Result<Self> {
-        let addr = format!("{}:{}", config.host, config.port);
+        // Bare IPv6 hosts must be bracketed for the driver to parse them.
+        let addr = super::join_host_port(&config.host, config.port);
 
-        // Detect Unix domain socket path and start proxy if needed
+        // Detect Unix domain socket path and start proxy if needed. This runs
+        // before the client-routes split because it rewrites `addr` (to the
+        // local proxy) and yields a guard that must outlive the session.
         #[cfg(unix)]
         let (addr, uds_proxy_guard, proxy_socket_addr) =
             if super::uds_proxy::is_unix_socket(&config.host) {
@@ -539,53 +631,46 @@ impl CqlDriver for ScyllaDriver {
                 None
             };
 
-        let mut builder = SessionBuilder::new().known_node(&addr);
-
-        // cqlsh is a single-user interactive tool — one connection per host suffices
-        // and avoids connection explosion when using a proxy translator.
-        builder = builder.pool_size(scylla::client::PoolSize::PerHost(
-            std::num::NonZeroUsize::new(1).unwrap(),
-        ));
-
-        // Authentication
-        if let (Some(username), Some(password)) = (&config.username, &config.password) {
-            builder = builder.user(username, password);
-        }
-
-        builder = builder.connection_timeout(Duration::from_secs(config.connect_timeout));
-
-        if let Some(keyspace) = &config.keyspace {
-            builder = builder.use_keyspace(keyspace, false);
-        }
-
-        // Install the proxy address translator so peers discovered via
-        // system.peers are redirected to the contact point. For UDS
-        // connections the contact point is the local proxy; otherwise it is
-        // the resolved host address.
-        let contact_point = match proxy_socket_addr {
-            Some(proxy_addr) => Some(proxy_addr),
-            None => tokio::net::lookup_host(&addr)
+        let session = if config.client_routes.is_enabled() {
+            build_client_routes_session_builder(config, &addr)?
+                .build()
                 .await
-                .ok()
-                .and_then(|mut addrs| addrs.next()),
-        };
-        if let Some(contact_point) = contact_point {
-            let translator = Arc::new(
-                super::proxy_address_translator::ProxyAddressTranslator::new(contact_point),
-            );
-            builder = builder.address_translator(translator);
-        }
+        } else {
+            let mut builder = SessionBuilder::new().known_node(&addr);
 
-        if config.ssl {
-            let tls_config = if let Some(ssl_config) = &config.ssl_config {
-                Self::build_rustls_config(ssl_config)?
-            } else {
-                Self::build_rustls_config_no_verify(&SslConfig::default())?
+            builder = Self::apply_common_options(builder, config);
+
+            // Install the proxy address translator so peers discovered via
+            // system.peers are redirected to the contact point. For UDS
+            // connections the contact point is the local proxy; otherwise it is
+            // the resolved host address.
+            let contact_point = match proxy_socket_addr {
+                Some(proxy_addr) => Some(proxy_addr),
+                None => tokio::net::lookup_host(&addr)
+                    .await
+                    .ok()
+                    .and_then(|mut addrs| addrs.next()),
             };
-            builder = builder.tls_context(Some(tls_config));
-        }
+            if let Some(contact_point) = contact_point {
+                let translator = Arc::new(
+                    super::proxy_address_translator::ProxyAddressTranslator::new(contact_point),
+                );
+                builder = builder.address_translator(translator);
+            }
 
-        let session = builder.build().await.context("connecting to cluster")?;
+            if config.ssl {
+                let tls_config = if let Some(ssl_config) = &config.ssl_config {
+                    Self::build_rustls_config(ssl_config)?
+                } else {
+                    Self::build_rustls_config_no_verify(&SslConfig::default())?
+                };
+                builder = builder.tls_context(Some(tls_config));
+            }
+
+            builder.build().await
+        };
+
+        let session = session.context("connecting to cluster")?;
 
         Ok(ScyllaDriver {
             session,
@@ -1325,5 +1410,128 @@ mod tests {
         assert_eq!(cql_value_to_i32(&CqlValue::Int(42)), Some(42));
         assert_eq!(cql_value_to_i32(&CqlValue::BigInt(100)), Some(100));
         assert_eq!(cql_value_to_i32(&CqlValue::Text("x".to_string())), None);
+    }
+
+    #[test]
+    fn client_routes_config_built_from_settings() {
+        use crate::client_routes::ClientRoute;
+
+        let settings = ClientRoutesSettings {
+            routes: vec![
+                ClientRoute {
+                    connection_id: "conn-a".to_string(),
+                    address: Some("proxy-a.example.com".to_string()),
+                },
+                ClientRoute {
+                    connection_id: "conn-b".to_string(),
+                    address: None,
+                },
+            ],
+            advanced_shard_awareness: false,
+        };
+
+        // The driver's config type exposes no getters, so assert via Debug: the
+        // point is that both the connection IDs and the single hostname
+        // override survive translation.
+        let rendered = format!("{:?}", build_client_routes_config(&settings).unwrap());
+        assert!(rendered.contains("conn-a"), "missing conn-a: {rendered}");
+        assert!(rendered.contains("conn-b"), "missing conn-b: {rendered}");
+        assert!(
+            rendered.contains("proxy-a.example.com"),
+            "missing hostname override: {rendered}"
+        );
+    }
+
+    #[test]
+    fn client_routes_config_rejects_empty_route_list() {
+        let settings = ClientRoutesSettings::default();
+        assert!(build_client_routes_config(&settings).is_err());
+    }
+
+    /// A `ConnectionConfig` with client routes enabled and nothing else set.
+    fn client_routes_conn_config(advanced_shard_awareness: bool) -> ConnectionConfig {
+        use crate::client_routes::ClientRoute;
+
+        ConnectionConfig {
+            host: "127.0.0.1".to_string(),
+            port: 9042,
+            username: None,
+            password: None,
+            keyspace: None,
+            connect_timeout: 5,
+            request_timeout: 10,
+            ssl: false,
+            ssl_config: None,
+            protocol_version: None,
+            client_routes: ClientRoutesSettings {
+                routes: vec![ClientRoute {
+                    connection_id: "conn-a".to_string(),
+                    address: None,
+                }],
+                advanced_shard_awareness,
+            },
+            contact_points: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn advanced_shard_awareness_controls_shard_aware_port() {
+        // Off by default: ClientRoutesSessionBuilder::new disallows the
+        // shard-aware port, and nothing re-enables it.
+        let config = client_routes_conn_config(false);
+        let builder = build_client_routes_session_builder(&config, "127.0.0.1:9042").unwrap();
+        assert!(
+            builder.config.disallow_shard_aware_port,
+            "shard-aware port should stay disabled without the flag"
+        );
+
+        // The flag lifts the driver-side veto. Asserted here rather than in an
+        // integration test because a routed connection falls back to the plain
+        // port either way, so an end-to-end run cannot tell the two apart.
+        let config = client_routes_conn_config(true);
+        let builder = build_client_routes_session_builder(&config, "127.0.0.1:9042").unwrap();
+        assert!(
+            !builder.config.disallow_shard_aware_port,
+            "--client-routes-advanced-shard-awareness should re-enable the shard-aware port"
+        );
+    }
+
+    #[test]
+    fn client_routes_builder_uses_derived_contact_points() {
+        let mut config = client_routes_conn_config(false);
+        config.contact_points = vec![
+            "proxy-a.example.com:9042".to_string(),
+            "proxy-b.example.com:9042".to_string(),
+        ];
+
+        let builder = build_client_routes_session_builder(&config, "unused:9042").unwrap();
+        let known = format!("{:?}", builder.config.known_nodes);
+        assert!(known.contains("proxy-a.example.com:9042"), "got {known}");
+        assert!(known.contains("proxy-b.example.com:9042"), "got {known}");
+        assert!(
+            !known.contains("unused"),
+            "derived contact points should replace the single address: {known}"
+        );
+    }
+
+    #[test]
+    fn client_routes_builder_falls_back_to_single_address() {
+        let config = client_routes_conn_config(false);
+        let builder = build_client_routes_session_builder(&config, "[::1]:9042").unwrap();
+        let known = format!("{:?}", builder.config.known_nodes);
+        assert!(known.contains("[::1]:9042"), "got {known}");
+    }
+
+    #[test]
+    fn join_host_port_brackets_ipv6() {
+        use super::super::join_host_port;
+
+        assert_eq!(
+            join_host_port("proxy.example.com", 9042),
+            "proxy.example.com:9042"
+        );
+        assert_eq!(join_host_port("10.0.0.1", 9042), "10.0.0.1:9042");
+        assert_eq!(join_host_port("::1", 9042), "[::1]:9042");
+        assert_eq!(join_host_port("[::1]", 9042), "[::1]:9042");
     }
 }

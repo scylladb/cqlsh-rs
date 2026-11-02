@@ -10,6 +10,7 @@
 #   ssl:         CQLSH_TEST_HOST, CQLSH_TEST_PORT, CQLSH_TEST_SSL_CA_PATH
 #   auth:        CQLSH_TEST_HOST, CQLSH_TEST_PORT, CQLSH_TEST_USERNAME, CQLSH_TEST_PASSWORD
 #   maintenance: CQLSH_TEST_MAINTENANCE_SOCKET
+#   client-routes: CQLSH_TEST_HOST, CQLSH_TEST_PORT, CQLSH_TEST_API_PORT
 
 [plain]
 description = "Default CQL, no encryption, no auth"
@@ -50,3 +51,10 @@ scylla_config = "maintenance"
 cargo_feature = "test-maintenance"
 modules = ["uds_tests"]
 env_vars = ["CQLSH_TEST_MAINTENANCE_SOCKET"]
+
+[client-routes]
+description = "REST API reachable; needs system.client_routes (ScyllaDB 2026.1+)"
+scylla_config = "client_routes"
+cargo_feature = "test-client-routes"
+modules = ["client_routes_tests"]
+env_vars = ["CQLSH_TEST_HOST", "CQLSH_TEST_PORT", "CQLSH_TEST_API_PORT"]
