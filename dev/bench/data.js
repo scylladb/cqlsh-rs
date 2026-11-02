@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793547937939,
+  "lastUpdate": 1793616289006,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -13567,6 +13567,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 41100,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "7df6c8ac7095281b9591a70a36dea0db475aa89a",
+          "message": "ci(release): mint release-plz token from a GitHub App instead of a PAT\n\nReplace the RELEASE_PLZ_TOKEN personal access token with a short-lived\ninstallation token from actions/create-github-app-token. Requires repo\nsecrets RELEASE_APP_CLIENT_ID and RELEASE_APP_PRIVATE_KEY.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-02T12:36:25+02:00",
+          "tree_id": "bc22e6a8a5de2418904579d0f2bbc3046e96d7d9",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/7df6c8ac7095281b9591a70a36dea0db475aa89a"
+        },
+        "date": 1793616288582,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29180,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3597,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9348,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 65013,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 849,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 155820,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7226,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 82035,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 754710,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7583500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9974,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 45425,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39933,
             "unit": "ns"
           }
         ]
