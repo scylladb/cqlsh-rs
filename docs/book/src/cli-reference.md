@@ -71,6 +71,7 @@ Note: `--color` and `--no-color` are mutually exclusive.
 | `--no-file-io` | Disable file I/O commands (COPY, SOURCE, CAPTURE) |
 | `--no_compact` | Disable compact storage interpretation |
 | `--disable-history` | Disable saving of command history |
+| `--safe-mode` | Ask `[N/y]` before running `DROP ...` / `TRUNCATE ...` at the interactive prompt (not in `-e`, `-f`, piped stdin (even with `--tty`) or `SOURCE`). Also `[ui] safe_mode`. |
 | `--debug` | Show additional debug information |
 | `--browser BROWSER` | Browser for CQL HELP (unused in modern cqlsh) |
 

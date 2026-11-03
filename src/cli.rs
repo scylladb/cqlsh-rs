@@ -109,6 +109,11 @@ pub struct CliArgs {
     #[arg(long = "no_compact")]
     pub no_compact: bool,
 
+    /// Ask for confirmation before running DROP or TRUNCATE statements in interactive mode
+    /// (also: [ui] safe_mode in cqlshrc)
+    #[arg(long = "safe-mode")]
+    pub safe_mode: bool,
+
     /// Disable saving of command history
     #[arg(long = "disable-history")]
     pub disable_history: bool,
@@ -173,6 +178,7 @@ mod tests {
         assert!(!args.tty);
         assert!(!args.no_file_io);
         assert!(!args.no_compact);
+        assert!(!args.safe_mode);
         assert!(!args.disable_history);
         assert!(args.execute.is_none());
         assert!(args.file.is_none());
@@ -322,6 +328,11 @@ mod tests {
     fn no_file_io_flag() {
         let args = parse(&["--no-file-io"]);
         assert!(args.no_file_io);
+    }
+
+    #[test]
+    fn safe_mode_flag() {
+        assert!(parse(&["--safe-mode"]).safe_mode);
     }
 
     #[test]

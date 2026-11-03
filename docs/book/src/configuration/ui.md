@@ -13,6 +13,7 @@ max_trace_wait = 10.0
 encoding = utf-8
 completekey = tab
 browser = open %s
+safe_mode = false
 ```
 
 ## Keys
@@ -28,3 +29,4 @@ browser = open %s
 | `encoding` | string | `utf-8` | Character encoding for output. Overridden by `--encoding`. |
 | `completekey` | string | `tab` | Key to trigger tab completion. |
 | `browser` | string | | Browser command for CQL HELP. `%s` is replaced with the URL. |
+| `safe_mode` | boolean | `false` | Ask before running `DROP`/`TRUNCATE` interactively. Same as `--safe-mode`. |
