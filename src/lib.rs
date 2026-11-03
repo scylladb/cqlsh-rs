@@ -48,6 +48,7 @@ pub async fn run_cql_in_process(
         tty: false,
         no_file_io: false,
         no_compact: false,
+        safe_mode: false,
         disable_history: true,
         execute: None,
         file: None,
