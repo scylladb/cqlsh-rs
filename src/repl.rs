@@ -82,6 +82,8 @@ struct ShellState {
     paging_enabled: bool,
     /// Whether stdout is a TTY (controls pager auto-disable).
     is_tty: bool,
+    /// Whether DROP/TRUNCATE need confirmation (--safe-mode); off inside SOURCE.
+    safe_mode: bool,
     /// Whether debug mode is enabled (toggled via DEBUG command).
     debug: bool,
     /// Active CAPTURE file handle (output is tee'd to this file).
@@ -200,6 +202,8 @@ pub async fn run(session: &mut CqlSession, config: &MergedConfig) -> Result<()> 
         expand: false,
         paging_enabled: true,
         is_tty,
+        // Piped stdin (even with --tty) would read the next statement as the answer.
+        safe_mode: config.safe_mode && io::stdin().is_terminal(),
         debug: config.debug,
         capture_file: None,
         capture_path: None,
@@ -413,7 +417,10 @@ fn dispatch_input<'a>(
             if config.no_file_io {
                 eprintln!("File I/O is disabled (--no-file-io).");
             } else {
+                // Like Python cqlsh, SOURCE runs non-interactively: no safe-mode prompts.
+                let safe_mode = std::mem::replace(&mut shell.safe_mode, false);
                 execute_source(session, config, shell, path).await;
+                shell.safe_mode = safe_mode;
             }
             return;
         }
@@ -630,6 +637,14 @@ fn dispatch_input<'a>(
         }
         if upper == "SHOW SESSION" {
             eprintln!("Usage: SHOW SESSION <trace-uuid>");
+            return;
+        }
+
+        if shell.safe_mode
+            && is_destructive_statement(trimmed)
+            && !confirm_destructive_statement(trimmed)
+        {
+            eprintln!("Operation cancelled.");
             return;
         }
 
@@ -894,6 +909,31 @@ pub fn print_help_topic(topic: &str, writer: &mut dyn std::io::Write) {
     }
 }
 
+/// True for statements --safe-mode asks to confirm: any `DROP ...` or `TRUNCATE ...`.
+/// Same rule as Python cqlsh's `is_destructive_statement` (`^\s*(DROP|TRUNCATE)\b`).
+fn is_destructive_statement(stmt: &str) -> bool {
+    let word: String = stmt
+        .trim_start()
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    word.eq_ignore_ascii_case("DROP") || word.eq_ignore_ascii_case("TRUNCATE")
+}
+
+/// Ask `[N/y]`; only `y`/`yes` confirms. Ctrl-C/Ctrl-D cancel, as in Python cqlsh.
+fn confirm_destructive_statement(stmt: &str) -> bool {
+    let stmt = stmt.trim().trim_end_matches(';').trim_end();
+    let prompt = format!("Are you sure you want to execute the following?\n\n{stmt}\n\n[N/y] ");
+    let answer = match rustyline::DefaultEditor::new().map(|mut rl| rl.readline(&prompt)) {
+        Ok(Ok(answer)) => answer,
+        _ => {
+            println!();
+            String::new()
+        }
+    };
+    matches!(answer.trim().to_lowercase().as_str(), "y" | "yes")
+}
+
 /// Strip surrounding single or double quotes from a string.
 fn strip_quotes(s: &str) -> &str {
     if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
@@ -1040,6 +1080,7 @@ mod tests {
             expand: false,
             paging_enabled: true,
             is_tty: false,
+            safe_mode: false,
             debug: false,
             capture_file: None,
             capture_path: None,
@@ -1088,6 +1129,7 @@ mod tests {
             tty: false,
             no_file_io: false,
             no_compact: false,
+            safe_mode: false,
             disable_history,
             execute: None,
             file: None,
@@ -1270,5 +1312,35 @@ mod tests {
         print_help_topic("SELECT", &mut buf);
         let out = String::from_utf8(buf).unwrap();
         assert!(!out.is_empty());
+    }
+
+    // Keep in sync with IsDestructiveStatementTest in scylla-cqlsh pylib/cqlshlib/test/test_util.py
+    #[test]
+    fn safe_mode_destructive_statements() {
+        for stmt in [
+            "DROP TABLE t",
+            "drop keyspace ks",
+            "  DROP\tINDEX i",
+            "DROP\nTABLE t",
+            "DROP MATERIALIZED VIEW mv",
+            "DROP SERVICE_LEVEL sl",
+            "DROP ROLE IF EXISTS r",
+            "TRUNCATE t",
+            "truncate table t",
+            "Truncate;",
+        ] {
+            assert!(is_destructive_statement(stmt), "{stmt:?}");
+        }
+        for stmt in [
+            "",
+            "SELECT * FROM t",
+            "INSERT INTO drop_log (id) VALUES (1)",
+            "ALTER TABLE t DROP c",
+            "DROPPED",
+            "TRUNCATED t",
+            "CREATE TABLE dropme (id int PRIMARY KEY)",
+        ] {
+            assert!(!is_destructive_statement(stmt), "{stmt:?}");
+        }
     }
 }
