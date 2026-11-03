@@ -81,6 +81,7 @@ pub struct UiSection {
     pub encoding: Option<String>,
     pub completekey: Option<String>,
     pub browser: Option<String>,
+    pub safe_mode: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -213,6 +214,7 @@ impl CqlshrcConfig {
                 encoding: ini.get("ui", "encoding"),
                 completekey: ini.get("ui", "completekey"),
                 browser: ini.get("ui", "browser"),
+                safe_mode: ini.get("ui", "safe_mode").map(|v| parse_bool(&v)),
             },
             cql: CqlSection {
                 version: ini.get("cql", "version"),
@@ -303,6 +305,7 @@ pub struct MergedConfig {
     pub tty: bool,
     pub no_file_io: bool,
     pub no_compact: bool,
+    pub safe_mode: bool,
     pub disable_history: bool,
     pub execute: Option<String>,
     pub file: Option<String>,
@@ -473,6 +476,7 @@ impl MergedConfig {
             tty: cli.tty,
             no_file_io: cli.no_file_io,
             no_compact: cli.no_compact,
+            safe_mode: cli.safe_mode || cqlshrc.ui.safe_mode.unwrap_or(false),
             disable_history: cli.disable_history,
             execute: cli.execute.clone(),
             file: cli.file.clone(),
@@ -790,6 +794,7 @@ max_trace_wait = 10.0
             consistency_level: None,
             serial_consistency_level: None,
             no_compact: false,
+            safe_mode: false,
             disable_history: false,
             secure_connect_bundle: None,
             completions: None,

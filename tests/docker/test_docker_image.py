@@ -369,6 +369,71 @@ def test_interactive_tab_completion(spawn_interactive):
     child.expect(pexpect.EOF)
 
 
+def test_interactive_safe_mode_cancels_drop(spawn_interactive):
+    """--safe-mode asks before DROP; answering `n` keeps the table."""
+    child = spawn_interactive("--safe-mode")
+    child.expect(PROMPT)
+    # The echo redraws "cqlsh> ", so expect(PROMPT) can match before a slow DDL
+    # finishes and the next line is lost. Chain a SELECT on the same line and
+    # wait for its row count, which only real output can produce.
+    one_row = re.compile(r"\(1 rows?\)")
+    child.sendline(
+        "CREATE KEYSPACE IF NOT EXISTS safe_mode_ks WITH replication = "
+        "{'class': 'SimpleStrategy', 'replication_factor': 1}; "
+        "SELECT keyspace_name FROM system_schema.keyspaces "
+        "WHERE keyspace_name = 'safe_mode_ks';"
+    )
+    expect_rows(child, one_row)
+    child.expect(PROMPT)
+    child.sendline(
+        "CREATE TABLE IF NOT EXISTS safe_mode_ks.t (k int PRIMARY KEY); "
+        "SELECT table_name FROM system_schema.tables "
+        "WHERE keyspace_name = 'safe_mode_ks' AND table_name = 't';"
+    )
+    expect_rows(child, one_row)
+    child.expect(PROMPT)
+    child.sendline("DROP TABLE safe_mode_ks.t;")
+    child.expect(r"\[N/y\] ")
+    child.sendline("n")
+    child.expect("Operation cancelled.")
+    child.expect(PROMPT)
+    child.sendline("SELECT * FROM safe_mode_ks.t;")
+    expect_rows(child)  # "(0 rows)", not "unconfigured table"
+    child.expect(PROMPT)
+    child.sendline("DROP KEYSPACE safe_mode_ks;")
+    child.expect(r"\[N/y\] ")
+    child.sendline("y")
+    child.expect(PROMPT)
+    child.sendline("exit")
+    child.expect(pexpect.EOF)
+
+
+def test_safe_mode_tty_with_piped_stdin_does_not_prompt():
+    """--tty routes piped stdin through the REPL; safe mode must not read the
+    next script line as the `[N/y]` answer."""
+    proc = subprocess.run(
+        ["docker", "run", "--rm", "-i", "--network", NETWORK, IMAGE,
+         "--tty", "--safe-mode", DB_HOST, DB_PORT],
+        input=(
+            "CREATE KEYSPACE IF NOT EXISTS safe_mode_pipe_ks WITH replication = "
+            "{'class': 'SimpleStrategy', 'replication_factor': 1};\n"
+            "DROP KEYSPACE safe_mode_pipe_ks;\n"
+            "SELECT keyspace_name FROM system_schema.keyspaces "
+            "WHERE keyspace_name = 'safe_mode_pipe_ks';\n"
+            "SELECT release_version FROM system.local;\n"
+        ),
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )  # fmt: skip
+    out = proc.stdout + proc.stderr
+    assert "[N/y]" not in out, out
+    assert "Operation cancelled" not in out, out
+    assert "(0 rows)" in proc.stdout, out  # the DROP really ran
+    assert "release_version" in proc.stdout, out
+    assert proc.returncode == 0, out
+
+
 def test_interactive_ctrl_d_exits_cleanly(spawn_interactive):
     child = spawn_interactive()
     child.expect(PROMPT)
