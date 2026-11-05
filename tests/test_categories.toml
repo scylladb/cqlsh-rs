@@ -23,6 +23,7 @@ modules = [
   "dtest_copy_tests",
   "dtest_cqlsh_tests",
   "escape_tests",
+  "float_format_tests",
   "login_tests",
   "output_tests",
   "schema_agreement_tests",

@@ -188,6 +188,13 @@ impl CqlColorizer {
                 let quoted = format!("'{}'", s.replace('\'', "''"));
                 format!("{}", quoted.yellow().bold())
             }
+            CqlValue::Double(v) => {
+                let s = crate::driver::types::format_float_py(
+                    *v,
+                    crate::driver::types::nested_double_precision(),
+                );
+                format!("{}", s.green().bold())
+            }
             other => self.colorize_value_inner(other),
         }
     }

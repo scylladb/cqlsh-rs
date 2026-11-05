@@ -292,19 +292,10 @@ fn build_csv_writer<W: Write>(options: &CopyOptions, writer: W) -> csv::Writer<W
         .from_writer(writer)
 }
 
-/// Format a floating-point number with given precision and decimal separator.
+/// Format a floating-point number like Python cqlsh's COPY TO: `precision`
+/// significant digits (see `format_float_py`), then the decimal separator.
 fn format_float(v: f64, precision: usize, options: &CopyOptions) -> String {
-    if v.is_nan() {
-        return "NaN".to_string();
-    }
-    if v.is_infinite() {
-        return if v.is_sign_positive() {
-            "Infinity".to_string()
-        } else {
-            "-Infinity".to_string()
-        };
-    }
-    let s = format!("{v:.prec$}", prec = precision);
+    let s = crate::driver::types::format_float_py(v, precision);
     if options.decimal_sep != '.' {
         s.replace('.', &options.decimal_sep.to_string())
     } else {
@@ -2068,7 +2059,7 @@ mod tests {
             decimal_sep: ',',
             ..Default::default()
         };
-        assert_eq!(format_value_for_csv(&CqlValue::Float(1.5), &opts), "1,50");
+        assert_eq!(format_value_for_csv(&CqlValue::Float(1.5), &opts), "1,5");
     }
 
     #[test]
