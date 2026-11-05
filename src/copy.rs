@@ -1284,7 +1284,12 @@ pub async fn execute_copy_from(
         headers
             .iter()
             .map(|h| {
-                let name = h.trim().to_string();
+                // A header written by COPY TO holds stored names (`C0`); fall
+                // back to the CQL rule for hand-written ones (`NAME`, `"Foo"`).
+                let name = match h.trim() {
+                    n if type_map.contains_key(n) => n.to_string(),
+                    n => dequote_identifier(n),
+                };
                 let t = type_map
                     .get(&name)
                     .cloned()

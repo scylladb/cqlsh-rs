@@ -143,6 +143,47 @@ fn test_bulk_round_trip_default() {
 }
 
 // ---------------------------------------------------------------------------
+// COPY FROM WITH HEADER resolves header names against the schema: stored
+// names as written by COPY TO (`C0`) and CQL-style ones (`KEY`, `"C0"`).
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_reading_header_with_case_sensitive_names() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_hdr_case");
+    let table = format!("{ks}.hc");
+    execute_cql(
+        scylla,
+        &format!(r#"CREATE TABLE {table} (key int PRIMARY KEY, "C0" text)"#),
+    )
+    .success();
+
+    // `"""C0"""` is CSV quoting around the CQL-quoted name `"C0"`.
+    for header in ["key,C0", r#"KEY,"""C0""""#] {
+        execute_cql(scylla, &format!("TRUNCATE {table}")).success();
+        let mut tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        writeln!(tmp, "{header}").unwrap();
+        writeln!(tmp, "1,one").unwrap();
+        tmp.flush().unwrap();
+        let out = cqlsh_cmd(scylla)
+            .args([
+                "-e",
+                &format!(
+                    "COPY {table} FROM '{}' WITH HEADER = true",
+                    tmp.path().to_str().unwrap()
+                ),
+            ])
+            .output()
+            .expect("failed to run cqlsh-rs");
+        assert!(out.status.success(), "COPY FROM failed: {out:?}");
+        assert_eq!(count_rows(scylla, &table), 1, "header {header:?}: {out:?}");
+    }
+
+    drop_test_keyspace(scylla, &ks);
+}
+
+// ---------------------------------------------------------------------------
 // test_list_data — COPY TO with list<uuid> column
 // ---------------------------------------------------------------------------
 
