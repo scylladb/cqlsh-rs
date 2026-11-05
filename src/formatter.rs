@@ -622,8 +622,6 @@ fn format_value_plain(val: &crate::driver::types::CqlValue) -> String {
         CqlValue::BigInt(n) => n.to_string(),
         CqlValue::SmallInt(n) => n.to_string(),
         CqlValue::TinyInt(n) => n.to_string(),
-        CqlValue::Float(n) => format!("{}", n),
-        CqlValue::Double(n) => format!("{}", n),
         CqlValue::Uuid(u) | CqlValue::TimeUuid(u) => u.to_string(),
         _ => format!("{}", val),
     }
@@ -1057,6 +1055,33 @@ mod tests {
         let output = String::from_utf8(buf).unwrap();
         assert!(output.contains("(1 row)"));
         assert!(!output.contains("(1 rows)"));
+    }
+
+    #[test]
+    fn streaming_float_columns_align() {
+        let cols = vec![make_col("d", "double"), make_col("f", "float")];
+        let color = no_color();
+        let mut buf: Vec<u8> = Vec::new();
+        let mut fmt = StreamingTableFormatter::new(cols, &color, &mut buf, 100);
+        fmt.add_row(make_row(vec![
+            CqlValue::Double(11.333333333333334),
+            CqlValue::Float(76_571.34),
+        ]))
+        .unwrap();
+        fmt.add_row(make_row(vec![
+            CqlValue::Double(123456789.123),
+            CqlValue::Float(1.0),
+        ]))
+        .unwrap();
+        fmt.finish().unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        let widths: Vec<usize> = output
+            .lines()
+            .filter(|l| l.starts_with('+') || l.starts_with('|'))
+            .map(str::len)
+            .collect();
+        assert_eq!(widths.len(), 5, "{output}");
+        assert!(widths.iter().all(|w| *w == widths[0]), "{output}");
     }
 
     #[test]
