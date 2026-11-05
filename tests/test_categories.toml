@@ -21,6 +21,7 @@ modules = [
   "copy_from_tests",
   "describe_tests",
   "dtest_copy_tests",
+  "dtest_cql_tracing_tests",
   "dtest_cqlsh_tests",
   "escape_tests",
   "login_tests",

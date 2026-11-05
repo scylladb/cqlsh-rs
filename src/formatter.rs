@@ -326,6 +326,17 @@ pub fn print_trace(
             ]);
         }
 
+        // Footer row from system_traces.sessions, as Python cqlsh's tracing.py appends.
+        if let Some(duration) = trace.duration.filter(|d| *d != 0) {
+            table.add_row(vec![
+                Cell::new("Request complete"),
+                Cell::new(trace.finished_at.as_deref().unwrap_or("")),
+                Cell::new(trace.coordinator.as_deref().unwrap_or("")),
+                Cell::new(duration).set_alignment(CellAlignment::Right),
+                Cell::new(""),
+            ]);
+        }
+
         writeln!(writer, "{table}").ok();
     }
     writeln!(writer).ok();
@@ -761,6 +772,7 @@ mod tests {
             parameters: HashMap::new(),
             request: Some("SELECT * FROM test".to_string()),
             started_at: Some("2024-01-01 00:00:00".to_string()),
+            finished_at: Some("2024-01-01 00:00:00.001234+0000".to_string()),
             events: vec![TracingEvent {
                 activity: Some("Parsing request".to_string()),
                 source: Some("127.0.0.1".to_string()),
@@ -776,6 +788,13 @@ mod tests {
         assert!(output.contains("SELECT * FROM test"));
         assert!(output.contains("1234 microseconds"));
         assert!(output.contains("Parsing request"));
+        let last_row = output.lines().rfind(|l| !l.trim().is_empty()).unwrap();
+        assert!(
+            last_row.starts_with(" Request complete ")
+                && last_row.contains("2024-01-01 00:00:00.001234+0000")
+                && last_row.contains("1234"),
+            "last trace row should be Request complete, got: {last_row}"
+        );
     }
 
     #[test]

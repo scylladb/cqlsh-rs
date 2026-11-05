@@ -812,15 +812,21 @@ impl CqlDriver for ScyllaDriver {
             .collect();
 
         let session_row = &result.rows[0];
+        let duration = session_row.get(3).and_then(cql_value_to_i32);
+        let finished_at = match (session_row.get(6), duration) {
+            (Some(CqlValue::Timestamp(ms)), Some(us)) => trace_finished_at(*ms, us),
+            _ => None,
+        };
         Ok(Some(TracingSession {
             trace_id,
             client: session_row.get(0).and_then(cql_value_to_string),
             command: session_row.get(1).and_then(cql_value_to_string),
             coordinator: session_row.get(2).and_then(cql_value_to_string),
-            duration: session_row.get(3).and_then(cql_value_to_i32),
+            duration,
             parameters: HashMap::new(),
             request: session_row.get(5).and_then(cql_value_to_string),
             started_at: session_row.get(6).and_then(cql_value_to_string),
+            finished_at,
             events,
         }))
     }
@@ -1154,6 +1160,15 @@ fn cql_value_to_string(v: &CqlValue) -> Option<String> {
     }
 }
 
+/// Trace completion time: `started_at` (ms) + `duration` (µs), formatted like
+/// `CqlValue::Timestamp` but with microsecond precision. Python cqlsh computes
+/// the "Request complete" timestamp the same way.
+fn trace_finished_at(started_at_ms: i64, duration_us: i32) -> Option<String> {
+    let micros = started_at_ms.checked_mul(1000)? + i64::from(duration_us);
+    chrono::DateTime::from_timestamp_micros(micros)
+        .map(|dt| dt.format("%Y-%m-%d %H:%M:%S%.6f%z").to_string())
+}
+
 /// Helper: extract an i32 from a CqlValue.
 fn cql_value_to_i32(v: &CqlValue) -> Option<i32> {
     match v {
@@ -1318,6 +1333,15 @@ mod tests {
             Some("42".to_string())
         );
         assert_eq!(cql_value_to_string(&CqlValue::Null), None);
+    }
+
+    #[test]
+    fn trace_finished_at_adds_duration_in_micros() {
+        // 2024-01-01 00:00:00.123 UTC + 1500 µs
+        assert_eq!(
+            trace_finished_at(1_704_067_200_123, 1500).as_deref(),
+            Some("2024-01-01 00:00:00.124500+0000")
+        );
     }
 
     #[test]
