@@ -46,6 +46,8 @@ pub struct CopyOptions {
     pub page_size: usize,
     pub max_output_size: Option<usize>,
     pub report_frequency: Option<usize>,
+    pub begin_token: Option<i64>,
+    pub end_token: Option<i64>,
 }
 
 impl Default for CopyOptions {
@@ -66,6 +68,8 @@ impl Default for CopyOptions {
             page_size: 1000,
             max_output_size: None,
             report_frequency: None,
+            begin_token: None,
+            end_token: None,
         }
     }
 }
@@ -145,7 +149,60 @@ pub async fn execute_copy_to(
         (None, None) => cmd.table.clone(),
     };
 
-    let query = format!("SELECT {} FROM {}", col_spec, table_spec);
+    let mut query = format!("SELECT {} FROM {}", col_spec, table_spec);
+
+    // BEGINTOKEN/ENDTOKEN: export only token(pk) in (begin, end], as Python cqlsh.
+    let (begin, end) = (cmd.options.begin_token, cmd.options.end_token);
+    if begin.is_some() || end.is_some() {
+        if let (Some(b), Some(e)) = (begin, end) {
+            if b > e {
+                bail!("Begin token {b} must be smaller than end token {e}");
+            }
+        }
+        let ks = cmd
+            .keyspace
+            .as_deref()
+            .or(current_keyspace)
+            .context("no keyspace specified and no current keyspace set")?;
+        let pk_result = session
+            .execute_query(&format!(
+                "SELECT column_name, kind, position FROM system_schema.columns \
+                 WHERE keyspace_name = '{ks}' AND table_name = '{}'",
+                cmd.table
+            ))
+            .await?;
+        let mut pk: Vec<(i32, String)> = pk_result
+            .rows
+            .iter()
+            .filter_map(|r| match r.values.as_slice() {
+                [CqlValue::Text(n), CqlValue::Text(k), CqlValue::Int(p)]
+                    if k == "partition_key" =>
+                {
+                    Some((*p, format!("\"{}\"", n.replace('"', "\"\""))))
+                }
+                _ => None,
+            })
+            .collect();
+        if pk.is_empty() {
+            bail!("could not determine partition key for table '{table_spec}'");
+        }
+        pk.sort();
+        let token = format!(
+            "token({})",
+            pk.into_iter()
+                .map(|(_, n)| n)
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        let mut conds = Vec::new();
+        if let Some(b) = begin {
+            conds.push(format!("{token} > {b}"));
+        }
+        if let Some(e) = end {
+            conds.push(format!("{token} <= {e}"));
+        }
+        query = format!("{query} WHERE {}", conds.join(" AND "));
+    }
 
     let result = session.execute_query(&query).await?;
 
@@ -654,6 +711,25 @@ fn parse_options(options_str: &str) -> Result<CopyOptions> {
                 let n: usize = val.parse().context("REPORTFREQUENCY must be an integer")?;
                 opts.report_frequency = if n == 0 { None } else { Some(n) };
             }
+            "BEGINTOKEN" | "ENDTOKEN" => {
+                let token = if val.is_empty() {
+                    None
+                } else {
+                    Some(
+                        val.parse()
+                            .with_context(|| format!("{key} must be an integer"))?,
+                    )
+                };
+                if key == "BEGINTOKEN" {
+                    opts.begin_token = token;
+                } else {
+                    opts.end_token = token;
+                }
+            }
+            // Accepted for compatibility with Python cqlsh, where they tune its
+            // multi-process exporter and write its rate statistics file. A
+            // single export query has nothing for them to change.
+            "MAXATTEMPTS" | "NUMPROCESSES" | "MAXREQUESTS" | "PAGETIMEOUT" | "RATEFILE" => {}
             other => {
                 bail!("unknown COPY option: {other}");
             }
@@ -949,6 +1025,8 @@ fn parse_copy_from_options(options_str: &str) -> Result<CopyFromOptions> {
                 let n: u64 = val.parse().context("TTL must be a positive integer")?;
                 opts.ttl = Some(n);
             }
+            // Python cqlsh writes import rate statistics here; accepted, no effect.
+            "RATEFILE" => {}
             "MAXATTEMPTS" => {
                 opts.max_attempts = val.parse().context("MAXATTEMPTS must be an integer")?;
             }
@@ -2092,6 +2170,118 @@ mod tests {
     fn parse_copy_from_numprocesses() {
         let cmd = parse_copy_from("COPY ks.table FROM '/tmp/in.csv' WITH NUMPROCESSES=4").unwrap();
         assert_eq!(cmd.options.num_processes, 4);
+    }
+
+    /// Option names from Python cqlsh (`cqlshlib/cqlshhandling.py`).
+    const PY_COPY_COMMON_OPTIONS: &[&str] = &[
+        "DELIMITER",
+        "QUOTE",
+        "ESCAPE",
+        "HEADER",
+        "NULL",
+        "DATETIMEFORMAT",
+        "MAXATTEMPTS",
+        "REPORTFREQUENCY",
+        "DECIMALSEP",
+        "THOUSANDSSEP",
+        "BOOLSTYLE",
+        "NUMPROCESSES",
+        "CONFIGFILE",
+        "RATEFILE",
+    ];
+    const PY_COPY_TO_OPTIONS: &[&str] = &[
+        "ENCODING",
+        "PAGESIZE",
+        "PAGETIMEOUT",
+        "BEGINTOKEN",
+        "ENDTOKEN",
+        "MAXOUTPUTSIZE",
+        "MAXREQUESTS",
+        "FLOATPRECISION",
+        "DOUBLEPRECISION",
+    ];
+    const PY_COPY_FROM_OPTIONS: &[&str] = &[
+        "CHUNKSIZE",
+        "INGESTRATE",
+        "MAXBATCHSIZE",
+        "MINBATCHSIZE",
+        "MAXROWS",
+        "SKIPROWS",
+        "SKIPCOLS",
+        "MAXPARSEERRORS",
+        "MAXINSERTERRORS",
+        "ERRFILE",
+        "PREPAREDSTATEMENTS",
+        "TTL",
+    ];
+
+    /// A value every option above accepts.
+    fn sample_option_value(opt: &str) -> &'static str {
+        match opt {
+            "DELIMITER" | "QUOTE" | "ESCAPE" | "DECIMALSEP" | "THOUSANDSSEP" => ",",
+            "HEADER" | "PREPAREDSTATEMENTS" => "true",
+            "NULL" | "DATETIMEFORMAT" | "ENCODING" | "SKIPCOLS" => "x",
+            "BOOLSTYLE" => "T:F",
+            "CONFIGFILE" | "RATEFILE" | "ERRFILE" => "/tmp/copy-opt",
+            _ => "3",
+        }
+    }
+
+    #[test]
+    fn copy_to_accepts_every_python_cqlsh_option() {
+        // ponytail: CONFIGFILE (load options from a file) is not supported yet, see #214.
+        let unsupported = ["CONFIGFILE"];
+        for opt in PY_COPY_COMMON_OPTIONS.iter().chain(PY_COPY_TO_OPTIONS) {
+            if unsupported.contains(opt) {
+                continue;
+            }
+            let stmt = format!(
+                "COPY ks.t TO '/tmp/out.csv' WITH {opt} = '{}'",
+                sample_option_value(opt)
+            );
+            if let Err(e) = parse_copy_to(&stmt) {
+                panic!("COPY TO rejected {opt}: {e:#}");
+            }
+        }
+    }
+
+    #[test]
+    fn copy_from_accepts_every_python_cqlsh_option() {
+        // ponytail: these change what is imported and still need implementing, see #214.
+        let unsupported = [
+            "CONFIGFILE",
+            "DECIMALSEP",
+            "THOUSANDSSEP",
+            "BOOLSTYLE",
+            "MAXROWS",
+            "SKIPROWS",
+            "SKIPCOLS",
+        ];
+        for opt in PY_COPY_COMMON_OPTIONS.iter().chain(PY_COPY_FROM_OPTIONS) {
+            if unsupported.contains(opt) {
+                continue;
+            }
+            let stmt = format!(
+                "COPY ks.t FROM '/tmp/in.csv' WITH {opt} = '{}'",
+                sample_option_value(opt)
+            );
+            if let Err(e) = parse_copy_from(&stmt) {
+                panic!("COPY FROM rejected {opt}: {e:#}");
+            }
+        }
+    }
+
+    #[test]
+    fn parse_copy_to_token_range() {
+        let cmd = parse_copy_to(
+            "COPY ks.t TO '/tmp/out.csv' WITH BEGINTOKEN = '-100' AND ENDTOKEN = '200'",
+        )
+        .unwrap();
+        assert_eq!(cmd.options.begin_token, Some(-100));
+        assert_eq!(cmd.options.end_token, Some(200));
+        let cmd = parse_copy_to("COPY ks.t TO '/tmp/out.csv' WITH BEGINTOKEN = ''").unwrap();
+        assert_eq!(cmd.options.begin_token, None);
+        assert!(parse_copy_to("COPY ks.t TO '/tmp/out.csv' WITH ENDTOKEN = 'x'").is_err());
     }
 
     #[test]

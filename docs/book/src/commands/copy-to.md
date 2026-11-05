@@ -26,6 +26,8 @@ COPY [keyspace.]table [(column1, column2, ...)] TO 'filename'|STDOUT [WITH optio
 | `BOOLSTYLE` | `True,False` | Boolean representation |
 | `PAGESIZE` | `1000` | Rows per page |
 | `MAXOUTPUTSIZE` | unlimited | Maximum rows to export |
+| `BEGINTOKEN` / `ENDTOKEN` | | Export only rows with `token(pk)` in `(BEGINTOKEN, ENDTOKEN]` |
+| `MAXATTEMPTS`, `NUMPROCESSES`, `MAXREQUESTS`, `PAGETIMEOUT`, `RATEFILE` | | Accepted for compatibility, no effect (no retries, no rate file written) |
 
 ## Examples
 

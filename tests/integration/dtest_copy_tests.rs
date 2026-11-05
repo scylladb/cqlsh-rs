@@ -985,3 +985,112 @@ fn test_read_cr_line_endings_with_header() {
 
     drop_test_keyspace(scylla, &ks);
 }
+
+// ---------------------------------------------------------------------------
+// COPY TO options from Python cqlsh's multi-process exporter (#193)
+// ---------------------------------------------------------------------------
+
+/// Create `{ks}.rt` with `n` rows and return the table name.
+fn create_rows_table(scylla: &ScyllaContainer, ks: &str, n: i32) -> String {
+    let table = format!("{ks}.rt");
+    execute_cql(
+        scylla,
+        &format!("CREATE TABLE {table} (k int PRIMARY KEY, v int)"),
+    )
+    .success();
+    let mut tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    for i in 0..n {
+        writeln!(tmp, "{i},{i}").unwrap();
+    }
+    tmp.flush().unwrap();
+    cqlsh_cmd(scylla)
+        .args([
+            "-e",
+            &format!("COPY {table} FROM '{}'", tmp.path().to_str().unwrap()),
+        ])
+        .assert()
+        .success();
+    table
+}
+
+/// Run `COPY {table} TO <tmp> WITH {options}` and return the exported lines.
+fn copy_to_lines(scylla: &ScyllaContainer, table: &str, options: &str) -> Vec<String> {
+    let tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    let path = tmp.path().to_str().unwrap();
+    let out = cqlsh_cmd(scylla)
+        .args(["-e", &format!("COPY {table} TO '{path}' WITH {options}")])
+        .output()
+        .expect("failed to run cqlsh-rs");
+    assert!(
+        out.status.success() && out.stderr.is_empty(),
+        "COPY TO WITH {options} failed: {out:?}"
+    );
+    fs::read_to_string(path)
+        .expect("failed to read CSV")
+        .lines()
+        .map(str::to_string)
+        .collect()
+}
+
+/// `_test_bulk_round_trip` passes these to every COPY TO. This only checks
+/// that the options are accepted. dtest's
+/// `test_copy_to_with_{more,fewer}_failures_than_max_attempts` are NOT ported:
+/// they need CQLSH_COPY_TEST_FAILURES failure injection, which cqlsh-rs does
+/// not have.
+#[test]
+#[ignore = "requires Docker"]
+fn test_copy_to_with_python_tuning_options() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_to_tuning");
+    let table = create_rows_table(scylla, &ks, 100);
+    let rate = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    let options = format!(
+        "MAXATTEMPTS = 50 AND NUMPROCESSES = 8 AND MAXREQUESTS = 6 AND PAGETIMEOUT = 10 \
+         AND RATEFILE = '{}'",
+        rate.path().to_str().unwrap()
+    );
+    assert_eq!(copy_to_lines(scylla, &table, &options).len(), 100);
+    drop_test_keyspace(scylla, &ks);
+}
+
+/// BEGINTOKEN/ENDTOKEN export `token(pk)` in `(begin, end]`, like Python cqlsh:
+/// splitting the ring at one token exports every row exactly once. (Not at 0:
+/// Python cqlsh treats a 0 token as "no bound".)
+#[test]
+#[ignore = "requires Docker"]
+fn test_copy_to_token_range() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_to_token");
+    let table = create_rows_table(scylla, &ks, 100);
+
+    let split = "1000000000000000000";
+    let low = copy_to_lines(scylla, &table, &format!("ENDTOKEN = '{split}'"));
+    let high = copy_to_lines(scylla, &table, &format!("BEGINTOKEN = '{split}'"));
+    let expected_low = execute_cql_output_direct(
+        scylla,
+        &format!("SELECT count(*) FROM {table} WHERE token(k) <= {split}"),
+    );
+    assert!(
+        expected_low.contains(&format!(" {}\n", low.len())),
+        "ENDTOKEN={split} exported {} rows, expected: {expected_low}",
+        low.len()
+    );
+    assert!(
+        !low.is_empty() && !high.is_empty(),
+        "split should be non-trivial"
+    );
+    let mut all: Vec<String> = low.into_iter().chain(high).collect();
+    all.sort();
+    let mut expected: Vec<String> = (0..100).map(|i| format!("{i},{i}")).collect();
+    expected.sort();
+    assert_eq!(all, expected, "token split lost or duplicated rows");
+
+    let both = copy_to_lines(
+        scylla,
+        &table,
+        "BEGINTOKEN = '-9223372036854775808' AND ENDTOKEN = '9223372036854775807'",
+    );
+    assert_eq!(both.len(), 100);
+
+    drop_test_keyspace(scylla, &ks);
+}

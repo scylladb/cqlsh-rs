@@ -13,8 +13,8 @@ reportfrequency = 0.25
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `numprocesses` | integer | `4` | Number of worker processes. |
-| `maxattempts` | integer | `5` | Maximum retry attempts per batch. |
+| `numprocesses` | integer | `4` | Number of worker processes. COPY FROM only; accepted for compatibility, no effect on COPY TO. |
+| `maxattempts` | integer | `5` | Maximum retry attempts per batch. COPY FROM only; accepted for compatibility, no effect on COPY TO. |
 | `reportfrequency` | float | `0.25` | Progress report interval in seconds. |
 
 ## [copy-to] — export defaults
@@ -32,10 +32,10 @@ doubleprecision = 12
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `pagesize` | integer | `1000` | Number of rows per page when reading. |
-| `pagetimeout` | integer | `10` | Timeout for each page fetch in seconds. |
+| `pagetimeout` | integer | `10` | Accepted for compatibility, no effect. |
 | `begintoken` | string | | Start token for range export. |
 | `endtoken` | string | | End token for range export. |
-| `maxrequests` | integer | `6` | Maximum concurrent page requests. |
+| `maxrequests` | integer | `6` | Accepted for compatibility, no effect. |
 | `maxoutputsize` | integer | `-1` | Maximum rows to export (`-1` = unlimited). |
 | `floatprecision` | integer | `5` | Float decimal digits in CSV output. |
 | `doubleprecision` | integer | `12` | Double decimal digits in CSV output. |
