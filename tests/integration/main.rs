@@ -24,6 +24,8 @@ mod describe_tests;
 #[cfg(feature = "test-plain")]
 mod dtest_copy_tests;
 #[cfg(feature = "test-plain")]
+mod dtest_cql_tracing_tests;
+#[cfg(feature = "test-plain")]
 mod dtest_cqlsh_tests;
 #[cfg(feature = "test-plain")]
 mod escape_tests;

@@ -292,6 +292,8 @@ pub struct TracingSession {
     pub parameters: HashMap<String, String>,
     pub request: Option<String>,
     pub started_at: Option<String>,
+    /// `started_at + duration`, shown on the final "Request complete" row.
+    pub finished_at: Option<String>,
     pub events: Vec<TracingEvent>,
 }
 

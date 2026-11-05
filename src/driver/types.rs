@@ -216,6 +216,9 @@ fn format_float32(f: &mut fmt::Formatter<'_>, v: f32) -> fmt::Result {
     }
 }
 
+/// chrono format for CQL timestamps; shared with the trace "Request complete" row.
+pub(crate) const TIMESTAMP_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.6f%z";
+
 /// Format a CQL timestamp (milliseconds since Unix epoch).
 fn format_timestamp(f: &mut fmt::Formatter<'_>, millis: i64) -> fmt::Result {
     use chrono::{DateTime, Utc};
@@ -223,7 +226,7 @@ fn format_timestamp(f: &mut fmt::Formatter<'_>, millis: i64) -> fmt::Result {
     match dt {
         Some(dt) => {
             let utc: DateTime<Utc> = dt;
-            write!(f, "{}", utc.format("%Y-%m-%d %H:%M:%S%.6f%z"))
+            write!(f, "{}", utc.format(TIMESTAMP_FORMAT))
         }
         None => write!(f, "<invalid timestamp: {millis}>"),
     }
