@@ -154,7 +154,7 @@ pub async fn execute_copy_to(
 
             if cmd.options.header {
                 let headers: Vec<String> = result.columns.iter().map(|c| c.name.clone()).collect();
-                wtr.write_record(&headers)?;
+                write_csv_record(&mut wtr, &headers, &cmd.options)?;
             }
 
             for row in &result.rows {
@@ -168,7 +168,7 @@ pub async fn execute_copy_to(
                     .iter()
                     .map(|v| format_value_for_csv(v, &cmd.options))
                     .collect();
-                wtr.write_record(&fields)?;
+                write_csv_record(&mut wtr, &fields, &cmd.options)?;
                 row_count += 1;
 
                 if let Some(freq) = cmd.options.report_frequency {
@@ -188,7 +188,7 @@ pub async fn execute_copy_to(
 
             if cmd.options.header {
                 let headers: Vec<String> = result.columns.iter().map(|c| c.name.clone()).collect();
-                wtr.write_record(&headers)?;
+                write_csv_record(&mut wtr, &headers, &cmd.options)?;
             }
 
             for row in &result.rows {
@@ -202,7 +202,7 @@ pub async fn execute_copy_to(
                     .iter()
                     .map(|v| format_value_for_csv(v, &cmd.options))
                     .collect();
-                wtr.write_record(&fields)?;
+                write_csv_record(&mut wtr, &fields, &cmd.options)?;
                 row_count += 1;
 
                 if let Some(freq) = cmd.options.report_frequency {
@@ -290,6 +290,22 @@ fn build_csv_writer<W: Write>(options: &CopyOptions, writer: W) -> csv::Writer<W
         .escape(options.escape as u8)
         .double_quote(false)
         .from_writer(writer)
+}
+
+/// Write one CSV record, escaping the escape character like Python's
+/// `csv.writer(doublequote=False, escapechar=...)`. The csv crate only
+/// escapes the quote character, so `ends with \` would end up as `"ends with \"`.
+fn write_csv_record<W: Write>(
+    wtr: &mut csv::Writer<W>,
+    fields: &[String],
+    options: &CopyOptions,
+) -> csv::Result<()> {
+    if options.escape == options.quote {
+        return wtr.write_record(fields);
+    }
+    let esc = options.escape.to_string();
+    let doubled = esc.repeat(2);
+    wtr.write_record(fields.iter().map(|f| f.replace(&esc, &doubled)))
 }
 
 /// Format a floating-point number with given precision and decimal separator.
@@ -2144,5 +2160,35 @@ mod tests {
     #[test]
     fn parse_copy_from_invalid_not_copy() {
         assert!(parse_copy_from("SELECT * FROM foo").is_err());
+    }
+
+    #[test]
+    fn write_csv_record_escapes_escape_char() {
+        let opts = CopyOptions::default();
+        let rows = [
+            vec!["1".to_string(), r"back\slash".to_string()],
+            vec!["2".to_string(), r"ends with \".to_string()],
+            vec!["3".to_string(), r#"q"uote"#.to_string()],
+            vec!["4".to_string(), "comma, here".to_string()],
+        ];
+        let mut wtr = build_csv_writer(&opts, Vec::new());
+        for r in &rows {
+            write_csv_record(&mut wtr, r, &opts).unwrap();
+        }
+        let out = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
+        assert_eq!(
+            out,
+            "1,\"back\\\\slash\"\n2,\"ends with \\\\\"\n3,\"q\\\"uote\"\n4,\"comma, here\"\n"
+        );
+
+        // The COPY FROM reader settings read it back unchanged.
+        let read: Vec<Vec<String>> = csv::ReaderBuilder::new()
+            .escape(Some(b'\\'))
+            .has_headers(false)
+            .from_reader(out.as_bytes())
+            .records()
+            .map(|r| r.unwrap().iter().map(String::from).collect())
+            .collect();
+        assert_eq!(read, rows);
     }
 }
