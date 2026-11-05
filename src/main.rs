@@ -39,6 +39,10 @@ async fn main() -> Result<()> {
     }
 
     let config = load_config(&cli)?;
+    cqlsh_rs::driver::types::set_display_precision(
+        config.cqlshrc.ui.float_precision,
+        config.cqlshrc.ui.double_precision,
+    );
 
     if cli.debug {
         eprintln!("Using CQL driver: scylla-rust-driver");
