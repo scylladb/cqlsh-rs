@@ -881,3 +881,130 @@ fn test_source_copy_round_trip() {
 
     drop_test_keyspace(scylla, &ks);
 }
+
+// ---------------------------------------------------------------------------
+// COPY TO options from Python cqlsh's multi-process exporter (#193)
+// ---------------------------------------------------------------------------
+
+/// Create `{ks}.rt` with `n` rows and return the table name.
+fn create_rows_table(scylla: &ScyllaContainer, ks: &str, n: i32) -> String {
+    let table = format!("{ks}.rt");
+    execute_cql(
+        scylla,
+        &format!("CREATE TABLE {table} (k int PRIMARY KEY, v int)"),
+    )
+    .success();
+    let mut tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    for i in 0..n {
+        writeln!(tmp, "{i},{i}").unwrap();
+    }
+    tmp.flush().unwrap();
+    cqlsh_cmd(scylla)
+        .args([
+            "-e",
+            &format!("COPY {table} FROM '{}'", tmp.path().to_str().unwrap()),
+        ])
+        .assert()
+        .success();
+    table
+}
+
+/// Run `COPY {table} TO <tmp> WITH {options}` and return the exported lines.
+fn copy_to_lines(scylla: &ScyllaContainer, table: &str, options: &str) -> Vec<String> {
+    let tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    let path = tmp.path().to_str().unwrap();
+    let out = cqlsh_cmd(scylla)
+        .args(["-e", &format!("COPY {table} TO '{path}' WITH {options}")])
+        .output()
+        .expect("failed to run cqlsh-rs");
+    assert!(
+        out.status.success() && out.stderr.is_empty(),
+        "COPY TO WITH {options} failed: {out:?}"
+    );
+    fs::read_to_string(path)
+        .expect("failed to read CSV")
+        .lines()
+        .map(str::to_string)
+        .collect()
+}
+
+// dtest test_copy_to_with_more_failures_than_max_attempts and
+// test_copy_to_with_fewer_failures_than_max_attempts inject failures through
+// Python cqlsh's CQLSH_COPY_TEST_FAILURES hook, which cqlsh-rs does not have.
+// The part that applies here: MAXATTEMPTS is accepted and the export is whole.
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_copy_to_with_more_failures_than_max_attempts() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_to_maxatt3");
+    let table = create_rows_table(scylla, &ks, 100);
+    assert_eq!(copy_to_lines(scylla, &table, "MAXATTEMPTS='3'").len(), 100);
+    drop_test_keyspace(scylla, &ks);
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_copy_to_with_fewer_failures_than_max_attempts() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_to_maxatt2");
+    let table = create_rows_table(scylla, &ks, 100);
+    assert_eq!(copy_to_lines(scylla, &table, "MAXATTEMPTS='2'").len(), 100);
+    drop_test_keyspace(scylla, &ks);
+}
+
+/// `_test_bulk_round_trip` passes these to every COPY TO.
+#[test]
+#[ignore = "requires Docker"]
+fn test_copy_to_with_python_tuning_options() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_to_tuning");
+    let table = create_rows_table(scylla, &ks, 100);
+    let rate = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    let options = format!(
+        "MAXATTEMPTS = 50 AND NUMPROCESSES = 8 AND MAXREQUESTS = 6 AND PAGETIMEOUT = 10 \
+         AND RATEFILE = '{}'",
+        rate.path().to_str().unwrap()
+    );
+    assert_eq!(copy_to_lines(scylla, &table, &options).len(), 100);
+    drop_test_keyspace(scylla, &ks);
+}
+
+/// BEGINTOKEN/ENDTOKEN export `token(pk)` in `(begin, end]`, like Python cqlsh:
+/// splitting the ring at 0 exports every row exactly once.
+#[test]
+#[ignore = "requires Docker"]
+fn test_copy_to_token_range() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_to_token");
+    let table = create_rows_table(scylla, &ks, 100);
+
+    let low = copy_to_lines(scylla, &table, "ENDTOKEN = '0'");
+    let high = copy_to_lines(scylla, &table, "BEGINTOKEN = '0'");
+    let expected_low = execute_cql_output_direct(
+        scylla,
+        &format!("SELECT count(*) FROM {table} WHERE token(k) <= 0"),
+    );
+    assert!(
+        expected_low.contains(&format!(" {}\n", low.len())),
+        "ENDTOKEN=0 exported {} rows, expected: {expected_low}",
+        low.len()
+    );
+    assert!(
+        !low.is_empty() && !high.is_empty(),
+        "split should be non-trivial"
+    );
+    let mut all: Vec<String> = low.into_iter().chain(high).collect();
+    all.sort();
+    all.dedup();
+    assert_eq!(all.len(), 100, "token split lost or duplicated rows");
+
+    let both = copy_to_lines(
+        scylla,
+        &table,
+        "BEGINTOKEN = '-9223372036854775808' AND ENDTOKEN = '9223372036854775807'",
+    );
+    assert_eq!(both.len(), 100);
+
+    drop_test_keyspace(scylla, &ks);
+}
