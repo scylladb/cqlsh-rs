@@ -13,7 +13,7 @@ use anyhow::{bail, Context, Result};
 use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
 use futures::StreamExt;
 
-use crate::driver::types::CqlValue;
+use crate::driver::types::{CqlValue, TIMESTAMP_FORMAT};
 use crate::driver::PreparedId;
 use crate::session::CqlSession;
 
@@ -319,7 +319,7 @@ fn format_timestamp(millis: i64, options: &CopyOptions) -> String {
             let utc: DateTime<Utc> = dt;
             match &options.datetime_format {
                 Some(fmt) => utc.format(fmt).to_string(),
-                None => utc.format("%Y-%m-%d %H:%M:%S%.6f%z").to_string(),
+                None => utc.format(TIMESTAMP_FORMAT).to_string(),
             }
         }
         None => format!("<invalid timestamp: {millis}>"),
