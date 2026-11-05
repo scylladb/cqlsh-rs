@@ -647,6 +647,8 @@ pub struct CopyFromOptions {
     pub report_frequency: Option<usize>,
     pub ingest_rate: Option<usize>,
     pub num_processes: usize,
+    /// Columns present in the CSV but not imported (`SKIPCOLS`).
+    pub skip_cols: Vec<String>,
 }
 
 impl Default for CopyFromOptions {
@@ -671,6 +673,7 @@ impl Default for CopyFromOptions {
             report_frequency: None,
             ingest_rate: None,
             num_processes: 1,
+            skip_cols: Vec::new(),
         }
     }
 }
@@ -865,6 +868,13 @@ fn parse_copy_from_options(options_str: &str) -> Result<CopyFromOptions> {
                 let n: usize = val.parse().context("NUMPROCESSES must be an integer")?;
                 opts.num_processes = n.max(1);
             }
+            "SKIPCOLS" => {
+                opts.skip_cols = val
+                    .split(',')
+                    .map(|c| c.trim().to_string())
+                    .filter(|c| !c.is_empty())
+                    .collect();
+            }
             other => {
                 bail!("unknown COPY FROM option: {other}");
             }
@@ -909,10 +919,15 @@ pub fn csv_str_to_cql_value(field: &str, type_name: &str, null_val: &str) -> Res
                 .parse::<i32>()
                 .with_context(|| format!("invalid int: {field:?}"))?,
         )),
-        "bigint" | "counter" => Ok(CqlValue::BigInt(
+        "bigint" => Ok(CqlValue::BigInt(
             field
                 .parse::<i64>()
                 .with_context(|| format!("invalid bigint: {field:?}"))?,
+        )),
+        "counter" => Ok(CqlValue::Counter(
+            field
+                .parse::<i64>()
+                .with_context(|| format!("invalid counter: {field:?}"))?,
         )),
         "smallint" => Ok(CqlValue::SmallInt(
             field
@@ -1241,6 +1256,11 @@ pub async fn execute_copy_from(
         .iter()
         .map(|(n, _, _, t)| (n.clone(), t.clone()))
         .collect();
+    let primary_key: std::collections::HashSet<String> = schema_cols
+        .iter()
+        .filter(|(_, kind, _, _)| kind == "partition_key" || kind == "clustering")
+        .map(|(n, _, _, _)| n.clone())
+        .collect();
 
     // Preliminary column list: explicit columns or schema order
     let prelim_columns: Vec<(String, String)> = match &cmd.columns {
@@ -1295,23 +1315,58 @@ pub async fn execute_copy_from(
         prelim_columns
     };
 
-    let col_list: String = columns
+    // SKIPCOLS fields are still read from the CSV but not imported.
+    let keep: Vec<bool> = columns
         .iter()
-        .map(|(n, _)| n.as_str())
-        .collect::<Vec<_>>()
-        .join(", ");
+        .map(|(n, _)| !cmd.options.skip_cols.contains(n))
+        .collect();
+    let imported: Vec<&str> = columns
+        .iter()
+        .zip(&keep)
+        .filter(|(_, k)| **k)
+        .map(|((n, _), _)| n.as_str())
+        .collect();
+    let col_list: String = imported.join(", ");
     let col_type_names: Vec<String> = columns.iter().map(|(_, t)| t.clone()).collect();
 
-    // Prepare INSERT statement (done after finalizing column list)
-    let prepared_id = if cmd.options.prepared_statements {
-        let placeholders = vec!["?"; columns.len()].join(", ");
-        let insert_template =
-            format!("INSERT INTO {table_spec} ({col_list}) VALUES ({placeholders}){ttl_clause}");
+    // Counter columns cannot be INSERTed, only incremented. Like Python cqlsh,
+    // write `UPDATE t SET c = c + ? WHERE pk = ?`, binding the counter values
+    // first and the key values after them.
+    let is_counter = columns
+        .iter()
+        .zip(&keep)
+        .any(|((_, t), k)| *k && t == "counter");
+    let (key_idx, counter_idx): (Vec<usize>, Vec<usize>) =
+        (0..imported.len()).partition(|&i| primary_key.contains(imported[i]));
+    let bind_order: Option<Vec<usize>> =
+        is_counter.then(|| counter_idx.iter().chain(&key_idx).copied().collect());
+
+    // Prepare the statement (done after finalizing column list). Counter
+    // updates always go through a prepared statement.
+    let prepared_id = if cmd.options.prepared_statements || is_counter {
+        let template = if is_counter {
+            let set: Vec<String> = counter_idx
+                .iter()
+                .map(|&i| format!("{0} = {0} + ?", imported[i]))
+                .collect();
+            let key: Vec<String> = key_idx
+                .iter()
+                .map(|&i| format!("{} = ?", imported[i]))
+                .collect();
+            format!(
+                "UPDATE {table_spec} SET {} WHERE {}",
+                set.join(", "),
+                key.join(" AND ")
+            )
+        } else {
+            let placeholders = vec!["?"; imported.len()].join(", ");
+            format!("INSERT INTO {table_spec} ({col_list}) VALUES ({placeholders}){ttl_clause}")
+        };
         Some(
             session
-                .prepare(&insert_template)
+                .prepare(&template)
                 .await
-                .with_context(|| format!("failed to prepare: {insert_template}"))?,
+                .with_context(|| format!("failed to prepare: {template}"))?,
         )
     } else {
         None
@@ -1391,8 +1446,17 @@ pub async fn execute_copy_from(
 
             let mut row_values: Vec<CqlValue> = Vec::with_capacity(col_type_names.len());
             let mut row_ok = true;
-            for (field, type_name) in record.iter().zip(col_type_names.iter()) {
+            for ((field, type_name), _) in record
+                .iter()
+                .zip(col_type_names.iter())
+                .zip(&keep)
+                .filter(|(_, k)| **k)
+            {
                 match csv_str_to_cql_value(field, type_name, null_val) {
+                    // An empty counter field adds nothing, as in Python cqlsh.
+                    Ok(CqlValue::Null) if type_name == "counter" => {
+                        row_values.push(CqlValue::Counter(0))
+                    }
                     Ok(v) => row_values.push(v),
                     Err(e) => {
                         parse_errors += 1;
@@ -1416,6 +1480,9 @@ pub async fn execute_copy_from(
                 }
             }
             if row_ok {
+                if let Some(order) = &bind_order {
+                    row_values = order.iter().map(|&i| row_values[i].clone()).collect();
+                }
                 chunk.push(row_values);
             }
         }
@@ -1778,7 +1845,7 @@ mod tests {
         );
         assert_eq!(
             csv_str_to_cql_value("1000", "counter", "").unwrap(),
-            CqlValue::BigInt(1000)
+            CqlValue::Counter(1000)
         );
         assert_eq!(
             csv_str_to_cql_value("32767", "smallint", "").unwrap(),
@@ -2144,5 +2211,11 @@ mod tests {
     #[test]
     fn parse_copy_from_invalid_not_copy() {
         assert!(parse_copy_from("SELECT * FROM foo").is_err());
+    }
+
+    #[test]
+    fn parse_copy_from_skipcols() {
+        let cmd = parse_copy_from("COPY ks.t FROM '/tmp/in.csv' WITH SKIPCOLS = 'c, d,e'").unwrap();
+        assert_eq!(cmd.options.skip_cols, vec!["c", "d", "e"]);
     }
 }
