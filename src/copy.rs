@@ -1247,11 +1247,12 @@ pub async fn execute_copy_from(
         Some(explicit) => explicit
             .iter()
             .map(|n| {
+                let n = dequote_identifier(n);
                 let t = type_map
-                    .get(n)
+                    .get(&n)
                     .cloned()
                     .unwrap_or_else(|| "text".to_string());
-                (n.clone(), t)
+                (n, t)
             })
             .collect(),
         None => schema_cols.into_iter().map(|(n, _, _, t)| (n, t)).collect(),
@@ -1297,7 +1298,7 @@ pub async fn execute_copy_from(
 
     let col_list: String = columns
         .iter()
-        .map(|(n, _)| n.as_str())
+        .map(|(n, _)| quote_identifier(n))
         .collect::<Vec<_>>()
         .join(", ");
     let col_type_names: Vec<String> = columns.iter().map(|(_, t)| t.clone()).collect();
@@ -1490,6 +1491,15 @@ pub async fn execute_copy_from(
     Ok(())
 }
 
+/// Resolve an identifier as written in a COPY statement to its stored name,
+/// like Python cqlsh's `dequote_name`: `"Foo"` → `Foo`, `Foo` → `foo`.
+fn dequote_identifier(name: &str) -> String {
+    match name.strip_prefix('"').and_then(|n| n.strip_suffix('"')) {
+        Some(inner) => inner.replace("\"\"", "\""),
+        None => name.to_lowercase(),
+    }
+}
+
 /// Execute a single row INSERT with retry on failure.
 ///
 /// When `prepared_id` is `Some`, uses the prepared statement path with typed
@@ -1535,6 +1545,12 @@ async fn insert_row_with_retry(
     }
 
     Err(last_err)
+}
+
+/// Quote a stored column name for use in generated CQL. Always quoting is
+/// valid for any name and covers mixed case and reserved words alike.
+fn quote_identifier(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
 }
 
 #[cfg(test)]
@@ -2129,6 +2145,16 @@ mod tests {
         let cmd = parse_copy_from("COPY test_from_data.my_table FROM '/tmp/in.csv'").unwrap();
         assert_eq!(cmd.keyspace.as_deref(), Some("test_from_data"));
         assert_eq!(cmd.table, "my_table");
+    }
+
+    #[test]
+    fn dequote_and_quote_identifiers() {
+        assert_eq!(dequote_identifier("\"C0\""), "C0");
+        assert_eq!(dequote_identifier("MyCol"), "mycol");
+        assert_eq!(dequote_identifier("\"a\"\"b\""), "a\"b");
+        assert_eq!(quote_identifier("C0"), "\"C0\"");
+        assert_eq!(quote_identifier("select"), "\"select\"");
+        assert_eq!(quote_identifier("a\"b"), "\"a\"\"b\"");
     }
 
     #[test]
