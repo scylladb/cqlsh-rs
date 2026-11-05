@@ -12,7 +12,7 @@ fn copy_dispatched(scylla: &ScyllaContainer, ks: &str) -> bool {
     let _ = cqlsh_cmd(scylla)
         .args([
             "-e",
-            &format!("CREATE TABLE IF NOT EXISTS {ks}._copy_probe (id int PRIMARY KEY)"),
+            &format!("CREATE TABLE IF NOT EXISTS {ks}.copy_probe (id int PRIMARY KEY)"),
         ])
         .output();
 
@@ -20,7 +20,7 @@ fn copy_dispatched(scylla: &ScyllaContainer, ks: &str) -> bool {
     let csv_path = tmp.path().to_str().unwrap().to_string();
 
     let result = cqlsh_cmd(scylla)
-        .args(["-e", &format!("COPY {ks}._copy_probe TO '{csv_path}'")])
+        .args(["-e", &format!("COPY {ks}.copy_probe TO '{csv_path}'")])
         .output()
         .expect("failed to run cqlsh-rs for COPY probe");
 
