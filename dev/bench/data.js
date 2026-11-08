@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793626788833,
+  "lastUpdate": 1794151843590,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -13864,6 +13864,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40483,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "d590819959a3fa28fb7ef7fbc1cce2307ca2983b",
+          "message": "ci: run macOS/Windows PR jobs only when labeled\n\nPR CI now runs the Tests/Build matrix on Linux only. The ci-macos and\nci-windows labels add those OSes; pushes to main and release-plz PRs\n(release-plz-* branches) always run all three. Adding a label triggers\na new run (pull_request 'labeled' type), and a concurrency group cancels\nsuperseded PR runs. Documented in CONTRIBUTING.md, CLAUDE.md, Copilot\ninstructions and the github-actions skill so agents add labels when a\nchange is platform-specific.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-08T17:22:02+02:00",
+          "tree_id": "e913903791cb4690cdea205e12f13812dbdb379b",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/d590819959a3fa28fb7ef7fbc1cce2307ca2983b"
+        },
+        "date": 1794151843096,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 29014,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3677,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 9436,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 66446,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 873,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 155030,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 7261,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 12,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 81774,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 748880,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7540800,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10470,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 48377,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39677,
             "unit": "ns"
           }
         ]
