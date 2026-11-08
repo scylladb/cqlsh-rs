@@ -1,6 +1,6 @@
 {
   "project": "cqlsh-rs",
-  "last_updated": "2026-03-31",
+  "last_updated": "2026-07-30",
   "velocity": {
     "started_date": "2026-03-01",
     "merged_prs": 24,
@@ -22,7 +22,8 @@
       { "date": "2026-03-30", "tasks_done": 5, "phase": 5, "pr": "SP10-ci-matrix" },
       { "date": "2026-03-30", "tasks_done": 10, "phase": 6, "pr": "SP12-release" },
       { "date": "2026-03-31", "tasks_done": 5, "phase": 6, "pr": "SP14-docs" },
-      { "date": "2026-03-31", "tasks_done": 5, "phase": 6, "pr": "SP18-cql-lexer" }
+      { "date": "2026-03-31", "tasks_done": 5, "phase": 6, "pr": "SP18-cql-lexer" },
+      { "date": "2026-07-30", "tasks_done": 1, "phase": 2, "pr": "SP22-client-routes" }
     ]
   },
   "phases": [

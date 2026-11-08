@@ -46,7 +46,27 @@ async fn main() -> Result<()> {
         eprintln!("Using request timeout: {} seconds", config.request_timeout);
         eprintln!("Using '{}' encoding", config.encoding);
         eprintln!("Using ssl: {}", config.ssl);
+        eprintln!("Using client routes: {}", config.client_routes.is_enabled());
         eprintln!("Debug: resolved host={}, port={}", config.host, config.port);
+        if config.client_routes.is_enabled() {
+            let routes: Vec<String> = config
+                .client_routes
+                .routes
+                .iter()
+                .map(|route| match &route.address {
+                    Some(address) => format!("{}={address}", route.connection_id),
+                    None => route.connection_id.clone(),
+                })
+                .collect();
+            eprintln!("Debug: client routes=[{}]", routes.join(", "));
+            eprintln!(
+                "Debug: client routes advanced_shard_awareness={}",
+                config.client_routes.advanced_shard_awareness
+            );
+        }
+        if !config.contact_points.is_empty() {
+            eprintln!("Debug: contact points={}", config.contact_points.join(", "));
+        }
         eprintln!("Debug: cqlshrc path={}", config.cqlshrc_path.display());
         if let Some(ref v) = config.cqlversion {
             eprintln!("Debug: cqlversion={v}");

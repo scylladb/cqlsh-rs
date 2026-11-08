@@ -637,6 +637,7 @@ Each area below gets its own dedicated research and execution plan document:
 | SP15 | **AI CI Failure Summaries** | [`15-ai-ci-failure-summaries.md`](15-ai-ci-failure-summaries.md) | AI-powered CI failure diagnosis and PR comment workflow |
 | SP16 | **Upstream PR Review** | [`16-upstream-pr-review.md`](16-upstream-pr-review.md) | Bug fixes and features from scylladb/scylla-cqlsh PRs to account for |
 | SP17 | **AI Assistant Help** | [`17-ai-assistant-help.md`](17-ai-assistant-help.md) | Embedded Qwen2.5-Coder-0.5B for offline CQL error diagnostics via `--ai-help` |
+| SP22 | **Client Routes (PrivateLink)** | [`22-client-routes.md`](22-client-routes.md) | `--client-route` flag and `[client_routes]` config for PrivateLink/proxy deployments |
 
 ---
 
