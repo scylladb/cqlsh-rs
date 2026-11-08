@@ -21,3 +21,11 @@
 - name: skip-docker-image-tests
   color: "c5def5"
   description: "Do not run the Docker image test suite on this PR"
+
+- name: ci-macos
+  color: "bfd4f2"
+  description: "Also run CI tests/build on macOS (Linux-only by default)"
+
+- name: ci-windows
+  color: "bfd4f2"
+  description: "Also run CI tests/build on Windows (Linux-only by default)"

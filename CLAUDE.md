@@ -29,6 +29,13 @@ cqlsh-rs is a ground-up Rust re-implementation of the Python `cqlsh` — the off
 - The `/development-process` skill Step 5b has detailed instructions for updating progress
 - A GitHub Action (`.github/workflows/progress.yml`) auto-generates the SVG roadmap when `progress.json` changes on main
 
+## CI Labels
+
+PR CI runs Linux only. When a PR touches platform-specific code (TTY, pager,
+colors, paths, config dirs, `cfg(windows)`/`cfg(target_os)`, signals, process
+spawning), add `ci-macos` and/or `ci-windows`:
+`gh pr edit <n> --add-label ci-macos,ci-windows`. See CONTRIBUTING.md "CI labels".
+
 ## Commit Messages
 
 Use Conventional Commits format. See `/conventional-commit` skill for details.
