@@ -34,6 +34,26 @@ Commit messages must follow the format:
 | `feat:`                          | Minor (0.x.0) |
 | `feat!:` / `BREAKING CHANGE:`   | Major (x.0.0) |
 
+### CI labels
+
+macOS and Windows runners cost 10x and 2x Linux minutes, so PR CI runs the
+test and build jobs on Linux only. Add a label to opt in:
+
+| Label | Effect |
+|-------|--------|
+| `ci-macos` | Also run Tests/Build on `macos-latest` |
+| `ci-windows` | Also run Tests/Build on `windows-latest` |
+| `benchmark` | Run the benchmark suite (`bench.yml`) |
+| `skip-docker-image-tests` | Skip the Docker image tests (`docker-image.yml`) |
+
+Adding a label starts a new CI run, no push needed. Pushes to `main` and
+release-plz PRs (branch `release-plz-*`) always run all OSes.
+
+Add `ci-macos` / `ci-windows` when the change touches platform-specific code:
+terminal/TTY handling, the pager, colors, file paths, home/config dir lookup,
+`cfg(windows)` / `cfg(target_os = ...)` blocks, process spawning, signals, or
+line endings. Example: `gh pr edit <n> --add-label ci-macos,ci-windows`.
+
 ## Making a release
 
 Releases happen automatically when commits are merged to `main`. The

@@ -32,6 +32,12 @@ cqlsh-rs is a ground-up Rust re-implementation of the Python `cqlsh` — the off
 - Async functions use Tokio runtime
 - Target >90% code coverage
 
+## CI Labels
+
+PR CI runs Linux only. When a PR touches platform-specific code (TTY, pager,
+colors, paths, config dirs, `cfg(windows)`/`cfg(target_os)`, signals, process
+spawning), add the `ci-macos` and/or `ci-windows` label. See CONTRIBUTING.md "CI labels".
+
 ## Testing
 
 - Unit tests: inline in modules with `#[cfg(test)]`

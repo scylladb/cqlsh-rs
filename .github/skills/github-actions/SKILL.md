@@ -168,6 +168,12 @@ strategy:
         db: cassandra:4.0  # Docker not easily available
 ```
 
+**Cost rule:** never add an unconditional macOS/Windows job to PR CI. In
+`ci.yml` the `test`/`build` OS matrix is Linux-only on PRs; macOS/Windows are
+added by the `ci-macos` / `ci-windows` labels, and always on push to `main`
+and release-plz PRs (`release-plz-*`). Reuse that matrix (`*os-matrix` YAML
+anchor) for new cross-OS jobs. See CONTRIBUTING.md "CI labels".
+
 ## Rust-Specific Patterns
 
 ### Installing cargo-nextest
