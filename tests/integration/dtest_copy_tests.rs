@@ -953,3 +953,35 @@ fn test_round_trip_text_with_escape_char() {
 
     drop_test_keyspace(scylla, &ks);
 }
+
+// COPY FROM a file with CR-only line endings and a header row.
+#[test]
+#[ignore = "requires Docker"]
+fn test_read_cr_line_endings_with_header() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_cr");
+    let table = format!("{ks}.cr");
+    execute_cql(
+        scylla,
+        &format!("CREATE TABLE {table} (k int PRIMARY KEY, v int)"),
+    )
+    .success();
+
+    let mut tmp = tempfile::NamedTempFile::new().unwrap();
+    write!(tmp, "k,v\r1,100\r2,200\r").unwrap();
+    tmp.flush().unwrap();
+    let path = tmp.path().to_str().unwrap();
+    cqlsh_cmd(scylla)
+        .args([
+            "-e",
+            &format!("COPY {table} FROM '{path}' WITH HEADER=true"),
+        ])
+        .assert()
+        .success();
+
+    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {table}"));
+    assert!(output.contains("100"), "Expected 100 in DB: {output}");
+    assert!(output.contains("200"), "Expected 200 in DB: {output}");
+
+    drop_test_keyspace(scylla, &ks);
+}
