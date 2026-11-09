@@ -74,6 +74,7 @@ Implement the COPY TO and COPY FROM commands with 100% option compatibility, par
 | ✅ 12 | ERRFILE (error logging) | Option parsed |
 | ⬜ 13 | REPORTFREQUENCY (progress reporting) | Manual: progress display |
 | ⬜ 14 | Stdin input (COPY FROM STDIN) | Unit: stdin mode |
+| ✅ 15 | SKIPCOLS (comma-separated CSV columns to skip) | Unit: parse_copy_from_skipcols; Integration: test_reading_counters_with_skip_cols |
 
 ### Acceptance Criteria
 
