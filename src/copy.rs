@@ -145,7 +145,7 @@ pub async fn execute_copy_to(
 
     let table_spec = match (&cmd.keyspace, current_keyspace) {
         (Some(ks), _) => format!("{}.{}", ks, cmd.table),
-        (None, Some(ks)) => format!("{}.{}", ks, cmd.table),
+        (None, Some(ks)) => format!("\"{}\".{}", ks.replace('"', "\"\""), cmd.table),
         (None, None) => cmd.table.clone(),
     };
 
@@ -1372,7 +1372,7 @@ pub async fn execute_copy_from(
     // Resolve keyspace and table spec
     let table_spec = match (&cmd.keyspace, current_keyspace) {
         (Some(ks), _) => format!("{}.{}", ks, cmd.table),
-        (None, Some(ks)) => format!("{}.{}", ks, cmd.table),
+        (None, Some(ks)) => format!("\"{}\".{}", ks.replace('"', "\"\""), cmd.table),
         (None, None) => cmd.table.clone(),
     };
 

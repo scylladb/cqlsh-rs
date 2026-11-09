@@ -1134,3 +1134,55 @@ fn test_copy_case_folded_and_quoted_names() {
 
     drop_test_keyspace(scylla, &ks);
 }
+
+/// USE folds an unquoted keyspace to lowercase and keeps a quoted one's case,
+/// like Python cqlsh, so COPY without a keyspace finds the table afterwards.
+#[test]
+#[ignore = "requires Docker"]
+fn test_copy_after_use_folded_and_quoted_keyspace() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_use");
+    let mixed = format!("\"{ks}_Mix\"");
+    execute_cql(
+        scylla,
+        &format!(
+            "CREATE KEYSPACE {mixed} \
+             WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': 1}}"
+        ),
+    )
+    .success();
+    let mut csv = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    for i in 0..100 {
+        writeln!(csv, "{i},{i}").unwrap();
+    }
+    csv.flush().unwrap();
+    let csv_path = csv.path().to_str().unwrap();
+
+    for use_ks in [ks.to_uppercase(), mixed.clone()] {
+        execute_cql(
+            scylla,
+            &format!("CREATE TABLE {use_ks}.t (k int PRIMARY KEY, v int)"),
+        )
+        .success();
+        let tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        let path = tmp.path().to_str().unwrap();
+        let out = cqlsh_cmd(scylla)
+            .args([
+                "-e",
+                &format!(
+                    "USE {use_ks}; COPY t FROM '{csv_path}'; COPY t TO '{path}' WITH \
+                     BEGINTOKEN = '-9223372036854775808' AND ENDTOKEN = '9223372036854775807'"
+                ),
+            ])
+            .output()
+            .expect("failed to run cqlsh-rs");
+        let rows = fs::read_to_string(path).unwrap_or_default().lines().count();
+        assert!(
+            out.status.success() && rows == 100,
+            "USE {use_ks}; COPY round trip exported {rows} rows: {out:?}"
+        );
+    }
+
+    execute_cql(scylla, &format!("DROP KEYSPACE {mixed}")).success();
+    drop_test_keyspace(scylla, &ks);
+}

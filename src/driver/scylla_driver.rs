@@ -555,7 +555,8 @@ impl CqlDriver for ScyllaDriver {
         builder = builder.connection_timeout(Duration::from_secs(config.connect_timeout));
 
         if let Some(keyspace) = &config.keyspace {
-            builder = builder.use_keyspace(keyspace, false);
+            // Case-sensitive, like Python cqlsh `-k` (Cluster.connect quotes it).
+            builder = builder.use_keyspace(keyspace, true);
         }
 
         // Install the proxy address translator so peers discovered via
@@ -747,7 +748,8 @@ impl CqlDriver for ScyllaDriver {
 
     async fn use_keyspace(&self, keyspace: &str) -> Result<()> {
         self.session
-            .use_keyspace(keyspace, false)
+            // The caller passes the real (already case-resolved) name.
+            .use_keyspace(keyspace, true)
             .await
             .with_context(|| format!("switching to keyspace: {keyspace}"))?;
         Ok(())
