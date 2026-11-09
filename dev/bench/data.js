@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794151843590,
+  "lastUpdate": 1794262194543,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -13963,6 +13963,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39677,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "c0301588feb75c631bde36fc27de2fa40d1a919b",
+          "message": "fix(tracing): append the \"Request complete\" row to trace output\n\nPython cqlsh (cqlshlib/tracing.py) ends every trace table with a\n\"Request complete\" row built from system_traces.sessions: timestamp\nstarted_at + duration, source = coordinator, source_elapsed = duration.\ncqlsh-rs stopped at the last event, so scylla-dtest\ncql_tracing_test.py::TestCqlTracing::test_tracing_simple failed with\n'Expected substring \"Request complete\" was not found'.\n\nCompute finished_at in the driver and append the footer row in\nprint_trace. Port test_tracing_simple into the integration suite\n(dtest_cql_tracing_tests, plain category).\n\nFixes #195\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-10T00:02:52+02:00",
+          "tree_id": "f8e5cbcd47545aaac26a301d0e34003ffe9ceae3",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/c0301588feb75c631bde36fc27de2fa40d1a919b"
+        },
+        "date": 1794262193859,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 15940,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 1,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2010,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 5167,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 38485,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 591,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 93086,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 4489,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 6,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 49087,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 431260,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 4270900,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 5773,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 24631,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 21634,
             "unit": "ns"
           }
         ]
