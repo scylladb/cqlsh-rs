@@ -313,18 +313,19 @@ fn parse_use_command(query: &str) -> Option<String> {
         .map(|s| s.trim())?;
 
     // Remove quotes if present
-    let keyspace = if (keyspace.starts_with('"') && keyspace.ends_with('"'))
-        || (keyspace.starts_with('\'') && keyspace.ends_with('\''))
+    let keyspace = if keyspace.len() >= 2
+        && ((keyspace.starts_with('"') && keyspace.ends_with('"'))
+            || (keyspace.starts_with('\'') && keyspace.ends_with('\'')))
     {
-        &keyspace[1..keyspace.len() - 1]
+        keyspace[1..keyspace.len() - 1].to_string()
     } else {
-        keyspace
+        keyspace.to_lowercase()
     };
 
     if keyspace.is_empty() {
         None
     } else {
-        Some(keyspace.to_string())
+        Some(keyspace)
     }
 }
 
@@ -352,6 +353,14 @@ mod tests {
     fn parse_use_lowercase() {
         assert_eq!(
             parse_use_command("use test_ks"),
+            Some("test_ks".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_use_unquoted_mixed_case() {
+        assert_eq!(
+            parse_use_command("use Test_KS"),
             Some("test_ks".to_string())
         );
     }

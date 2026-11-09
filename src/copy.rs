@@ -135,14 +135,26 @@ pub async fn execute_copy_to(
 ) -> Result<()> {
     // Build SELECT query
     let col_spec = match &cmd.columns {
-        Some(cols) => cols.join(", "),
+        Some(cols) => cols
+            .iter()
+            .map(|c| format_identifier(c))
+            .collect::<Vec<_>>()
+            .join(", "),
         None => "*".to_string(),
     };
 
     let table_spec = match (&cmd.keyspace, current_keyspace) {
-        (Some(ks), _) => format!("{}.{}", ks, cmd.table),
-        (None, Some(ks)) => format!("{}.{}", ks, cmd.table),
-        (None, None) => cmd.table.clone(),
+        (Some(ks), _) => format!(
+            "{}.{}",
+            format_identifier(ks),
+            format_identifier(&cmd.table)
+        ),
+        (None, Some(ks)) => format!(
+            "{}.{}",
+            format_identifier(ks),
+            format_identifier(&cmd.table)
+        ),
+        (None, None) => format_identifier(&cmd.table),
     };
 
     let query = format!("SELECT {} FROM {}", col_spec, table_spec);
@@ -508,7 +520,8 @@ fn parse_table_spec(spec: &str) -> Result<(Option<String>, String, Option<Vec<St
         let cols_str = &spec[paren_start + 1..paren_end];
         let cols: Vec<String> = cols_str
             .split(',')
-            .map(|c| c.trim().to_string())
+            .map(|c| c.trim())
+            .map(parse_identifier) // each column name is a CQL identifier and may be quoted
             .filter(|c| !c.is_empty())
             .collect();
         (spec[..paren_start].trim(), Some(cols))
@@ -518,11 +531,11 @@ fn parse_table_spec(spec: &str) -> Result<(Option<String>, String, Option<Vec<St
 
     // Split keyspace.table
     let (keyspace, table) = if let Some(dot_pos) = table_part.find('.') {
-        let ks = table_part[..dot_pos].trim().to_string();
-        let tbl = table_part[dot_pos + 1..].trim().to_string();
+        let ks = parse_identifier(table_part[..dot_pos].trim());
+        let tbl = parse_identifier(table_part[dot_pos + 1..].trim());
         (Some(ks), tbl)
     } else {
-        (None, table_part.trim().to_string())
+        (None, parse_identifier(table_part.trim()))
     };
 
     if table.is_empty() {
@@ -742,6 +755,25 @@ fn parse_bool_option(val: &str) -> Result<bool> {
         "true" | "yes" | "1" => Ok(true),
         "false" | "no" | "0" => Ok(false),
         _ => bail!("invalid boolean value: {val}"),
+    }
+}
+
+/// Convert a string into a quoted CQL identifier
+///
+/// e.g. `Isn't this "strange"` -> `"Isn't this ""strange"""`
+fn format_identifier(str: &str) -> String {
+    let mut identifier = str.replace("\"", "\"\"");
+    identifier.insert(0, '"');
+    identifier.push('"');
+    identifier
+}
+
+/// Convert a CQL identifier into a string, removing quotes or lower-casing
+fn parse_identifier(identifier: &str) -> String {
+    if identifier.len() >= 2 && identifier.starts_with("\"") && identifier.ends_with("\"") {
+        identifier[1..identifier.len() - 1].replace("\"\"", "\"")
+    } else {
+        identifier.to_lowercase()
     }
 }
 
@@ -1291,9 +1323,17 @@ pub async fn execute_copy_from(
 
     // Resolve keyspace and table spec
     let table_spec = match (&cmd.keyspace, current_keyspace) {
-        (Some(ks), _) => format!("{}.{}", ks, cmd.table),
-        (None, Some(ks)) => format!("{}.{}", ks, cmd.table),
-        (None, None) => cmd.table.clone(),
+        (Some(ks), _) => format!(
+            "{}.{}",
+            format_identifier(ks),
+            format_identifier(&cmd.table)
+        ),
+        (None, Some(ks)) => format!(
+            "{}.{}",
+            format_identifier(ks),
+            format_identifier(&cmd.table)
+        ),
+        (None, None) => format_identifier(&cmd.table),
     };
 
     let source_name = match &cmd.source {
@@ -1421,7 +1461,7 @@ pub async fn execute_copy_from(
 
     let col_list: String = columns
         .iter()
-        .map(|(n, _)| n.as_str())
+        .map(|(n, _)| format_identifier(n))
         .collect::<Vec<_>>()
         .join(", ");
     let col_type_names: Vec<String> = columns.iter().map(|(_, t)| t.clone()).collect();
@@ -1694,6 +1734,36 @@ mod tests {
     }
 
     #[test]
+    fn parse_copy_to_with_normalise_case() {
+        let cmd = parse_copy_to("COPY Ks.Table (Col1, Col2) TO '/tmp/out.csv'").unwrap();
+        assert_eq!(cmd.keyspace, Some("ks".to_string()));
+        assert_eq!(cmd.table, "table");
+        assert_eq!(
+            cmd.columns,
+            Some(vec!["col1".to_string(), "col2".to_string()])
+        );
+        assert_eq!(
+            cmd.filename,
+            CopyTarget::File(PathBuf::from("/tmp/out.csv"))
+        );
+    }
+
+    #[test]
+    fn parse_copy_to_with_quoted_identifiers() {
+        let cmd = parse_copy_to(r#"COPY "Ks"."Table" ("Col1", "Col2") TO '/tmp/out.csv'"#).unwrap();
+        assert_eq!(cmd.keyspace, Some("Ks".to_string()));
+        assert_eq!(cmd.table, "Table");
+        assert_eq!(
+            cmd.columns,
+            Some(vec!["Col1".to_string(), "Col2".to_string()])
+        );
+        assert_eq!(
+            cmd.filename,
+            CopyTarget::File(PathBuf::from("/tmp/out.csv"))
+        );
+    }
+
+    #[test]
     fn parse_copy_to_stdout() {
         let cmd = parse_copy_to("COPY ks.table TO STDOUT").unwrap();
         assert_eq!(cmd.filename, CopyTarget::Stdout);
@@ -1749,6 +1819,37 @@ mod tests {
     }
 
     #[test]
+    fn format_identifier_simple() {
+        assert_eq!(format_identifier("simple_id"), "\"simple_id\"".to_string())
+    }
+
+    #[test]
+    fn format_identifier_complex() {
+        assert_eq!(
+            format_identifier("That's \"strange\""),
+            "\"That's \"\"strange\"\"\"".to_string()
+        )
+    }
+
+    #[test]
+    fn parse_identifier_simple() {
+        assert_eq!(parse_identifier("\"simple_id\""), "simple_id".to_string())
+    }
+
+    #[test]
+    fn parse_identifier_correct_case() {
+        assert_eq!(parse_identifier("\"simple_id\""), "simple_id".to_string())
+    }
+
+    #[test]
+    fn parse_identifier_complex() {
+        assert_eq!(
+            parse_identifier("\"That's \"\"strange\"\"\""),
+            "That's \"strange\"".to_string()
+        )
+    }
+
+    #[test]
     fn default_options() {
         let opts = CopyOptions::default();
         assert_eq!(opts.delimiter, ',');
@@ -1789,6 +1890,29 @@ mod tests {
         assert_eq!(
             cmd.columns,
             Some(vec!["col1".to_string(), "col2".to_string()])
+        );
+    }
+
+    #[test]
+    fn parse_copy_from_with_normalise_case() {
+        let cmd = parse_copy_from("COPY Ks.Table (Col1, Col2) FROM '/tmp/in.csv'").unwrap();
+        assert_eq!(cmd.keyspace, Some("ks".to_string()));
+        assert_eq!(cmd.table, "table");
+        assert_eq!(
+            cmd.columns,
+            Some(vec!["col1".to_string(), "col2".to_string()])
+        );
+    }
+
+    #[test]
+    fn parse_copy_from_with_quoted_identifiers() {
+        let cmd =
+            parse_copy_from(r#"COPY "Ks"."Table" ("Col1", "Col2") FROM '/tmp/in.csv'"#).unwrap();
+        assert_eq!(cmd.keyspace, Some("Ks".to_string()));
+        assert_eq!(cmd.table, "Table");
+        assert_eq!(
+            cmd.columns,
+            Some(vec!["Col1".to_string(), "Col2".to_string()])
         );
     }
 
