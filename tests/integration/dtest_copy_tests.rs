@@ -881,3 +881,75 @@ fn test_source_copy_round_trip() {
 
     drop_test_keyspace(scylla, &ks);
 }
+
+// ---------------------------------------------------------------------------
+// test_bulk_round_trip_blogposts (text with backslashes) — the exported CSV
+// must parse with quotechar='"', escapechar='\\' into one record per row,
+// and COPY FROM must read it back unchanged.
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_round_trip_text_with_escape_char() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_esc_rt");
+    let table = format!("{ks}.esc");
+    execute_cql(
+        scylla,
+        &format!("CREATE TABLE {table} (k int PRIMARY KEY, v text)"),
+    )
+    .success();
+    let values = [
+        r"back\slash",
+        r"ends with \",
+        r#"quote " and \ both"#,
+        "comma, here",
+        r"\\double",
+    ];
+    for (k, v) in values.iter().enumerate() {
+        execute_cql(
+            scylla,
+            &format!("INSERT INTO {table} (k, v) VALUES ({k}, '{v}')"),
+        )
+        .success();
+    }
+
+    let export = |path: &str| -> Vec<Vec<String>> {
+        cqlsh_cmd(scylla)
+            .args(["-e", &format!("COPY {table} TO '{path}'")])
+            .assert()
+            .success();
+        let mut rows: Vec<Vec<String>> = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .escape(Some(b'\\'))
+            .from_path(path)
+            .unwrap()
+            .records()
+            .map(|r| r.unwrap().iter().map(String::from).collect())
+            .collect();
+        rows.sort();
+        rows
+    };
+
+    let first = tempfile::NamedTempFile::new().unwrap();
+    let first_path = first.path().to_str().unwrap();
+    let exported = export(first_path);
+    let mut expected: Vec<Vec<String>> = values
+        .iter()
+        .enumerate()
+        .map(|(k, v)| vec![k.to_string(), v.to_string()])
+        .collect();
+    expected.sort();
+    assert_eq!(exported, expected);
+
+    execute_cql_direct(scylla, &format!("TRUNCATE {table}"));
+    cqlsh_cmd(scylla)
+        .args(["-e", &format!("COPY {table} FROM '{first_path}'")])
+        .assert()
+        .success();
+
+    let second = tempfile::NamedTempFile::new().unwrap();
+    assert_eq!(export(second.path().to_str().unwrap()), expected);
+
+    drop_test_keyspace(scylla, &ks);
+}
