@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794262194543,
+  "lastUpdate": 1794262249050,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -14062,6 +14062,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 21634,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "214342f990443bded8dbab7cfa0f25f53256285d",
+          "message": "fix(copy): honor ESCAPE in unquoted COPY FROM fields\n\nPython cqlsh writes COPY TO with csv.writer(escapechar='\\\\',\ndoublequote=False), which leaves fields like back\\\\slash and q\\\\\"uote\nunquoted, and its csv.reader unescapes them. The csv crate applies\nESCAPE only inside quoted fields, so COPY FROM stored the backslashes\nliterally and split a\\\\,b into two fields.\n\nRead COPY FROM records with a small reader that follows Python's\ncsv.reader rules: ESCAPE applies in quoted and unquoted fields, and\nESCAPE == QUOTE means doublequote. Like Python (which opens the file\nwith newline=''), \\n, \\r\\n and a lone \\r each end a record outside\nquotes, and ESCAPE at end of input reads as an escaped newline.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-10T00:03:09+02:00",
+          "tree_id": "9f413766737442ebb14d17c3d028f8a44ba6df22",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/214342f990443bded8dbab7cfa0f25f53256285d"
+        },
+        "date": 1794262248173,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 20565,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2611,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 6746,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 46853,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 613,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 108390,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 5472,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 10,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 60899,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 530310,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 5279200,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 8080,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 35367,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 29371,
             "unit": "ns"
           }
         ]
