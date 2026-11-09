@@ -1094,3 +1094,43 @@ fn test_copy_to_token_range() {
 
     drop_test_keyspace(scylla, &ks);
 }
+
+/// COPY's schema lookups use the stored names: an unquoted identifier folds to
+/// lowercase (`KS.LOWER_T` is `ks.lower_t`), a quoted one keeps its case.
+#[test]
+#[ignore = "requires Docker"]
+fn test_copy_case_folded_and_quoted_names() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_case");
+    for create in ["\"MixedCase\"", "lower_t"] {
+        execute_cql(
+            scylla,
+            &format!("CREATE TABLE {ks}.{create} (k int PRIMARY KEY, v int)"),
+        )
+        .success();
+    }
+    let mut csv = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    for i in 0..100 {
+        writeln!(csv, "{i},{i}").unwrap();
+    }
+    csv.flush().unwrap();
+    let csv_path = csv.path().to_str().unwrap();
+
+    for table in [
+        format!("{ks}.\"MixedCase\""),
+        format!("{}.LOWER_T", ks.to_uppercase()),
+    ] {
+        cqlsh_cmd(scylla)
+            .args(["-e", &format!("COPY {table} FROM '{csv_path}'")])
+            .assert()
+            .success();
+        let rows = copy_to_lines(
+            scylla,
+            &table,
+            "BEGINTOKEN = '-9223372036854775808' AND ENDTOKEN = '9223372036854775807'",
+        );
+        assert_eq!(rows.len(), 100, "COPY round trip through {table}");
+    }
+
+    drop_test_keyspace(scylla, &ks);
+}

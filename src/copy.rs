@@ -162,13 +162,15 @@ pub async fn execute_copy_to(
         let ks = cmd
             .keyspace
             .as_deref()
-            .or(current_keyspace)
+            .map(dequote_identifier)
+            .or(current_keyspace.map(str::to_string))
             .context("no keyspace specified and no current keyspace set")?;
         let pk_result = session
             .execute_query(&format!(
                 "SELECT column_name, kind, position FROM system_schema.columns \
-                 WHERE keyspace_name = '{ks}' AND table_name = '{}'",
-                cmd.table
+                 WHERE keyspace_name = '{}' AND table_name = '{}'",
+                ks.replace('\'', "''"),
+                dequote_identifier(&cmd.table).replace('\'', "''")
             ))
             .await?;
         let mut pk: Vec<(i32, String)> = pk_result
@@ -1389,12 +1391,14 @@ pub async fn execute_copy_from(
     let ks_for_schema = cmd
         .keyspace
         .as_deref()
-        .or(current_keyspace)
+        .map(dequote_identifier)
+        .or(current_keyspace.map(str::to_string))
         .context("no keyspace specified and no current keyspace set")?;
     let schema_query = format!(
         "SELECT column_name, kind, position, type FROM system_schema.columns \
          WHERE keyspace_name = '{}' AND table_name = '{}'",
-        ks_for_schema, cmd.table
+        ks_for_schema.replace('\'', "''"),
+        dequote_identifier(&cmd.table).replace('\'', "''")
     );
     let schema_result = session.execute_query(&schema_query).await?;
 
@@ -1691,6 +1695,15 @@ pub async fn execute_copy_from(
     }
 
     Ok(())
+}
+
+/// Resolve an identifier as written in a COPY statement to its stored name,
+/// like Python cqlsh's `dequote_name`: `"Foo"` → `Foo`, `Foo` → `foo`.
+fn dequote_identifier(name: &str) -> String {
+    match name.strip_prefix('"').and_then(|n| n.strip_suffix('"')) {
+        Some(inner) => inner.replace("\"\"", "\""),
+        None => name.to_lowercase(),
+    }
 }
 
 /// Execute a single row INSERT with retry on failure.
@@ -2574,5 +2587,12 @@ mod tests {
             read_all_csv("\"q\"\"uote\",a\\b\n", &opts),
             [["q\"uote", "a\\b"]]
         );
+    }
+
+    #[test]
+    fn dequote_identifier_folds_unquoted_keeps_quoted() {
+        assert_eq!(dequote_identifier("KS"), "ks");
+        assert_eq!(dequote_identifier("\"MyTable\""), "MyTable");
+        assert_eq!(dequote_identifier("\"a\"\"b\""), "a\"b");
     }
 }
