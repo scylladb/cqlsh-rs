@@ -3,7 +3,7 @@
 > Parent: [high-level-design.md](high-level-design.md)
 > Date: 2026-03-14
 > Source: https://github.com/scylladb/scylla-cqlsh/pulls
-> **Status: COMPLETED** — PR #150 (parser fix) and PR #151 (O(n) parsing) incorporated into SP4. PR #154 not needed. PR #147 (safe mode) deferred to Phase 4. PR #163 (SSL tests) deferred to Phase 5.
+> **Status: COMPLETED** — PR #150 (parser fix) and PR #151 (O(n) parsing) incorporated into SP4. PR #154 not needed. PR #147 (safe mode) implemented following its successor scylla-cqlsh#278. PR #163 (SSL tests) deferred to Phase 5.
 
 ## Purpose
 
@@ -87,6 +87,8 @@ VALUES ('test_role2', 'test_role./*', 'test');
 
 **Problem:** Users can accidentally execute destructive operations (DROP KEYSPACE, TRUNCATE, etc.) without any safety net.
 
+> **Superseded by scylla-cqlsh#278**, which cqlsh-rs follows: `[ui] safe_mode`, prompt `Are you sure you want to execute the following?\n\n<stmt>\n\n[N/y] `, any statement whose first word is DROP or TRUNCATE. The #147 notes below are historical.
+
 **Feature:** An opt-in `--safe-mode` flag (also configurable via cqlshrc) that prompts "Are you sure you want to [OPERATION] [TARGET]? [N/y]" before executing destructive statements.
 
 **Protected operations:**
@@ -103,11 +105,10 @@ VALUES ('test_role2', 'test_role./*', 'test');
 
 **cqlsh-rs Action Items:**
 1. **CLI flag (SP1):** Add `--safe-mode` flag to `CliArgs` struct
-2. **Config (SP1):** Add `safe_mode` to cqlshrc `[connection]` section parsing
+2. **Config (SP1):** Add `safe_mode` to cqlshrc `[ui]` section parsing
 3. **Statement pipeline:** After parsing a complete statement, before execution, check if safe mode is enabled and the statement matches a destructive pattern. If so, prompt for confirmation.
 4. **Implementation approach:**
-   - Parse the statement's first tokens to detect DROP/TRUNCATE
-   - Use the statement parser's existing tokenization (not regex on raw input)
+   - Check the statement's first word for DROP/TRUNCATE (as scylla-cqlsh#278)
    - Respect non-interactive mode (skip prompts when stdin is not a TTY)
 5. **Test cases to add:**
    - Each protected operation triggers a prompt in safe mode
@@ -172,7 +173,7 @@ VALUES ('test_role2', 'test_role./*', 'test');
 
 2. **SP1 (CLI & Config):**
    - Add `--safe-mode` to CLI flag table (Priority: P3)
-   - Add `safe_mode` to `[connection]` cqlshrc section
+   - Add `safe_mode` to `[ui]` cqlshrc section
 
 3. **SP7 (Built-in Commands):**
    - Add "Safe mode confirmation" as a cross-cutting concern in the statement execution pipeline
@@ -195,4 +196,4 @@ Add to high-level-design.md:
 
 | cqlshrc Key | Section | Description | Priority | Source |
 |-------------|---------|-------------|----------|--------|
-| `safe_mode` | `[connection]` | Enable safe mode (true/false) | P3 | scylla-cqlsh PR #147 |
+| `safe_mode` | `[ui]` | Enable safe mode (true/false) | P3 | scylla-cqlsh#278 |
