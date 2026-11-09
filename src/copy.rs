@@ -315,6 +315,109 @@ fn write_csv_record<W: Write>(
     wtr.write_record(fields.iter().map(|f| f.replace(&esc, &doubled)))
 }
 
+/// Read one CSV record the way Python's `csv.reader` does with cqlsh's
+/// dialect: ESCAPE applies in unquoted fields too (`a\,b` -> `a,b`), which the
+/// csv crate only honors inside quotes. ESCAPE == QUOTE means `doublequote`.
+/// Blank lines are skipped. Returns `None` at EOF.
+fn read_csv_record<R: std::io::BufRead>(
+    r: &mut R,
+    delim: char,
+    quote: char,
+    escape: char,
+) -> std::io::Result<Option<Vec<String>>> {
+    let esc = (escape != quote).then_some(escape);
+    let mut line = String::new();
+    loop {
+        line.clear();
+        if read_line_any_eol(r, &mut line)? == 0 {
+            return Ok(None);
+        }
+        if !line.trim_end_matches(['\r', '\n']).is_empty() {
+            break;
+        }
+    }
+    let (mut fields, mut field) = (Vec::new(), String::new());
+    // `start`: nothing read for this field yet. `closed`: a quoted part just ended.
+    let (mut start, mut quoted, mut escaped, mut closed) = (true, false, false, false);
+    loop {
+        let mut continued = false;
+        for c in line.chars() {
+            if escaped {
+                field.push(c);
+                escaped = false;
+                continued = c == '\n' || c == '\r';
+            } else if quoted {
+                if Some(c) == esc {
+                    escaped = true;
+                } else if c == quote {
+                    quoted = false;
+                    closed = true;
+                } else {
+                    field.push(c);
+                }
+            } else if c == '\n' || c == '\r' {
+                fields.push(field);
+                return Ok(Some(fields));
+            } else if c == delim {
+                fields.push(std::mem::take(&mut field));
+                (start, closed) = (true, false);
+            } else {
+                if Some(c) == esc {
+                    escaped = true;
+                } else if c == quote && (start || (closed && esc.is_none())) {
+                    // a field-opening quote, or `""` (doublequote) = literal quote
+                    if !start {
+                        field.push(c);
+                    }
+                    quoted = true;
+                } else {
+                    field.push(c);
+                }
+                (start, closed) = (false, false);
+            }
+        }
+        // The record continues on the next line inside quotes or after ESCAPE.
+        line.clear();
+        if !(quoted || escaped || continued) || read_line_any_eol(r, &mut line)? == 0 {
+            if escaped {
+                field.push('\n'); // Python reads ESCAPE at EOF as an escaped newline
+            }
+            fields.push(field);
+            return Ok(Some(fields));
+        }
+    }
+}
+
+/// Like `BufRead::read_line`, but a lone `\r` also ends the line, as with
+/// Python's `newline=''`. `\r\n` stays one line ending.
+fn read_line_any_eol<R: std::io::BufRead>(r: &mut R, line: &mut String) -> std::io::Result<usize> {
+    let mut buf = Vec::new();
+    loop {
+        let avail = r.fill_buf()?;
+        let Some(i) = avail.iter().position(|&b| b == b'\n' || b == b'\r') else {
+            if avail.is_empty() {
+                break;
+            }
+            let n = avail.len();
+            buf.extend_from_slice(avail);
+            r.consume(n);
+            continue;
+        };
+        let cr = avail[i] == b'\r';
+        buf.extend_from_slice(&avail[..=i]);
+        r.consume(i + 1);
+        if cr && r.fill_buf()?.first() == Some(&b'\n') {
+            buf.push(b'\n');
+            r.consume(1);
+        }
+        break;
+    }
+    let s = String::from_utf8(buf)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    line.push_str(&s);
+    Ok(s.len())
+}
+
 /// Format a floating-point number with given precision and decimal separator.
 fn format_float(v: f64, precision: usize, options: &CopyOptions) -> String {
     if v.is_nan() {
@@ -1281,7 +1384,7 @@ pub async fn execute_copy_from(
     };
 
     // Open CSV reader
-    let reader: Box<dyn std::io::Read> = match &cmd.source {
+    let mut reader: Box<dyn std::io::BufRead> = match &cmd.source {
         CopyTarget::File(path) => {
             let file = std::fs::File::open(path)
                 .with_context(|| format!("failed to open file: {}", path.display()))?;
@@ -1290,20 +1393,18 @@ pub async fn execute_copy_from(
         CopyTarget::Stdin => Box::new(std::io::stdin().lock()),
         CopyTarget::Stdout => bail!("COPY FROM cannot read from STDOUT"),
     };
-    let mut csv_reader = csv::ReaderBuilder::new()
-        .delimiter(cmd.options.delimiter as u8)
-        .quote(cmd.options.quote as u8)
-        .escape(Some(cmd.options.escape as u8))
-        .has_headers(cmd.options.header)
-        .flexible(true)
-        .from_reader(reader);
+    let o = &cmd.options;
+    let header = if o.header {
+        read_csv_record(&mut reader, o.delimiter, o.quote, o.escape)
+            .context("failed to read CSV header row")?
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
 
     // When HEADER=true and no explicit columns, column order comes from CSV header
     let columns: Vec<(String, String)> = if cmd.options.header && cmd.columns.is_none() {
-        let headers = csv_reader
-            .headers()
-            .context("failed to read CSV header row")?;
-        headers
+        header
             .iter()
             .map(|h| {
                 let name = h.trim().to_string();
@@ -1363,8 +1464,6 @@ pub async fn execute_copy_from(
     let report_frequency = cmd.options.report_frequency;
     let null_val = &cmd.options.null_val;
 
-    let mut csv_records = csv_reader.records();
-
     'outer: loop {
         // --- Parse phase: fill a chunk of CHUNKSIZE typed rows ---
         let mut chunk: Vec<Vec<CqlValue>> = Vec::with_capacity(chunk_size);
@@ -1373,9 +1472,12 @@ pub async fn execute_copy_from(
             if chunk.len() >= chunk_size {
                 break 'fill;
             }
-            let record = match csv_records.next() {
-                None => break 'fill,
-                Some(Err(e)) => {
+            let record = match read_csv_record(&mut reader, o.delimiter, o.quote, o.escape) {
+                Ok(None) => break 'fill,
+                Err(e) if e.kind() != std::io::ErrorKind::InvalidData => {
+                    return Err(e).context("failed to read CSV input");
+                }
+                Err(e) => {
                     parse_errors += 1;
                     let msg = format!("CSV parse error on row {}: {e}", row_count + parse_errors);
                     eprintln!("{msg}");
@@ -1389,7 +1491,7 @@ pub async fn execute_copy_from(
                     }
                     continue 'fill;
                 }
-                Some(Ok(r)) => r,
+                Ok(Some(r)) => r,
             };
 
             if record.len() != col_type_names.len() {
@@ -2198,15 +2300,8 @@ mod tests {
             "1,\"back\\\\slash\"\n2,\"ends with \\\\\"\n3,\"q\\\"uote\"\n4,\"comma, here\"\n"
         );
 
-        // The COPY FROM reader settings read it back unchanged.
-        let read: Vec<Vec<String>> = csv::ReaderBuilder::new()
-            .escape(Some(b'\\'))
-            .has_headers(false)
-            .from_reader(out.as_bytes())
-            .records()
-            .map(|r| r.unwrap().iter().map(String::from).collect())
-            .collect();
-        assert_eq!(read, rows);
+        // The COPY FROM reader reads it back unchanged.
+        assert_eq!(read_all_csv(&out, &opts), rows);
 
         // ESCAPE == QUOTE: Python uses doublequote=True, `\` stays as is.
         let opts = CopyOptions {
@@ -2218,5 +2313,76 @@ mod tests {
         write_csv_record(&mut wtr, &rows[2], &opts).unwrap();
         let out = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
         assert_eq!(out, "1,back\\slash\n3,\"q\"\"uote\"\n");
+        assert_eq!(
+            read_all_csv(&out, &opts),
+            [rows[0].clone(), rows[2].clone()]
+        );
+    }
+
+    fn read_all_csv(input: &str, opts: &CopyOptions) -> Vec<Vec<String>> {
+        let mut r = input.as_bytes();
+        std::iter::from_fn(|| {
+            read_csv_record(&mut r, opts.delimiter, opts.quote, opts.escape).unwrap()
+        })
+        .collect()
+    }
+
+    #[test]
+    fn read_csv_record_matches_python_reader() {
+        // Expected values come from python3 csv.reader with cqlsh's dialect
+        // (quotechar='"', escapechar='\\', delimiter=',', doublequote=False).
+        let opts = CopyOptions::default();
+        let cases: &[(&str, &[&str])] = &[
+            // unquoted fields as Python's csv.writer emits them
+            (r"0,back\\slash", &["0", r"back\slash"]),
+            (r"1,ends with \\", &["1", r"ends with \"]),
+            (r#"2,q\"uote"#, &["2", r#"q"uote"#]),
+            (r"6,\\N", &["6", r"\N"]),
+            (r"a\,b,c", &["a,b", "c"]),
+            (r"a\xb,1", &["axb", "1"]),
+            (r"\N,1", &["N", "1"]),
+            // quoted fields
+            (r#""x\"y",z"#, &[r#"x"y"#, "z"]),
+            (r#""a\\b",1"#, &[r"a\b", "1"]),
+            ("\"comma, here\",1", &["comma, here", "1"]),
+            ("\"ab\"cd,1", &["abcd", "1"]),
+            ("ab\"cd,1", &["ab\"cd", "1"]),
+            ("\"\",1", &["", "1"]),
+            (",1", &["", "1"]),
+            ("\"multi\nline\",2\r\n", &["multi\nline", "2"]),
+        ];
+        for (line, want) in cases {
+            assert_eq!(read_all_csv(line, &opts), [want.to_vec()], "{line:?}");
+        }
+        // Blank lines are skipped; records split on \n and \r\n.
+        assert_eq!(
+            read_all_csv("\na,b\r\n\nc,d", &opts),
+            [["a", "b"], ["c", "d"]]
+        );
+        // A lone \r ends a record too (Python opens the file with newline='').
+        assert_eq!(read_all_csv("a,b\rc,d\r", &opts), [["a", "b"], ["c", "d"]]);
+        assert_eq!(
+            read_all_csv("a,b\r\nc,d\r\n", &opts),
+            [["a", "b"], ["c", "d"]]
+        );
+        assert_eq!(read_all_csv("\r\ra,b\r", &opts), [["a", "b"]]);
+        // ...but stays inside quotes, and an escaped \r continues the field.
+        assert_eq!(
+            read_all_csv("\"x\ry\",1\rz,2", &opts),
+            [["x\ry", "1"], ["z", "2"]]
+        );
+        assert_eq!(read_all_csv("a\\\rb,1", &opts), [["a\rb", "1"]]);
+        // ESCAPE at EOF reads as an escaped newline, like Python.
+        assert_eq!(read_all_csv("a,b\\", &opts), [["a", "b\n"]]);
+
+        // ESCAPE == QUOTE: doublequote, backslash is literal.
+        let opts = CopyOptions {
+            escape: '"',
+            ..CopyOptions::default()
+        };
+        assert_eq!(
+            read_all_csv("\"q\"\"uote\",a\\b\n", &opts),
+            [["q\"uote", "a\\b"]]
+        );
     }
 }
