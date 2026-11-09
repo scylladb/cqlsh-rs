@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.19](https://github.com/scylladb/cqlsh-rs/compare/v0.5.18...v0.5.19) - 2026-11-09
+
+### Fixed
+
+- *(tracing)* append the "Request complete" row to trace output
+- *(pager)* only page output that overflows the screen
+
+### Other
+
+- run macOS/Windows PR jobs only when labeled
+- *(docker)* page a multi-screen result, add short-SELECT no-pager test
+- *(homebrew)* point formula at v0.5.18 [skip ci]
+
 ## [0.5.18](https://github.com/scylladb/cqlsh-rs/compare/v0.5.17...v0.5.18) - 2026-11-01
 
 ### Fixed
