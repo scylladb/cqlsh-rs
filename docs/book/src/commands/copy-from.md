@@ -23,6 +23,7 @@ COPY [keyspace.]table [(column1, column2, ...)] FROM 'filename'|STDIN [WITH opti
 | `MINBATCHSIZE` | `2` | Minimum rows per batch statement |
 | `MAXPARSEERRORS` | `-1` | Max parse errors before abort (-1 = unlimited) |
 | `MAXINSERTERRORS` | `-1` | Max insert errors before abort (-1 = unlimited) |
+| `SKIPCOLS` | (empty) | Comma-separated list of CSV column names to skip (read but not imported) |
 | `PREPAREDSTATEMENTS` | `true` | Use prepared statements |
 | `TTL` | `-1` | TTL for inserted rows in seconds (-1 = no TTL) |
 
