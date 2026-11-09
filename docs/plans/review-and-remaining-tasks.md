@@ -87,7 +87,7 @@ Cross-platform builds, packaging, documentation site.
 - [ ] Progress reporting (REPORTFREQUENCY)
 
 #### 4.4 Miscellaneous
-- [ ] `--safe-mode` flag with DROP/TRUNCATE confirmation prompts (SP16 PR #147)
+- [x] `--safe-mode` flag with DROP/TRUNCATE confirmation prompts (SP16 PR #147 / scylla-cqlsh#278)
 
 ### Phase 5: Testing & Benchmarks (13 remaining of 16)
 
@@ -200,8 +200,8 @@ Implement --safe-mode as described in docs/plans/16-upstream-pr-review.md (PR #1
 
 1. Add `--safe-mode` CLI flag to CliArgs in src/cli.rs
 2. Add `safe_mode` config option in [ui] section of cqlshrc
-3. Before executing DROP or TRUNCATE statements, prompt "Are you sure? [y/N]" on stderr
-4. In non-interactive mode (-e, -f), --safe-mode should abort on DROP/TRUNCATE with an error message
+3. Before executing DROP or TRUNCATE statements, prompt `Are you sure you want to execute the following?\n\n<stmt>\n\n[N/y] ` on stdout (via rustyline)
+4. In non-interactive mode (-e, -f, piped stdin), --safe-mode does not prompt and runs the statement (matches Python cqlsh)
 5. Add unit tests for safe mode flag parsing and prompt logic
 
 Update docs/progress.json when done.

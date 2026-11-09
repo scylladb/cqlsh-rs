@@ -1,7 +1,7 @@
 # Sub-Plan SP7: Built-in Commands
 
 > Parent: [high-level-design.md](high-level-design.md) | Phase: 2-4
-> **Status: PARTIALLY COMPLETE** — 25+ commands implemented (DESCRIBE extensions + SHOW SESSION done in Phase 4, 2026-03-29). Remaining: LOGIN, safe mode.
+> **Status: PARTIALLY COMPLETE** — 25+ commands implemented (DESCRIBE extensions + SHOW SESSION done in Phase 4, 2026-03-29). Remaining: LOGIN.
 
 ## Objective
 
@@ -94,26 +94,26 @@ Key system tables:
 
 ### Safe Mode (Cross-Cutting Concern)
 
-> See [SP16: Upstream PR Review](16-upstream-pr-review.md), scylla-cqlsh PR #147.
+> See [SP16: Upstream PR Review](16-upstream-pr-review.md), scylla-cqlsh PR #147 (superseded by scylla-cqlsh#278, which this follows).
 
-When `--safe-mode` is enabled (via CLI flag or `safe_mode = true` in `[connection]` cqlshrc section), the statement execution pipeline must prompt for confirmation before executing destructive operations:
+When `--safe-mode` is enabled (via CLI flag or `safe_mode = true` in the `[ui]` cqlshrc section), interactive statements are confirmed before execution:
 
-- **Protected operations:** DROP (KEYSPACE, TABLE, INDEX, MATERIALIZED VIEW, TYPE, FUNCTION, AGGREGATE, USER, ROLE, SERVICE_LEVEL, TRIGGER), TRUNCATE
-- **Prompt format:** `Are you sure you want to [OPERATION] [TARGET]? [N/y]`
-- **Default answer:** No (safe default — pressing Enter cancels)
-- **Non-interactive mode:** Skip prompts (batch/execute mode should not hang)
-- **Implementation:** Detect via parser tokenization (not regex on raw input), integrate as a pre-execution check in the statement pipeline
+- **Protected operations:** any statement whose first word is `DROP` or `TRUNCATE` (`^\s*(DROP|TRUNCATE)\b`, same as Python `is_destructive_statement`)
+- **Prompt format:** `Are you sure you want to execute the following?\n\n<stmt>\n\n[N/y] `
+- **Default answer:** No (only `y`/`yes` confirms; Enter, Ctrl-C, Ctrl-D cancel with `Operation cancelled.`)
+- **Non-interactive mode:** No prompt when stdin is not a terminal (`-e`, `-f`, piped stdin, `--tty` with piped stdin); the statement runs, matching Python cqlsh
+- **Implementation:** first-word check in `src/repl.rs` (`is_destructive_statement`) as a pre-execution step
 
 ### Acceptance Criteria
 
-- [x] Every command in the matrix works with correct output (DESCRIBE extensions + SHOW SESSION now complete; LOGIN + safe mode deferred)
+- [x] Every command in the matrix works with correct output (DESCRIBE extensions + SHOW SESSION now complete; LOGIN deferred)
 - [x] HELP shows correct help text for each command
 - [x] DESCRIBE output matches Python cqlsh DDL format (INDEX, MV, TYPE, FUNCTION, AGGREGATE, FULL SCHEMA all implemented)
 - [x] Error messages match Python cqlsh
 - [x] Commands are case-insensitive
 - [x] Invalid arguments produce helpful errors
-- [ ] **Safe mode prompts for all protected operations when enabled** (PR #147) — Phase 4
-- [ ] **Safe mode is skipped in non-interactive mode** (PR #147) — Phase 4
+- [x] **Safe mode prompts for all protected operations when enabled** (scylla-cqlsh#278)
+- [x] **Safe mode is skipped in non-interactive mode** (scylla-cqlsh#278)
 
 ---
 
