@@ -30,6 +30,8 @@ mod dtest_cqlsh_tests;
 #[cfg(feature = "test-plain")]
 mod escape_tests;
 #[cfg(feature = "test-plain")]
+mod float_format_tests;
+#[cfg(feature = "test-plain")]
 mod login_tests;
 #[cfg(feature = "test-plain")]
 mod output_tests;

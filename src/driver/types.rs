@@ -6,6 +6,7 @@
 
 use std::fmt;
 use std::net::IpAddr;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use bigdecimal::BigDecimal;
 use chrono::{NaiveDate, NaiveTime};
@@ -100,13 +101,25 @@ impl fmt::Display for CqlValue {
             }
             CqlValue::Counter(v) => write!(f, "{v}"),
             CqlValue::Decimal(v) => write!(f, "{v}"),
-            CqlValue::Double(v) => format_float64(f, *v),
+            CqlValue::Double(v) => {
+                write!(
+                    f,
+                    "{}",
+                    format_float_py(*v, DOUBLE_PRECISION.load(Ordering::Relaxed))
+                )
+            }
             CqlValue::Duration {
                 months,
                 days,
                 nanoseconds,
             } => write!(f, "{months}mo{days}d{nanoseconds}ns"),
-            CqlValue::Float(v) => format_float32(f, *v),
+            CqlValue::Float(v) => {
+                write!(
+                    f,
+                    "{}",
+                    format_float_py(*v as f64, FLOAT_PRECISION.load(Ordering::Relaxed))
+                )
+            }
             CqlValue::Int(v) => write!(f, "{v}"),
             CqlValue::SmallInt(v) => write!(f, "{v}"),
             CqlValue::TinyInt(v) => write!(f, "{v}"),
@@ -116,56 +129,12 @@ impl fmt::Display for CqlValue {
             CqlValue::Date(d) => write!(f, "{d}"),
             CqlValue::Time(t) => write!(f, "{t}"),
             CqlValue::Varint(v) => write!(f, "{v}"),
-            CqlValue::List(items) | CqlValue::Set(items) => {
-                let is_set = matches!(self, CqlValue::Set(_));
-                let (open, close) = if is_set { ('{', '}') } else { ('[', ']') };
-                write!(f, "{open}")?;
-                for (i, item) in items.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    write_cql_literal(f, item)?;
-                }
-                write!(f, "{close}")
-            }
-            CqlValue::Map(entries) => {
-                write!(f, "{{")?;
-                for (i, (k, v)) in entries.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    write_cql_literal(f, k)?;
-                    write!(f, ": ")?;
-                    write_cql_literal(f, v)?;
-                }
-                write!(f, "}}")
-            }
-            CqlValue::Tuple(items) => {
-                write!(f, "(")?;
-                for (i, item) in items.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    match item {
-                        Some(v) => write_cql_literal(f, v)?,
-                        None => write!(f, "null")?,
-                    }
-                }
-                write!(f, ")")
-            }
-            CqlValue::UserDefinedType { fields, .. } => {
-                write!(f, "{{")?;
-                for (i, (name, value)) in fields.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{name}: ")?;
-                    match value {
-                        Some(v) => write_cql_literal(f, v)?,
-                        None => write!(f, "null")?,
-                    }
-                }
-                write!(f, "}}")
+            CqlValue::List(_)
+            | CqlValue::Set(_)
+            | CqlValue::Map(_)
+            | CqlValue::Tuple(_)
+            | CqlValue::UserDefinedType { .. } => {
+                write_nested(f, self, FLOAT_PRECISION.load(Ordering::Relaxed), '.')
             }
             CqlValue::Null => Ok(()),
             CqlValue::Unset => write!(f, "<unset>"),
@@ -173,46 +142,183 @@ impl fmt::Display for CqlValue {
     }
 }
 
-/// Write a CQL literal value, quoting strings.
-fn write_cql_literal(f: &mut fmt::Formatter<'_>, value: &CqlValue) -> fmt::Result {
+/// Render a collection, tuple or UDT as a CQL literal, with nested floats and
+/// doubles at `precision` significant digits. Python cqlsh picks one precision
+/// from the top-level column type and passes it, and COPY's `decimal_sep`, to
+/// every nested value.
+pub fn format_nested(value: &CqlValue, precision: usize, decimal_sep: char) -> String {
+    let mut s = String::new();
+    write_nested(&mut s, value, precision, decimal_sep).expect("writing to a String cannot fail");
+    s
+}
+
+fn write_nested(
+    f: &mut impl fmt::Write,
+    value: &CqlValue,
+    precision: usize,
+    decimal_sep: char,
+) -> fmt::Result {
     match value {
-        CqlValue::Ascii(s) | CqlValue::Text(s) => {
-            write!(f, "'{}'", s.replace('\'', "''"))
+        CqlValue::List(items) | CqlValue::Set(items) => {
+            let is_set = matches!(value, CqlValue::Set(_));
+            let (open, close) = if is_set { ('{', '}') } else { ('[', ']') };
+            write!(f, "{open}")?;
+            for (i, item) in items.iter().enumerate() {
+                if i > 0 {
+                    write!(f, ", ")?;
+                }
+                write_cql_literal(f, item, precision, decimal_sep)?;
+            }
+            write!(f, "{close}")
+        }
+        CqlValue::Map(entries) => {
+            write!(f, "{{")?;
+            for (i, (k, v)) in entries.iter().enumerate() {
+                if i > 0 {
+                    write!(f, ", ")?;
+                }
+                write_cql_literal(f, k, precision, decimal_sep)?;
+                write!(f, ": ")?;
+                write_cql_literal(f, v, precision, decimal_sep)?;
+            }
+            write!(f, "}}")
+        }
+        CqlValue::Tuple(items) => {
+            write!(f, "(")?;
+            for (i, item) in items.iter().enumerate() {
+                if i > 0 {
+                    write!(f, ", ")?;
+                }
+                match item {
+                    Some(v) => write_cql_literal(f, v, precision, decimal_sep)?,
+                    None => write!(f, "null")?,
+                }
+            }
+            write!(f, ")")
+        }
+        CqlValue::UserDefinedType { fields, .. } => {
+            write!(f, "{{")?;
+            for (i, (name, value)) in fields.iter().enumerate() {
+                if i > 0 {
+                    write!(f, ", ")?;
+                }
+                write!(f, "{name}: ")?;
+                match value {
+                    Some(v) => write_cql_literal(f, v, precision, decimal_sep)?,
+                    None => write!(f, "null")?,
+                }
+            }
+            write!(f, "}}")
         }
         other => write!(f, "{other}"),
     }
 }
 
-/// Format a float64 matching Python cqlsh output style.
-fn format_float64(f: &mut fmt::Formatter<'_>, v: f64) -> fmt::Result {
-    if v.is_nan() {
-        write!(f, "NaN")
-    } else if v.is_infinite() {
-        if v.is_sign_positive() {
-            write!(f, "Infinity")
-        } else {
-            write!(f, "-Infinity")
+/// Write a CQL literal value, quoting strings.
+fn write_cql_literal(
+    f: &mut impl fmt::Write,
+    value: &CqlValue,
+    precision: usize,
+    decimal_sep: char,
+) -> fmt::Result {
+    match value {
+        CqlValue::Ascii(s) | CqlValue::Text(s) => {
+            write!(f, "'{}'", s.replace('\'', "''"))
         }
-    } else if v == v.trunc() && v.abs() < 1e15 {
-        // Show as integer-like when possible, matching Python behavior
-        write!(f, "{v}")
-    } else {
-        write!(f, "{v}")
+        CqlValue::Float(v) => write_number(f, format_float_py(*v as f64, precision), decimal_sep),
+        CqlValue::Double(v) => write_number(f, format_float_py(*v, precision), decimal_sep),
+        CqlValue::Decimal(v) => write_number(f, v.to_string(), decimal_sep),
+        CqlValue::List(_)
+        | CqlValue::Set(_)
+        | CqlValue::Map(_)
+        | CqlValue::Tuple(_)
+        | CqlValue::UserDefinedType { .. } => write_nested(f, value, precision, decimal_sep),
+        other => write!(f, "{other}"),
     }
 }
 
-/// Format a float32 matching Python cqlsh output style.
-fn format_float32(f: &mut fmt::Formatter<'_>, v: f32) -> fmt::Result {
-    if v.is_nan() {
-        write!(f, "NaN")
-    } else if v.is_infinite() {
-        if v.is_sign_positive() {
-            write!(f, "Infinity")
-        } else {
-            write!(f, "-Infinity")
-        }
+fn write_number(f: &mut impl fmt::Write, s: String, decimal_sep: char) -> fmt::Result {
+    if decimal_sep == '.' {
+        f.write_str(&s)
     } else {
-        write!(f, "{v}")
+        f.write_str(&s.replace('.', decimal_sep.encode_utf8(&mut [0; 4])))
+    }
+}
+
+/// Display precision for `float` values and anything nested in a collection
+/// (cqlshrc `[ui] float_precision`, Python cqlsh default 5).
+static FLOAT_PRECISION: AtomicUsize = AtomicUsize::new(5);
+/// Display precision for top-level `double` columns
+/// (cqlshrc `[ui] double_precision`; scylla-cqlsh's display default is 5, not 12).
+static DOUBLE_PRECISION: AtomicUsize = AtomicUsize::new(5);
+
+/// Set the display precisions from cqlshrc. Called once at startup.
+// ponytail: process-wide setting, like Python cqlsh's shell attributes; pass it
+// through the formatter if one process ever needs two different precisions.
+pub fn set_display_precision(float_precision: Option<u32>, double_precision: Option<u32>) {
+    if let Some(p) = float_precision {
+        FLOAT_PRECISION.store(p as usize, Ordering::Relaxed);
+    }
+    if let Some(p) = double_precision {
+        DOUBLE_PRECISION.store(p as usize, Ordering::Relaxed);
+    }
+}
+
+/// Display precision for a nested `double` (inside a collection, tuple or UDT).
+/// Python cqlsh picks the precision from the top-level column type, so nested
+/// doubles get `float_precision`.
+pub fn nested_double_precision() -> usize {
+    FLOAT_PRECISION.load(Ordering::Relaxed)
+}
+
+/// Format a floating-point value exactly like Python cqlsh's
+/// `formatting.format_floating_point_type` (without thousands separator).
+///
+/// `precision` is a number of significant digits, widened by the number of
+/// integer digits when the value would print in fixed notation, then fed to
+/// C's `%.*g` (trailing zeros stripped, scientific notation for large/small
+/// exponents).
+pub fn format_float_py(val: f64, precision: usize) -> String {
+    if val.is_nan() {
+        return "NaN".to_string();
+    }
+    if val.is_infinite() {
+        return if val > 0.0 { "Infinity" } else { "-Infinity" }.to_string();
+    }
+    let mut precision = precision as i64;
+    if val.abs() > f64::EPSILON {
+        // Python: int(math.log10(abs(val))) truncates toward zero.
+        let exponent = val.abs().log10().trunc() as i64;
+        if (-4..precision).contains(&exponent) {
+            precision += exponent + 1;
+        }
+    }
+    format_g(val, precision.max(0) as usize)
+}
+
+/// C/Python `'%.*g' % (precision, val)` for a finite value.
+fn format_g(val: f64, precision: usize) -> String {
+    let p = precision.max(1);
+    // Round to `p` significant digits first; the resulting exponent decides
+    // between fixed and scientific notation, as in C's %g.
+    let sci = format!("{:.*e}", p - 1, val);
+    let (mantissa, exp) = sci.split_once('e').expect("{:e} always has an exponent");
+    let exp: i64 = exp.parse().expect("{:e} exponent is an integer");
+    if exp < -4 || exp >= p as i64 {
+        let sign = if exp < 0 { '-' } else { '+' };
+        format!("{}e{sign}{:02}", strip_fraction_zeros(mantissa), exp.abs())
+    } else {
+        let decimals = (p as i64 - 1 - exp) as usize;
+        strip_fraction_zeros(&format!("{val:.decimals$}")).to_string()
+    }
+}
+
+/// Drop trailing zeros after the decimal point, and the point itself if bare.
+fn strip_fraction_zeros(s: &str) -> &str {
+    if s.contains('.') {
+        s.trim_end_matches('0').trim_end_matches('.')
+    } else {
+        s
     }
 }
 
@@ -414,6 +520,51 @@ mod tests {
         assert_eq!(CqlValue::Float(f32::INFINITY).to_string(), "Infinity");
         assert_eq!(CqlValue::Float(f32::NEG_INFINITY).to_string(), "-Infinity");
         assert_eq!(CqlValue::Double(f64::NAN).to_string(), "NaN");
+    }
+
+    /// Expected strings come from Python cqlsh's `format_floating_point_type`
+    /// run on the same f64 values (f32 inputs widened the way the driver does).
+    #[test]
+    fn format_float_py_matches_python_cqlsh() {
+        let cases = [
+            (0.5_f64, 5, "0.5"),
+            (9999.5_f64, 5, "9999.5"),
+            (11.333333015441895_f64, 5, "11.33333"),
+            (76571.34375_f64, 5, "76571.34375"),
+            (7.657139128428829e+18_f64, 5, "7.6571e+18"),
+            (7.657139163564605e+18_f64, 5, "7.6571e+18"),
+            (-254.256987_f64, 5, "-254.25699"),
+            (-254.256987_f64, 12, "-254.256987"),
+            (3.2767456456456457e+52_f64, 5, "3.2767e+52"),
+            (-2044.4000244140625_f64, 5, "-2044.40002"),
+            (0.0_f64, 5, "0"),
+            (-0.0_f64, 5, "-0"),
+            (6e-08_f64, 5, "6e-08"),
+            (6e-07_f64, 5, "6e-07"),
+            (6e-06_f64, 5, "6e-06"),
+            (6e-05_f64, 5, "6e-05"),
+            (0.0006_f64, 5, "0.0006"),
+            (0.06_f64, 5, "0.06"),
+            (0.6_f64, 5, "0.6"),
+            (6.0_f64, 5, "6"),
+            (1.23456_f64, 3, "1.235"),
+            (1000000000000000.0_f64, 5, "1e+15"),
+            (123456.0_f64, 5, "1.2346e+05"),
+            (99999.99999_f64, 5, "99999.99999"),
+            (0.0001_f64, 5, "0.0001"),
+            (0.00012345678_f64, 5, "0.000123"),
+            (1.0_f64, 0, "1"),
+            (2.5e-300_f64, 12, "2.5e-300"),
+            (1.7976931348623157e+308_f64, 12, "1.79769313486e+308"),
+            (76571.345_f64, 12, "76571.345000000001"),
+        ];
+        for (val, precision, expected) in cases {
+            assert_eq!(
+                format_float_py(val, precision),
+                expected,
+                "format_float_py({val:?}, {precision})"
+            );
+        }
     }
 
     #[test]

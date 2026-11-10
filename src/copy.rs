@@ -276,12 +276,15 @@ pub fn format_value_for_csv(value: &CqlValue, options: &CopyOptions) -> String {
             nanoseconds,
         } => format!("{months}mo{days}d{nanoseconds}ns"),
         CqlValue::Inet(addr) => addr.to_string(),
-        // Collection types: use CQL literal format via Display
+        // Collection types: CQL literal format; everything nested gets
+        // FLOATPRECISION, doubles included, and DECIMALSEP, as in Python cqlsh.
         CqlValue::List(_)
         | CqlValue::Set(_)
         | CqlValue::Map(_)
         | CqlValue::Tuple(_)
-        | CqlValue::UserDefinedType { .. } => value.to_string(),
+        | CqlValue::UserDefinedType { .. } => {
+            crate::driver::types::format_nested(value, options.float_precision, options.decimal_sep)
+        }
     }
 }
 
@@ -418,19 +421,10 @@ fn read_line_any_eol<R: std::io::BufRead>(r: &mut R, line: &mut String) -> std::
     Ok(s.len())
 }
 
-/// Format a floating-point number with given precision and decimal separator.
+/// Format a floating-point number like Python cqlsh's COPY TO: `precision`
+/// significant digits (see `format_float_py`), then the decimal separator.
 fn format_float(v: f64, precision: usize, options: &CopyOptions) -> String {
-    if v.is_nan() {
-        return "NaN".to_string();
-    }
-    if v.is_infinite() {
-        return if v.is_sign_positive() {
-            "Infinity".to_string()
-        } else {
-            "-Infinity".to_string()
-        };
-    }
-    let s = format!("{v:.prec$}", prec = precision);
+    let s = crate::driver::types::format_float_py(v, precision);
     if options.decimal_sep != '.' {
         s.replace('.', &options.decimal_sep.to_string())
     } else {
@@ -1749,6 +1743,43 @@ mod tests {
     }
 
     #[test]
+    fn format_value_nested_float_uses_floatprecision() {
+        // Python cqlsh passes FLOATPRECISION to everything nested in a
+        // collection/tuple/UDT, doubles included.
+        let opts = CopyOptions {
+            float_precision: 3,
+            double_precision: 7,
+            ..Default::default()
+        };
+        let list = CqlValue::List(vec![CqlValue::Float(1.23456), CqlValue::Double(1.23456)]);
+        assert_eq!(format_value_for_csv(&list, &opts), "[1.235, 1.235]");
+        let map = CqlValue::Map(vec![(
+            CqlValue::Text("k".into()),
+            CqlValue::Tuple(vec![Some(CqlValue::Double(9.87654321))]),
+        )]);
+        assert_eq!(format_value_for_csv(&map, &opts), "{'k': (9.877)}");
+    }
+
+    #[test]
+    fn format_value_nested_uses_decimalsep() {
+        // Python cqlsh passes DECIMALSEP to nested values too.
+        use bigdecimal::BigDecimal;
+        use std::str::FromStr;
+        let opts = CopyOptions {
+            decimal_sep: ',',
+            ..Default::default()
+        };
+        let list = CqlValue::List(vec![CqlValue::Double(1.5), CqlValue::Double(2.25)]);
+        assert_eq!(format_value_for_csv(&list, &opts), "[1,5, 2,25]");
+        let map = CqlValue::Map(vec![(CqlValue::Text("a.b".into()), CqlValue::Float(1.5))]);
+        assert_eq!(format_value_for_csv(&map, &opts), "{'a.b': 1,5}");
+        let dec = CqlValue::Set(vec![CqlValue::Decimal(
+            BigDecimal::from_str("1.5").unwrap(),
+        )]);
+        assert_eq!(format_value_for_csv(&dec, &opts), "{1,5}");
+    }
+
+    #[test]
     fn default_options() {
         let opts = CopyOptions::default();
         assert_eq!(opts.delimiter, ',');
@@ -2193,7 +2224,7 @@ mod tests {
             decimal_sep: ',',
             ..Default::default()
         };
-        assert_eq!(format_value_for_csv(&CqlValue::Float(1.5), &opts), "1,50");
+        assert_eq!(format_value_for_csv(&CqlValue::Float(1.5), &opts), "1,5");
     }
 
     #[test]
