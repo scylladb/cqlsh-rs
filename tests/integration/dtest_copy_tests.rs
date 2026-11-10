@@ -12,7 +12,7 @@ fn copy_dispatched(scylla: &ScyllaContainer, ks: &str) -> bool {
     let _ = cqlsh_cmd(scylla)
         .args([
             "-e",
-            &format!("CREATE TABLE IF NOT EXISTS {ks}._copy_probe (id int PRIMARY KEY)"),
+            &format!("CREATE TABLE IF NOT EXISTS {ks}.copy_probe (id int PRIMARY KEY)"),
         ])
         .output();
 
@@ -20,12 +20,162 @@ fn copy_dispatched(scylla: &ScyllaContainer, ks: &str) -> bool {
     let csv_path = tmp.path().to_str().unwrap().to_string();
 
     let result = cqlsh_cmd(scylla)
-        .args(["-e", &format!("COPY {ks}._copy_probe TO '{csv_path}'")])
+        .args(["-e", &format!("COPY {ks}.copy_probe TO '{csv_path}'")])
         .output()
         .expect("failed to run cqlsh-rs for COPY probe");
 
     let stderr = String::from_utf8_lossy(&result.stderr);
     !stderr.contains("SyntaxException") && !stderr.contains("no viable alternative")
+}
+
+/// Rows used by dtest's `quoted_column_names_reading_template`.
+const QUOTED_NAMES_ROWS: [(i32, &str); 4] = [(1, "no"), (2, "Yes"), (3, "True"), (4, "false")];
+
+fn write_quoted_names_csv() -> tempfile::TempPath {
+    let mut tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    for (id, val) in QUOTED_NAMES_ROWS {
+        writeln!(tmp, "{id},{val}").unwrap();
+    }
+    tmp.flush().unwrap();
+    tmp.into_temp_path()
+}
+
+fn assert_quoted_names_rows(scylla: &ScyllaContainer, ks: &str) {
+    let output = execute_cql_output_direct(
+        scylla,
+        &format!(r#"SELECT "IdNumber", "select" FROM {ks}.testquoted"#),
+    );
+    assert!(output.contains("(4 rows)"), "Expected 4 rows: {output}");
+    for (id, val) in QUOTED_NAMES_ROWS {
+        assert!(
+            output.lines().any(|l| l
+                .split('|')
+                .map(str::trim)
+                .eq([id.to_string().as_str(), val])),
+            "Expected row ({id}, {val}): {output}"
+        );
+    }
+}
+
+/// Count the rows of `table` with `SELECT count(*)`.
+fn count_rows(scylla: &ScyllaContainer, table: &str) -> usize {
+    let output = execute_cql_output_direct(scylla, &format!("SELECT count(*) FROM {table}"));
+    output
+        .lines()
+        .find_map(|l| l.trim().parse().ok())
+        .unwrap_or_else(|| panic!("no count in output: {output}"))
+}
+
+// ---------------------------------------------------------------------------
+// test_bulk_round_trip_default — COPY TO / TRUNCATE / COPY FROM / COPY TO on a
+// cassandra-stress `standard1`-shaped table (case-sensitive "C0".."C4")
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_bulk_round_trip_default() {
+    // dtest uses 100000 cassandra-stress rows; 10000 keeps the same shape fast.
+    const NUM_RECORDS: usize = 10_000;
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_bulk_rt");
+
+    execute_cql(
+        scylla,
+        &format!(
+            r#"CREATE TABLE {ks}.standard1 (key blob PRIMARY KEY, "C0" blob, "C1" blob, "C2" blob, "C3" blob, "C4" blob)"#
+        ),
+    )
+    .success();
+
+    // Seed the table (stands in for cassandra-stress write).
+    let mut seed = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    for i in 0..NUM_RECORDS {
+        writeln!(
+            seed,
+            "0x{i:08x},0x{i:04x}c0,0x{i:04x}c1,0x{i:04x}c2,0x{i:04x}c3,0x{i:04x}c4"
+        )
+        .unwrap();
+    }
+    seed.flush().unwrap();
+    let seed_path = seed.path().to_str().unwrap().to_string();
+    let copy_from = |path: &str| run_copy(scylla, &format!("COPY {ks}.standard1 FROM '{path}'"));
+    let copy_to = |path: &str| {
+        let out = cqlsh_cmd(scylla)
+            .args(["-e", &format!("COPY {ks}.standard1 TO '{path}'")])
+            .output()
+            .expect("failed to run cqlsh-rs");
+        assert!(out.status.success(), "COPY TO failed: {out:?}");
+        let mut lines: Vec<String> = fs::read_to_string(path)
+            .expect("failed to read CSV")
+            .lines()
+            .map(str::to_owned)
+            .collect();
+        lines.sort();
+        lines
+    };
+    copy_from(&seed_path);
+    let table = format!("{ks}.standard1");
+    assert_eq!(count_rows(scylla, &table), NUM_RECORDS);
+
+    let first = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    let first_path = first.path().to_str().unwrap().to_string();
+    let first_rows = copy_to(&first_path);
+    assert_eq!(first_rows.len(), NUM_RECORDS);
+
+    execute_cql(scylla, &format!("TRUNCATE {table}")).success();
+    copy_from(&first_path);
+    assert_eq!(count_rows(scylla, &table), NUM_RECORDS);
+
+    let second = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    let second_rows = copy_to(second.path().to_str().unwrap());
+    assert!(
+        first_rows == second_rows,
+        "round trip changed the exported rows"
+    );
+
+    drop_test_keyspace(scylla, &ks);
+}
+
+// ---------------------------------------------------------------------------
+// COPY FROM WITH HEADER resolves header names against the schema: stored
+// names as written by COPY TO (`C0`) and CQL-style ones (`KEY`, `"C0"`).
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_reading_header_with_case_sensitive_names() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_hdr_case");
+    let table = format!("{ks}.hc");
+    execute_cql(
+        scylla,
+        &format!(r#"CREATE TABLE {table} (key int PRIMARY KEY, "C0" text)"#),
+    )
+    .success();
+
+    // `"\"C0\""` is CSV quoting (cqlsh's ESCAPE `\`, no doublequote) around
+    // the CQL-quoted name `"C0"`.
+    for header in ["key,C0", r#"KEY,"\"C0\"""#] {
+        execute_cql(scylla, &format!("TRUNCATE {table}")).success();
+        let mut tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+        writeln!(tmp, "{header}").unwrap();
+        writeln!(tmp, "1,one").unwrap();
+        tmp.flush().unwrap();
+        let out = cqlsh_cmd(scylla)
+            .args([
+                "-e",
+                &format!(
+                    "COPY {table} FROM '{}' WITH HEADER = true",
+                    tmp.path().to_str().unwrap()
+                ),
+            ])
+            .output()
+            .expect("failed to run cqlsh-rs");
+        assert!(out.status.success(), "COPY FROM failed: {out:?}");
+        assert_eq!(count_rows(scylla, &table), 1, "header {header:?}: {out:?}");
+    }
+
+    drop_test_keyspace(scylla, &ks);
 }
 
 // ---------------------------------------------------------------------------
@@ -430,27 +580,24 @@ fn test_quoted_column_names_reading_specify_names() {
 
     execute_cql(
         scylla,
-        &format!(r#"CREATE TABLE {ks}.quoted_cols ("MyKey" int PRIMARY KEY, "MyValue" text)"#),
+        &format!(r#"CREATE TABLE {ks}.testquoted ("IdNumber" int PRIMARY KEY, "select" text)"#),
     )
     .success();
 
-    let mut tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
-    writeln!(tmp, "1,alpha").unwrap();
-    writeln!(tmp, "2,beta").unwrap();
-    tmp.flush().unwrap();
-    let csv_path = tmp.path().to_str().unwrap().to_string();
-
-    cqlsh_cmd(scylla)
+    let csv_path = write_quoted_names_csv();
+    let out = cqlsh_cmd(scylla)
         .args([
             "-e",
-            &format!(r#"COPY {ks}.quoted_cols ("MyKey", "MyValue") FROM '{csv_path}'"#),
+            &format!(
+                r#"COPY {ks}.testquoted ("IdNumber", "select") FROM '{}'"#,
+                csv_path.display()
+            ),
         ])
-        .assert()
-        .success();
+        .output()
+        .expect("failed to run cqlsh-rs");
+    assert!(out.status.success(), "COPY FROM failed: {out:?}");
 
-    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.quoted_cols"));
-    assert!(output.contains("alpha"), "Expected 'alpha' in DB: {output}");
-    assert!(output.contains("beta"), "Expected 'beta' in DB: {output}");
+    assert_quoted_names_rows(scylla, &ks);
 
     drop_test_keyspace(scylla, &ks);
 }
@@ -473,24 +620,21 @@ fn test_quoted_column_names_reading_dont_specify_names() {
 
     execute_cql(
         scylla,
-        &format!(r#"CREATE TABLE {ks}.quoted_noc ("MyKey" int PRIMARY KEY, "MyValue" text)"#),
+        &format!(r#"CREATE TABLE {ks}.testquoted ("IdNumber" int PRIMARY KEY, "select" text)"#),
     )
     .success();
 
-    let mut tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
-    writeln!(tmp, "3,gamma").unwrap();
-    writeln!(tmp, "4,delta").unwrap();
-    tmp.flush().unwrap();
-    let csv_path = tmp.path().to_str().unwrap().to_string();
+    let csv_path = write_quoted_names_csv();
+    let out = cqlsh_cmd(scylla)
+        .args([
+            "-e",
+            &format!("COPY {ks}.testquoted FROM '{}'", csv_path.display()),
+        ])
+        .output()
+        .expect("failed to run cqlsh-rs");
+    assert!(out.status.success(), "COPY FROM failed: {out:?}");
 
-    cqlsh_cmd(scylla)
-        .args(["-e", &format!("COPY {ks}.quoted_noc FROM '{csv_path}'")])
-        .assert()
-        .success();
-
-    let output = execute_cql_output_direct(scylla, &format!("SELECT * FROM {ks}.quoted_noc"));
-    assert!(output.contains("gamma"), "Expected 'gamma' in DB: {output}");
-    assert!(output.contains("delta"), "Expected 'delta' in DB: {output}");
+    assert_quoted_names_rows(scylla, &ks);
 
     drop_test_keyspace(scylla, &ks);
 }
@@ -768,51 +912,157 @@ fn test_read_invalid_text() {
 }
 
 // ---------------------------------------------------------------------------
-// test_reading_counter — COPY FROM into counter table should fail
+// test_reading_counter* — COPY FROM into a counter table (CASSANDRA-9043)
 // ---------------------------------------------------------------------------
 
-#[test]
-#[ignore = "requires Docker"]
-fn test_reading_counter() {
-    let scylla = get_scylla();
-    let ks = create_test_keyspace(scylla, "dt_counter");
+/// Run a COPY statement through cqlsh-rs and assert it succeeded.
+fn run_copy(scylla: &ScyllaContainer, stmt: &str) {
+    let out = cqlsh_cmd(scylla)
+        .args(["-e", stmt])
+        .output()
+        .expect("failed to run cqlsh-rs");
+    assert!(out.status.success(), "{stmt} failed: {out:?}");
+}
 
-    if !copy_dispatched(scylla, &ks) {
-        eprintln!("SKIP: COPY not dispatched in -e mode");
-        drop_test_keyspace(scylla, &ks);
-        return;
-    }
+/// Assert that `query` returns exactly `expected` rows (cells as printed,
+/// empty for null), in any order.
+fn assert_rows(scylla: &ScyllaContainer, query: &str, expected: &[&[&str]]) {
+    let output = execute_cql_output_direct(scylla, query);
+    let mut rows: Vec<Vec<String>> = output
+        .lines()
+        .filter(|l| l.contains('|') && !l.contains("--+--"))
+        .skip(1) // header
+        .map(|l| l.split('|').map(|c| c.trim().to_string()).collect())
+        .collect();
+    let mut want: Vec<Vec<String>> = expected
+        .iter()
+        .map(|r| r.iter().map(|c| c.to_string()).collect())
+        .collect();
+    rows.sort();
+    want.sort();
+    assert_eq!(rows, want, "unexpected rows for {query}:\n{output}");
+}
+
+/// Port of dtest `_test_reading_counter_template`.
+fn reading_counter_template(prefix: &str, copy_options: &str) {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, prefix);
 
     execute_cql(
         scylla,
-        &format!("CREATE TABLE {ks}.ctr_tbl (id int PRIMARY KEY, cnt counter)"),
+        &format!("CREATE TABLE {ks}.testcounter (a int, b text, c counter, PRIMARY KEY (a, b))"),
     )
     .success();
 
     let mut tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
-    writeln!(tmp, "1,10").unwrap();
+    writeln!(tmp, "a,b,c").unwrap();
+    for (a, c) in [(1, 20), (2, 40), (3, 60), (4, 80)] {
+        writeln!(tmp, "{a},{a},{c}").unwrap();
+    }
     tmp.flush().unwrap();
     let csv_path = tmp.path().to_str().unwrap().to_string();
 
-    let result = cqlsh_cmd(scylla)
-        .args(["-e", &format!("COPY {ks}.ctr_tbl FROM '{csv_path}'")])
-        .output()
-        .expect("failed to run cqlsh-rs");
-
-    // COPY FROM into a counter table should be rejected
-    let stderr = String::from_utf8_lossy(&result.stderr);
-    let stdout = String::from_utf8_lossy(&result.stdout);
-    let has_error = !result.status.success()
-        || stderr.contains("error")
-        || stderr.contains("Error")
-        || stderr.contains("counter")
-        || stdout.contains("error")
-        || stdout.contains("counter");
-    assert!(
-        has_error,
-        "COPY FROM into counter table should produce an error. \
-         stdout={stdout} stderr={stderr}"
+    run_copy(
+        scylla,
+        &format!("COPY {ks}.testcounter FROM '{csv_path}' WITH HEADER = true{copy_options}"),
     );
+
+    assert_rows(
+        scylla,
+        &format!("SELECT * FROM {ks}.testcounter"),
+        &[
+            &["1", "1", "20"],
+            &["2", "2", "40"],
+            &["3", "3", "60"],
+            &["4", "4", "80"],
+        ],
+    );
+
+    drop_test_keyspace(scylla, &ks);
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_reading_counter() {
+    reading_counter_template("dt_counter", "");
+}
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_reading_counter_without_batching() {
+    reading_counter_template("dt_counter_nb", " AND MAXBATCHSIZE = '1'");
+}
+
+/// Counter UPDATEs must quote case-sensitive and reserved-word column names.
+#[test]
+#[ignore = "requires Docker"]
+fn test_reading_counter_quoted_names() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_counter_quoted");
+
+    execute_cql(
+        scylla,
+        &format!(
+            r#"CREATE TABLE {ks}.cnt ("Key" int PRIMARY KEY, "Cnt" counter, "select" counter)"#
+        ),
+    )
+    .success();
+
+    let mut tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    writeln!(tmp, "1,5,7").unwrap();
+    tmp.flush().unwrap();
+    let csv_path = tmp.path().to_str().unwrap().to_string();
+
+    run_copy(scylla, &format!("COPY {ks}.cnt FROM '{csv_path}'"));
+    assert_rows(
+        scylla,
+        &format!("SELECT * FROM {ks}.cnt"),
+        &[&["1", "5", "7"]],
+    );
+
+    drop_test_keyspace(scylla, &ks);
+}
+
+// ---------------------------------------------------------------------------
+// test_reading_counters_with_skip_cols — COPY FROM counters WITH SKIPCOLS
+// (CASSANDRA-9303). Counter imports are not idempotent, so values add up.
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_reading_counters_with_skip_cols() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "dt_counter_skip");
+
+    execute_cql(
+        scylla,
+        &format!(
+            "CREATE TABLE {ks}.testskipcols (a int PRIMARY KEY, b counter, c counter, d counter, e counter)"
+        ),
+    )
+    .success();
+
+    let mut tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    writeln!(tmp, "1,1,1,1,1").unwrap();
+    writeln!(tmp, "2,1,1,1,1").unwrap();
+    tmp.flush().unwrap();
+    let csv_path = tmp.path().to_str().unwrap().to_string();
+
+    let query = format!("SELECT * FROM {ks}.testskipcols");
+    let steps: [(&str, [[&str; 5]; 2]); 4] = [
+        ("c, d, e", [["1", "1", "", "", ""], ["2", "1", "", "", ""]]),
+        ("b", [["1", "1", "1", "1", "1"], ["2", "1", "1", "1", "1"]]),
+        ("b", [["1", "1", "2", "2", "2"], ["2", "1", "2", "2", "2"]]),
+        ("e", [["1", "2", "3", "3", "2"], ["2", "2", "3", "3", "2"]]),
+    ];
+    for (skip_cols, expected) in steps {
+        run_copy(
+            scylla,
+            &format!("COPY {ks}.testskipcols FROM '{csv_path}' WITH SKIPCOLS = '{skip_cols}'"),
+        );
+        let expected: Vec<&[&str]> = expected.iter().map(|r| r.as_slice()).collect();
+        assert_rows(scylla, &query, &expected);
+    }
 
     drop_test_keyspace(scylla, &ks);
 }
