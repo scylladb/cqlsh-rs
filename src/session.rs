@@ -312,19 +312,21 @@ fn parse_use_command(query: &str) -> Option<String> {
         })
         .map(|s| s.trim())?;
 
-    // Remove quotes if present
-    let keyspace = if (keyspace.starts_with('"') && keyspace.ends_with('"'))
-        || (keyspace.starts_with('\'') && keyspace.ends_with('\''))
-    {
-        &keyspace[1..keyspace.len() - 1]
-    } else {
-        keyspace
+    // Like Python cqlsh's do_use: a quoted name keeps its case, anything else
+    // folds to lowercase, so the stored name is the keyspace's real name.
+    let keyspace = match keyspace.strip_prefix('"').and_then(|k| k.strip_suffix('"')) {
+        Some(quoted) => quoted.replace("\"\"", "\""),
+        None => keyspace
+            .strip_prefix('\'')
+            .and_then(|k| k.strip_suffix('\''))
+            .unwrap_or(keyspace)
+            .to_lowercase(),
     };
 
     if keyspace.is_empty() {
         None
     } else {
-        Some(keyspace.to_string())
+        Some(keyspace)
     }
 }
 
@@ -361,6 +363,20 @@ mod tests {
         assert_eq!(
             parse_use_command("USE \"MyKeyspace\""),
             Some("MyKeyspace".to_string())
+        );
+    }
+
+    #[test]
+    fn parse_use_folds_unquoted_keeps_quoted_case() {
+        assert_eq!(parse_use_command("USE MyKs"), Some("myks".to_string()));
+        assert_eq!(parse_use_command("use MyKs;"), Some("myks".to_string()));
+        assert_eq!(
+            parse_use_command("USE \"MixKs\""),
+            Some("MixKs".to_string())
+        );
+        assert_eq!(
+            parse_use_command("USE \"a\"\"b\""),
+            Some("a\"b".to_string())
         );
     }
 
