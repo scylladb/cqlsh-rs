@@ -73,8 +73,7 @@ fn test_proxy_connection_via_socat() {
 
     // Connect through the proxy — proxy IP (127.0.0.1:proxy_port) won't match
     // the ScyllaDB node's internal address, triggering proxy detection
-    let result = assert_cmd::Command::cargo_bin("cqlsh-rs")
-        .unwrap()
+    let result = assert_cmd::cargo::cargo_bin_cmd!("cqlsh-rs")
         .args([
             "127.0.0.1",
             &proxy_port.to_string(),

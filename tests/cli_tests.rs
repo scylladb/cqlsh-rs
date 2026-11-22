@@ -12,7 +12,7 @@ use predicates::prelude::*;
 use std::io::Write;
 
 fn cmd() -> Command {
-    Command::cargo_bin("cqlsh-rs").unwrap()
+    assert_cmd::cargo::cargo_bin_cmd!("cqlsh-rs")
 }
 
 #[test]

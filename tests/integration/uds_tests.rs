@@ -19,7 +19,6 @@ mod unix {
     use std::path::PathBuf;
     use std::time::Duration;
 
-    use assert_cmd::Command;
     use predicates::prelude::*;
     use testcontainers::core::{ExecCommand, Mount, WaitFor};
     use testcontainers::runners::SyncRunner;
@@ -126,8 +125,7 @@ mod unix {
     fn test_uds_select_system_local() {
         let scylla = UdsScylla::start();
 
-        Command::cargo_bin("cqlsh-rs")
-            .unwrap()
+        assert_cmd::cargo::cargo_bin_cmd!("cqlsh-rs")
             .args([
                 &scylla.socket(),
                 "-e",
@@ -156,8 +154,7 @@ mod unix {
                 % 0xFFFFFF
         );
 
-        Command::cargo_bin("cqlsh-rs")
-            .unwrap()
+        assert_cmd::cargo::cargo_bin_cmd!("cqlsh-rs")
             .args([
                 &sock,
                 "-e",
@@ -169,8 +166,7 @@ mod unix {
             .assert()
             .success();
 
-        Command::cargo_bin("cqlsh-rs")
-            .unwrap()
+        assert_cmd::cargo::cargo_bin_cmd!("cqlsh-rs")
             .args([
                 &sock,
                 "-e",
@@ -179,8 +175,7 @@ mod unix {
             .assert()
             .success();
 
-        Command::cargo_bin("cqlsh-rs")
-            .unwrap()
+        assert_cmd::cargo::cargo_bin_cmd!("cqlsh-rs")
             .args([
                 &sock,
                 "-e",
@@ -189,8 +184,7 @@ mod unix {
             .assert()
             .success();
 
-        Command::cargo_bin("cqlsh-rs")
-            .unwrap()
+        assert_cmd::cargo::cargo_bin_cmd!("cqlsh-rs")
             .args([
                 &sock,
                 "-e",
@@ -200,8 +194,7 @@ mod unix {
             .success()
             .stdout(predicate::str::contains("hello-uds"));
 
-        Command::cargo_bin("cqlsh-rs")
-            .unwrap()
+        assert_cmd::cargo::cargo_bin_cmd!("cqlsh-rs")
             .args([&sock, "-e", &format!("DROP KEYSPACE IF EXISTS {ks};")])
             .assert()
             .success();
@@ -218,8 +211,7 @@ mod unix {
         let _listener =
             std::os::unix::net::UnixListener::bind(&sock).expect("bind placeholder UDS");
 
-        Command::cargo_bin("cqlsh-rs")
-            .unwrap()
+        assert_cmd::cargo::cargo_bin_cmd!("cqlsh-rs")
             .args([
                 sock.to_str().unwrap(),
                 "--ssl",

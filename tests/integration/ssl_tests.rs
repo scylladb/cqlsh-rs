@@ -142,7 +142,7 @@ fn start_tls_scylla() -> TlsStartResult {
 }
 
 fn tls_cqlsh_cmd(tls: &TlsScyllaContainer) -> assert_cmd::Command {
-    let mut cmd = assert_cmd::Command::cargo_bin("cqlsh-rs").unwrap();
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("cqlsh-rs");
     cmd.args([&tls.host, &tls.port.to_string()]);
     if let (Ok(user), Ok(pass)) = (
         std::env::var("CQLSH_TEST_USERNAME"),

@@ -6,7 +6,7 @@
 //! Two execution modes are provided:
 //! - **Direct** (`*_direct` helpers): call library code in-process so that
 //!   `cargo tarpaulin` can measure coverage for session-dependent code paths.
-//! - **Subprocess** (original helpers): spawn `cargo_bin("cqlsh-rs")` for tests
+//! - **Subprocess** (original helpers): spawn `cargo_bin_cmd!("cqlsh-rs")` for tests
 //!   that specifically exercise CLI behaviour (exit codes, SSL, banners, etc.).
 //!
 //! Environment variables for external Scylla instances:
@@ -111,7 +111,7 @@ fn start_scylla() -> StartResult {
 
 /// Execute cqlsh-rs with the given arguments against the test container.
 pub fn cqlsh_cmd(scylla: &ScyllaContainer) -> assert_cmd::Command {
-    let mut cmd = assert_cmd::Command::cargo_bin("cqlsh-rs").unwrap();
+    let mut cmd = assert_cmd::cargo::cargo_bin_cmd!("cqlsh-rs");
     cmd.args([&scylla.host, &scylla.port.to_string()]);
     cmd
 }
