@@ -243,3 +243,125 @@ fn full_cqlshrc_all_sections() {
         .failure()
         .stderr(predicate::str::contains("Debug: resolved host="));
 }
+
+// --- [client_routes] ---
+
+#[test]
+fn client_routes_from_cqlshrc() {
+    let dir = tempfile::tempdir().unwrap();
+    let cqlshrc = dir.path().join("cqlshrc");
+    let mut f = std::fs::File::create(&cqlshrc).unwrap();
+    writeln!(f, "[connection]").unwrap();
+    writeln!(f, "hostname = 10.255.255.1").unwrap();
+    writeln!(f, "[client_routes]").unwrap();
+    writeln!(f, "proxies = conn-a=proxy-a.example.com,conn-b").unwrap();
+    writeln!(f, "advanced_shard_awareness = true").unwrap();
+
+    cmd()
+        .args([
+            "--cqlshrc",
+            cqlshrc.to_str().unwrap(),
+            "--debug",
+            "--connect-timeout",
+            "1",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("Using client routes: true"))
+        .stderr(predicate::str::contains(
+            "Debug: client routes=[conn-a=proxy-a.example.com, conn-b]",
+        ))
+        .stderr(predicate::str::contains(
+            "Debug: client routes advanced_shard_awareness=true",
+        ));
+}
+
+#[test]
+fn client_routes_multiline_proxies_from_cqlshrc() {
+    let dir = tempfile::tempdir().unwrap();
+    let cqlshrc = dir.path().join("cqlshrc");
+    let mut f = std::fs::File::create(&cqlshrc).unwrap();
+    writeln!(f, "[connection]").unwrap();
+    writeln!(f, "hostname = 10.255.255.1").unwrap();
+    writeln!(f, "[client_routes]").unwrap();
+    writeln!(f, "proxies = conn-a=proxy-a.example.com,").unwrap();
+    writeln!(f, "          conn-b").unwrap();
+
+    cmd()
+        .args([
+            "--cqlshrc",
+            cqlshrc.to_str().unwrap(),
+            "--debug",
+            "--connect-timeout",
+            "1",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "Debug: client routes=[conn-a=proxy-a.example.com, conn-b]",
+        ));
+}
+
+#[test]
+fn cli_client_route_overrides_cqlshrc() {
+    let dir = tempfile::tempdir().unwrap();
+    let cqlshrc = dir.path().join("cqlshrc");
+    let mut f = std::fs::File::create(&cqlshrc).unwrap();
+    writeln!(f, "[connection]").unwrap();
+    writeln!(f, "hostname = 10.255.255.1").unwrap();
+    writeln!(f, "[client_routes]").unwrap();
+    writeln!(f, "proxies = file-conn").unwrap();
+
+    cmd()
+        .args([
+            "--cqlshrc",
+            cqlshrc.to_str().unwrap(),
+            "--client-route",
+            "cli-conn",
+            "--debug",
+            "--connect-timeout",
+            "1",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("Debug: client routes=[cli-conn]"))
+        .stderr(predicate::str::contains("file-conn").not());
+}
+
+#[test]
+fn no_client_routes_section_disables_them() {
+    let dir = tempfile::tempdir().unwrap();
+    let cqlshrc = dir.path().join("cqlshrc");
+    let mut f = std::fs::File::create(&cqlshrc).unwrap();
+    writeln!(f, "[connection]").unwrap();
+    writeln!(f, "hostname = 10.255.255.1").unwrap();
+
+    cmd()
+        .args([
+            "--cqlshrc",
+            cqlshrc.to_str().unwrap(),
+            "--debug",
+            "--connect-timeout",
+            "1",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("Using client routes: false"));
+}
+
+#[test]
+fn cqlshrc_client_routes_conflict_with_ssl() {
+    let dir = tempfile::tempdir().unwrap();
+    let cqlshrc = dir.path().join("cqlshrc");
+    let mut f = std::fs::File::create(&cqlshrc).unwrap();
+    writeln!(f, "[client_routes]").unwrap();
+    writeln!(f, "proxies = conn-a").unwrap();
+
+    cmd()
+        .args(["--cqlshrc", cqlshrc.to_str().unwrap(), "--ssl"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "Client routes do not support SSL/TLS",
+        ));
+}

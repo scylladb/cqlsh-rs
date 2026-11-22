@@ -13,6 +13,12 @@
 #[allow(dead_code)]
 mod helpers;
 
+#[cfg(feature = "test-client-routes")]
+mod client_routes_tests;
+#[cfg(feature = "test-client-routes")]
+#[allow(dead_code)]
+mod tcp_forwarder;
+
 #[cfg(feature = "test-plain")]
 mod copy_from_tests;
 #[cfg(feature = "test-plain")]

@@ -19,7 +19,13 @@ configparser = "3"
 anyhow = "1"
 thiserror = "2"
 dirs = "6"
-scylla = { version = "1.6", features = ["rustls-023", "chrono-04", "num-bigint-04", "bigdecimal-04"] }
+scylla = { version = "1.6", features = [
+    "rustls-023",
+    "chrono-04",
+    "num-bigint-04",
+    "bigdecimal-04",
+    "unstable-client-routes",
+] }
 tokio = { version = "1", features = ["full"] }
 rustls = { version = "0.23", features = ["ring"] }
 rustls-pemfile = "2"
@@ -47,7 +53,14 @@ test-plain = []
 test-ssl = []
 test-auth = []
 test-maintenance = []
-test-all = ["test-plain", "test-ssl", "test-auth", "test-maintenance"]
+test-client-routes = []
+test-all = [
+    "test-plain",
+    "test-ssl",
+    "test-auth",
+    "test-maintenance",
+    "test-client-routes",
+]
 
 [dev-dependencies]
 assert_cmd = "2"

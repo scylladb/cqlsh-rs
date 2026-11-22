@@ -131,6 +131,16 @@ jobs:
             db_image: scylladb/scylla:2026.1
             db_args: "--smp 1 --memory 512M --overprovisioned 1 --skip-wait-for-gossip-to-settle 0"
             db_env: ""
+          # `system.client_routes` and the /v2/client-routes REST endpoints
+          # need ScyllaDB 2026.1+. The REST API binds to localhost inside the
+          # container by default, hence --api-address. It is unauthenticated
+          # and can manage routes, so the host side is bound to loopback.
+          - db_name: scylladb-2026.1-client-routes
+            db_image: scylladb/scylla:2026.1
+            db_args: "--smp 1 --memory 512M --overprovisioned 1 --skip-wait-for-gossip-to-settle 0 --api-address 0.0.0.0"
+            db_env: ""
+            extra_ports: "-p 127.0.0.1:10000:10000"
+            features: test-client-routes
           - db_name: scylladb-2025.1
             db_image: scylladb/scylla:2025.1
             db_args: "--smp 1 --memory 512M --overprovisioned 1 --skip-wait-for-gossip-to-settle 0"
@@ -156,6 +166,7 @@ jobs:
         run: |
           docker run -d --name testdb \
             -p 9042:9042 \
+            ${{ matrix.extra_ports }} \
             ${{ matrix.db_env }} \
             ${{ matrix.db_image }} \
             ${{ matrix.db_args }}
@@ -180,10 +191,11 @@ jobs:
         env:
           CQLSH_TEST_HOST: localhost
           CQLSH_TEST_PORT: "9042"
+          CQLSH_TEST_API_PORT: "10000"
         run: |
           set -o pipefail
           cargo tarpaulin \
-            --features test-plain \
+            --features ${{ matrix.features || 'test-plain' }} \
             --workspace \
             --timeout 300 \
             --test integration \
