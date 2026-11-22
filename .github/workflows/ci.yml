@@ -145,7 +145,13 @@ jobs:
             db_env: "-e CASSANDRA_DC=datacenter1 -e JVM_EXTRA_OPTS=-Dcassandra.enable_materialized_views=true"
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: dtolnay/rust-toolchain@stable
+      # ponytail: pinned since stable moved to Rust 1.100, where every
+      # assert_cmd test under cargo-tarpaulin 0.35.4 panics with
+      # CARGO_BIN_EXE_cqlsh-rs unset. Back to @stable once a newer tarpaulin
+      # is verified on 1.100+.
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       # Temporary workaround: testcontainers-rs fails to start containers on
       # GitHub Actions (Ubuntu 24.04 / Docker 27) due to Docker networking driver
@@ -212,7 +218,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-      - uses: dtolnay/rust-toolchain@stable
+      # ponytail: pinned since stable moved to Rust 1.100, where every
+      # assert_cmd test under cargo-tarpaulin 0.35.4 panics with
+      # CARGO_BIN_EXE_cqlsh-rs unset. Back to @stable once a newer tarpaulin
+      # is verified on 1.100+.
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.99.1
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - name: Generate TLS certificates
         run: |
