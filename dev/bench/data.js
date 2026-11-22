@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795358477163,
+  "lastUpdate": 1795358496056,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -14260,6 +14260,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 40524,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "bff8cb191ce56c3a9a108e3f78679c198c95c49e",
+          "message": "fix(session): fold unquoted USE keyspace names like Python cqlsh\n\n`USE MyKs` stored the name as typed, while the driver switched to the\ncase-folded `myks`, so COPY without an explicit keyspace looked up\nkeyspace_name = 'MyKs' and failed (\"could not determine partition key\" /\n\"could not determine columns\"). `USE \"MixKs\"` failed outright with\n\"Keyspace 'mixks' does not exist\": parse_use_command stripped the quotes\nand the driver call (case_sensitive = false) folded the name again.\n\nResolve the name once, like Python cqlsh's do_use: an unquoted name folds\nto lowercase, a quoted one keeps its case (with \"\" unescaped). The stored\ncurrent keyspace is now the real keyspace name, so the driver switches\nto it case-sensitively, and COPY quotes it when it builds the table spec.\n`-k` at connect is case-sensitive too, as in Python (Cluster.connect\nquotes the name). The prompt shows the resolved name, matching Python\n(`cqlsh:myks>` after `USE MyKs`).\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-22T16:31:08+02:00",
+          "tree_id": "c0b98b9229e5a1055fa4c66e07ba95513fd2c563",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/bff8cb191ce56c3a9a108e3f78679c198c95c49e"
+        },
+        "date": 1795358495153,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 26999,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3158,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 8425,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 59698,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 832,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 142520,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6831,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 84087,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 746300,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7463400,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9852,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 45797,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 39752,
             "unit": "ns"
           }
         ]
