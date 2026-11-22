@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794262249050,
+  "lastUpdate": 1795358477163,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -14161,6 +14161,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 29371,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "338c472569c036942334bc4bb2d3eec8db46dd3a",
+          "message": "fix(format): format float/double like Python cqlsh's %g precision\n\nQuery output printed floats with Rust's shortest round-trip repr and\nignored float_precision/double_precision; COPY TO used them as a fixed\nnumber of decimal places (0.50000 instead of 0.5).\n\nPort Python cqlsh's formatting.format_floating_point_type: precision is\nsignificant digits, widened by the integer digits when the value prints\nin fixed notation, then rendered with C's %g (no trailing zeros,\nscientific notation for large/small exponents).\n\n- display: [ui] float_precision / double_precision from cqlshrc, both\n  defaulting to 5 like scylla-cqlsh; double_precision applies only to a\n  top-level double column, doubles nested in collections/UDTs use\n  float_precision, as in Python cqlsh\n- COPY TO: FLOATPRECISION (5) / DOUBLEPRECISION (12) use the same\n  algorithm; floats and doubles nested in collections/tuples/UDTs get\n  FLOATPRECISION, and nested floats, doubles and decimals get\n  DECIMALSEP, as in Python's ExportProcess\n\nPort the scylla-dtest coverage (cql_cast_test.py float/double casts,\ncqlsh_tests.py test_float_formatting and test_copy_to) into\ntests/integration/float_format_tests.rs under the plain category.\n\nFixes #194\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-22T16:30:54+02:00",
+          "tree_id": "46017c210c6ba6df428fe3262abe298af81b0205",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/338c472569c036942334bc4bb2d3eec8db46dd3a"
+        },
+        "date": 1795358476761,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 27819,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3174,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 8373,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 60453,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 811,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 144820,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6985,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 85503,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 750370,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7587500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9828,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 45698,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 40524,
             "unit": "ns"
           }
         ]
