@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795464787981,
+  "lastUpdate": 1795464845880,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -14656,6 +14656,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 19737,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "3c23e8787cab0fb51cde6ba5a7005e4fd707b7c2",
+          "message": "docs(copy): document the SKIPCOLS COPY FROM option\n\nAdd SKIPCOLS to the COPY FROM options table in the book, with the\ndescription Python cqlsh uses, and list it in the COPY FROM step table\nof the plan.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T22:03:40+02:00",
+          "tree_id": "8c741100dbe6493e3eac6971c1c34c6c564596d7",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/3c23e8787cab0fb51cde6ba5a7005e4fd707b7c2"
+        },
+        "date": 1795464845434,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 27130,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 3,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 3102,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 8672,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 61384,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 818,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 148630,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 6878,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 16,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 83036,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 721430,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 7209900,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 9695,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 44443,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 38305,
             "unit": "ns"
           }
         ]
