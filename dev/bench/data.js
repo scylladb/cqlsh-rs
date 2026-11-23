@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795461241086,
+  "lastUpdate": 1795464787981,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -14557,6 +14557,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 28702,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "939b518dd37472f4541eba19cd2ee7288fca549d",
+          "message": "docs(plans): update safe mode to [ui] safe_mode and first-word rule\n\nSafe mode follows scylla-cqlsh#278, not #147: the key lives in [ui], the\nprompt shows the whole statement, any statement starting with DROP or\nTRUNCATE is protected, and non-interactive input runs without a prompt.\nTick the safe-mode acceptance boxes.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T22:04:39+02:00",
+          "tree_id": "5a922d6e815c5d82862dcd45e047e72d3c172734",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/939b518dd37472f4541eba19cd2ee7288fca549d"
+        },
+        "date": 1795464786960,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 16488,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 1,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 1948,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 5318,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 37039,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 555,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 83693,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 4024,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 9,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 45642,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 425020,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 4106099,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 4945,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 22275,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 19737,
             "unit": "ns"
           }
         ]
