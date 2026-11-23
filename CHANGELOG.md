@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.19](https://github.com/scylladb/cqlsh-rs/compare/v0.5.18...v0.5.19) - 2026-11-23
+
+### Added
+
+- add --safe-mode confirmation for DROP/TRUNCATE
+
+### Fixed
+
+- *(copy)* import counter tables with UPDATE ... SET c = c + ?
+- *(copy)* resolve COPY FROM header names against the schema
+- *(copy)* quote column names in the COPY FROM INSERT
+- *(tests)* locate the cqlsh-rs binary at compile time
+- *(session)* fold unquoted USE keyspace names like Python cqlsh
+- *(copy)* normalize keyspace/table names for schema lookups
+- *(copy)* accept Python cqlsh COPY TO options, honor BEGINTOKEN/ENDTOKEN
+- *(format)* format float/double like Python cqlsh's %g precision
+- *(copy)* honor ESCAPE in unquoted COPY FROM fields
+- *(copy)* escape the escape character in COPY TO output
+- *(tracing)* append the "Request complete" row to trace output
+- *(pager)* only page output that overflows the screen
+
+### Other
+
+- *(plans)* update safe mode to [ui] safe_mode and first-word rule
+- *(copy)* document the SKIPCOLS COPY FROM option
+- *(dtest_copy)* make the COPY probe use a valid table name
+- pin Rust 1.99.1 for tarpaulin integration jobs
+- run macOS/Windows PR jobs only when labeled
+- *(docker)* page a multi-screen result, add short-SELECT no-pager test
+- *(homebrew)* point formula at v0.5.18 [skip ci]
+
 ## [0.5.18](https://github.com/scylladb/cqlsh-rs/compare/v0.5.17...v0.5.18) - 2026-11-01
 
 ### Fixed
