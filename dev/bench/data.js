@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795358496056,
+  "lastUpdate": 1795461164305,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -14359,6 +14359,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 39752,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "e1624b220d12a51819942fd2e927ead4db1adc7d",
+          "message": "ci: pin Rust 1.99.1 for tarpaulin integration jobs\n\nSince the runner's stable toolchain moved from 1.99.1 to 1.100.0, every\nassert_cmd test in the integration and SSL+Auth jobs panics under\ncargo-tarpaulin 0.35.4 with \"`CARGO_BIN_EXE_cqlsh-rs` is unset\", on main\nand on every PR. The tarpaulin version, install-action SHA and Cargo.lock\nare the same as in the last green run (Nov 10); only rustc changed.\n\nPlain `cargo test` on 1.100 still passes, and the coverage job is not\naffected because it runs `--lib --bins` only. Pin just the two failing\njobs and go back to @stable once a newer tarpaulin is verified on 1.100+.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T20:59:02+02:00",
+          "tree_id": "4b862591ba43594eacfeb10274fc57bfe3acb0dc",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/e1624b220d12a51819942fd2e927ead4db1adc7d"
+        },
+        "date": 1795461163465,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 25255,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 2,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2909,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 8094,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 60275,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 887,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 132570,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 5275,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 13,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 76342,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 675110,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 6716500,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 10064,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 42104,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 36984,
             "unit": "ns"
           }
         ]
