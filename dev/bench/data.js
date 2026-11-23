@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795461164305,
+  "lastUpdate": 1795461241086,
   "repoUrl": "https://github.com/scylladb/cqlsh-rs",
   "entries": {
     "Benchmark": [
@@ -14458,6 +14458,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "format_csv_100",
             "value": 36984,
+            "unit": "ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "fruch@scylladb.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "committer": {
+            "email": "israel.fruchter@gmail.com",
+            "name": "Israel Fruchter",
+            "username": "fruch"
+          },
+          "distinct": true,
+          "id": "4cf8f0ab72efa298201e6d4a5c753cbf69911d0f",
+          "message": "fix(tests): locate the cqlsh-rs binary at compile time\n\nSince GitHub Actions moved to Rust 1.100.0, every integration test that\nspawns cqlsh-rs fails with \"`CARGO_BIN_EXE_cqlsh-rs` is unset\", on main\nand on every PR.\n\nassert_cmd's Command::cargo_bin reads CARGO_BIN_EXE_<name> at runtime.\n`cargo test` sets it, but CI runs the tests under cargo tarpaulin, which\nexecutes the test binary directly without it. The fallback looks for the\nbinary next to the test executable, and Rust 1.100 builds test\nexecutables under target/debug/build/<pkg>/<hash>/out/ instead of\ntarget/debug/deps/, so that lookup finds nothing.\n\nUse assert_cmd's cargo_bin_cmd! macro, which reads the path with env!()\nat compile time and works no matter how the test binary is run.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-11-23T20:59:28+02:00",
+          "tree_id": "500b5fd7199f0fc9cb6ae25c51a9628243664332",
+          "url": "https://github.com/scylladb/cqlsh-rs/commit/4cf8f0ab72efa298201e6d4a5c753cbf69911d0f"
+        },
+        "date": 1795461240322,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "cli_parse_args/no_args",
+            "value": 20370,
+            "unit": "ns"
+          },
+          {
+            "name": "cli_validate/valid_full",
+            "value": 1,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/empty",
+            "value": 2637,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/minimal",
+            "value": 6735,
+            "unit": "ns"
+          },
+          {
+            "name": "cqlshrc_parse/full",
+            "value": 46286,
+            "unit": "ns"
+          },
+          {
+            "name": "config_merge/full_merge",
+            "value": 641,
+            "unit": "ns"
+          },
+          {
+            "name": "end_to_end_startup/full",
+            "value": 104460,
+            "unit": "ns"
+          },
+          {
+            "name": "parse_multiline/6_lines",
+            "value": 5654,
+            "unit": "ns"
+          },
+          {
+            "name": "classify_input/empty",
+            "value": 13,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/10",
+            "value": 62110,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/100",
+            "value": 547880,
+            "unit": "ns"
+          },
+          {
+            "name": "format_table/rows/1000",
+            "value": 5484600,
+            "unit": "ns"
+          },
+          {
+            "name": "format_expanded/rows/10",
+            "value": 8084,
+            "unit": "ns"
+          },
+          {
+            "name": "format_json_100",
+            "value": 36603,
+            "unit": "ns"
+          },
+          {
+            "name": "format_csv_100",
+            "value": 28702,
             "unit": "ns"
           }
         ]
