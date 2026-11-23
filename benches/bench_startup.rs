@@ -296,12 +296,15 @@ fn bench_config_merge(c: &mut Criterion) {
         let env = EnvConfig::default();
         let cqlshrc = CqlshrcConfig::default();
         b.iter(|| {
-            black_box(MergedConfig::build(
-                black_box(&cli),
-                black_box(&env),
-                black_box(cqlshrc.clone()),
-                cqlshrc_path.clone(),
-            ));
+            black_box(
+                MergedConfig::build(
+                    black_box(&cli),
+                    black_box(&env),
+                    black_box(cqlshrc.clone()),
+                    cqlshrc_path.clone(),
+                )
+                .unwrap(),
+            );
         });
     });
 
@@ -324,12 +327,15 @@ fn bench_config_merge(c: &mut Criterion) {
         let env = EnvConfig::default();
         let cqlshrc = CqlshrcConfig::default();
         b.iter(|| {
-            black_box(MergedConfig::build(
-                black_box(&cli),
-                black_box(&env),
-                black_box(cqlshrc.clone()),
-                cqlshrc_path.clone(),
-            ));
+            black_box(
+                MergedConfig::build(
+                    black_box(&cli),
+                    black_box(&env),
+                    black_box(cqlshrc.clone()),
+                    cqlshrc_path.clone(),
+                )
+                .unwrap(),
+            );
         });
     });
 
@@ -356,12 +362,15 @@ fn bench_config_merge(c: &mut Criterion) {
         };
         let cqlshrc = CqlshrcConfig::parse(SAMPLE_CQLSHRC).unwrap();
         b.iter(|| {
-            black_box(MergedConfig::build(
-                black_box(&cli),
-                black_box(&env),
-                black_box(cqlshrc.clone()),
-                cqlshrc_path.clone(),
-            ));
+            black_box(
+                MergedConfig::build(
+                    black_box(&cli),
+                    black_box(&env),
+                    black_box(cqlshrc.clone()),
+                    cqlshrc_path.clone(),
+                )
+                .unwrap(),
+            );
         });
     });
 
@@ -419,12 +428,7 @@ fn bench_end_to_end_startup(c: &mut Criterion) {
             let _ = cli.validate();
             let cqlshrc = CqlshrcConfig::load(&nonexistent).unwrap();
             let env = EnvConfig::default();
-            black_box(MergedConfig::build(
-                &cli,
-                &env,
-                cqlshrc,
-                nonexistent.clone(),
-            ));
+            black_box(MergedConfig::build(&cli, &env, cqlshrc, nonexistent.clone()).unwrap());
         });
     });
 
@@ -461,7 +465,7 @@ fn bench_end_to_end_startup(c: &mut Criterion) {
                 connect_timeout: Some(88),
                 ..EnvConfig::default()
             };
-            black_box(MergedConfig::build(&cli, &env, cqlshrc, full_path.clone()));
+            black_box(MergedConfig::build(&cli, &env, cqlshrc, full_path.clone()).unwrap());
         });
     });
 

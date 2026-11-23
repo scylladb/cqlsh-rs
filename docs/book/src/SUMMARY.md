@@ -15,6 +15,7 @@
     - [csv](./configuration/csv.md)
     - [copy / copy-to / copy-from](./configuration/copy.md)
     - [tracing](./configuration/tracing.md)
+    - [client_routes](./configuration/client-routes.md)
 - [CLI Reference](./cli-reference.md)
 - [Command Reference](./commands/index.md)
     - [CAPTURE](./commands/capture.md)

@@ -98,6 +98,9 @@ Every argument from `cqlsh --help` must be supported:
 | `--disable-history` | | Disable saving of command history | P3 |
 | `--safe-mode` | | Prompt before DROP/TRUNCATE operations | P3 |
 | `--secure-connect-bundle` | `-b` | Secure connect bundle (Astra DB) | P4 |
+| `--client-route` | | Client route `CONNECTION_ID[=ADDRESS]` (PrivateLink), repeatable — [SP22](22-client-routes.md) | P3 |
+| `--client-routes-advanced-shard-awareness` | | Use shard-aware ports with client routes — [SP22](22-client-routes.md) | P3 |
+| `--no-client-routes-advanced-shard-awareness` | | Do not use shard-aware ports with client routes — [SP22](22-client-routes.md) | P3 |
 | `[host]` | | Positional: contact point hostname | P1 |
 | `[port]` | | Positional: native transport port | P1 |
 
@@ -287,6 +290,11 @@ ttl = 3600
 
 [tracing]
 max_trace_wait = 10.0
+
+[client_routes]                ; SP22, PrivateLink / Private Service Connect
+proxies = conn-a=proxy-a.example.com,
+          conn-b               ; comma/newline separated CONNECTION_ID[=ADDRESS]
+advanced_shard_awareness = false
 ```
 
 ### Tab Completion Rules
@@ -637,6 +645,7 @@ Each area below gets its own dedicated research and execution plan document:
 | SP15 | **AI CI Failure Summaries** | [`15-ai-ci-failure-summaries.md`](15-ai-ci-failure-summaries.md) | AI-powered CI failure diagnosis and PR comment workflow |
 | SP16 | **Upstream PR Review** | [`16-upstream-pr-review.md`](16-upstream-pr-review.md) | Bug fixes and features from scylladb/scylla-cqlsh PRs to account for |
 | SP17 | **AI Assistant Help** | [`17-ai-assistant-help.md`](17-ai-assistant-help.md) | Embedded Qwen2.5-Coder-0.5B for offline CQL error diagnostics via `--ai-help` |
+| SP22 | **Client Routes (PrivateLink)** | [`22-client-routes.md`](22-client-routes.md) | `--client-route` flag and `[client_routes]` config for PrivateLink/proxy deployments |
 
 ---
 
