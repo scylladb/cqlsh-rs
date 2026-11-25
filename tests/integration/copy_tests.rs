@@ -399,3 +399,111 @@ fn test_copy_from_wrong_column_count() {
 
     drop_test_keyspace(scylla, &ks);
 }
+
+// ---------------------------------------------------------------------------
+// Mixed-case and quoted identifiers: names resolve like CQL (unquoted fold to
+// lowercase, quoted keep case) and punctuation inside quotes is kept.
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_copy_round_trip_mixed_case_identifiers() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "copy_ident");
+
+    execute_cql(
+        scylla,
+        &format!(r#"CREATE TABLE {ks}."MyTable" (id int PRIMARY KEY, "a, b" text, "Val" text)"#),
+    )
+    .success();
+    execute_cql(
+        scylla,
+        &format!(r#"INSERT INTO {ks}."MyTable" (id, "a, b", "Val") VALUES (1, 'x', 'y')"#),
+    )
+    .success();
+
+    let tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    let csv_path = tmp.path().to_str().unwrap().to_string();
+    let ks_upper = ks.to_uppercase();
+
+    // Unquoted keyspace/column in mixed case fold to lowercase.
+    let out = cqlsh_cmd(scylla)
+        .args([
+            "-e",
+            &format!(r#"COPY {ks_upper}."MyTable" (ID, "a, b", "Val") TO '{csv_path}'"#),
+        ])
+        .output()
+        .expect("failed to run cqlsh-rs");
+    assert!(out.status.success(), "COPY TO failed: {out:?}");
+    assert_eq!(fs::read_to_string(&csv_path).unwrap().trim(), "1,x,y");
+
+    execute_cql(scylla, &format!(r#"TRUNCATE {ks}."MyTable""#)).success();
+
+    let out = cqlsh_cmd(scylla)
+        .args([
+            "-e",
+            &format!(r#"COPY {ks_upper}."MyTable" (ID, "a, b", "Val") FROM '{csv_path}'"#),
+        ])
+        .output()
+        .expect("failed to run cqlsh-rs");
+    assert!(out.status.success(), "COPY FROM failed: {out:?}");
+
+    let output = execute_cql_output_direct(
+        scylla,
+        &format!(r#"SELECT "a, b", "Val" FROM {ks}."MyTable" WHERE id = 1"#),
+    );
+    assert!(
+        output.contains('x') && output.contains('y'),
+        "row not restored: {output}"
+    );
+
+    drop_test_keyspace(scylla, &ks);
+}
+
+// ---------------------------------------------------------------------------
+// HEADER=true round trip keeps a stored name with spaces (`" v "`) apart from
+// `v`: the header is matched before trimming.
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore = "requires Docker"]
+fn test_copy_header_keeps_spaces_in_stored_names() {
+    let scylla = get_scylla();
+    let ks = create_test_keyspace(scylla, "copy_hdr_sp");
+    let table = format!("{ks}.sp");
+
+    execute_cql(
+        scylla,
+        &format!(r#"CREATE TABLE {table} (id int PRIMARY KEY, v text, " v " text)"#),
+    )
+    .success();
+    execute_cql(
+        scylla,
+        &format!(r#"INSERT INTO {table} (id, " v ") VALUES (1, 'spaced')"#),
+    )
+    .success();
+
+    let tmp = tempfile::NamedTempFile::new().expect("failed to create temp file");
+    let csv_path = tmp.path().to_str().unwrap().to_string();
+    for stmt in [
+        format!(r#"COPY {table} (id, " v ") TO '{csv_path}' WITH HEADER = true"#),
+        format!("TRUNCATE {table}"),
+        format!("COPY {table} FROM '{csv_path}' WITH HEADER = true"),
+    ] {
+        let out = cqlsh_cmd(scylla)
+            .args(["-e", &stmt])
+            .output()
+            .expect("failed to run cqlsh-rs");
+        assert!(out.status.success(), "{stmt} failed: {out:?}");
+    }
+
+    let output = execute_cql_output_direct(
+        scylla,
+        &format!(r#"SELECT " v " FROM {table} WHERE id = 1"#),
+    );
+    assert!(output.contains("spaced"), "\" v \" not restored: {output}");
+    let output = execute_cql_output_direct(scylla, &format!("SELECT v FROM {table} WHERE id = 1"));
+    assert!(!output.contains("spaced"), "value landed in v: {output}");
+
+    drop_test_keyspace(scylla, &ks);
+}

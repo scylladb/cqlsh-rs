@@ -139,15 +139,16 @@ pub async fn execute_copy_to(
 ) -> Result<()> {
     // Build SELECT query
     let col_spec = match &cmd.columns {
-        Some(cols) => cols.join(", "),
+        Some(cols) => cols
+            .iter()
+            .map(|c| quote_identifier(c))
+            .collect::<Vec<_>>()
+            .join(", "),
         None => "*".to_string(),
     };
 
-    let table_spec = match (&cmd.keyspace, current_keyspace) {
-        (Some(ks), _) => format!("{}.{}", ks, cmd.table),
-        (None, Some(ks)) => format!("\"{}\".{}", ks.replace('"', "\"\""), cmd.table),
-        (None, None) => cmd.table.clone(),
-    };
+    let keyspace = cmd.keyspace.as_deref().or(current_keyspace);
+    let table_spec = qualified_table(keyspace, &cmd.table);
 
     let mut query = format!("SELECT {} FROM {}", col_spec, table_spec);
 
@@ -159,18 +160,13 @@ pub async fn execute_copy_to(
                 bail!("Begin token {b} must be smaller than end token {e}");
             }
         }
-        let ks = cmd
-            .keyspace
-            .as_deref()
-            .map(dequote_identifier)
-            .or(current_keyspace.map(str::to_string))
-            .context("no keyspace specified and no current keyspace set")?;
+        let ks = keyspace.context("no keyspace specified and no current keyspace set")?;
         let pk_result = session
             .execute_query(&format!(
                 "SELECT column_name, kind, position FROM system_schema.columns \
                  WHERE keyspace_name = '{}' AND table_name = '{}'",
                 ks.replace('\'', "''"),
-                dequote_identifier(&cmd.table).replace('\'', "''")
+                cmd.table.replace('\'', "''")
             ))
             .await?;
         let mut pk: Vec<(i32, String)> = pk_result
@@ -180,7 +176,7 @@ pub async fn execute_copy_to(
                 [CqlValue::Text(n), CqlValue::Text(k), CqlValue::Int(p)]
                     if k == "partition_key" =>
                 {
-                    Some((*p, format!("\"{}\"", n.replace('"', "\"\""))))
+                    Some((*p, quote_identifier(n)))
                 }
                 _ => None,
             })
@@ -549,40 +545,78 @@ fn find_keyword_outside_parens(s: &str, keyword: &str) -> Option<usize> {
     None
 }
 
-/// Parse the table spec: `[ks.]table [(col1, col2, ...)]`
+/// Parse the table spec: `[ks.]table [(col1, col2, ...)]`.
+///
+/// Like Python cqlsh's `do_copy`, names are resolved here to their stored
+/// form (`"Foo"` → `Foo`, `Foo` → `foo`) and quoted again when building CQL.
 fn parse_table_spec(spec: &str) -> Result<(Option<String>, String, Option<Vec<String>>)> {
     let spec = spec.trim();
 
     // Split off column list if present
-    let (table_part, columns) = if let Some(paren_start) = spec.find('(') {
-        let paren_end = spec
-            .rfind(')')
-            .context("unmatched parenthesis in column list")?;
-        let cols_str = &spec[paren_start + 1..paren_end];
-        let cols: Vec<String> = cols_str
-            .split(',')
-            .map(|c| c.trim().to_string())
-            .filter(|c| !c.is_empty())
-            .collect();
-        (spec[..paren_start].trim(), Some(cols))
-    } else {
-        (spec, None)
+    let (table_part, columns) = match split_outside_quotes(spec, '(').as_slice() {
+        [table_part] => (*table_part, None),
+        [table_part, ..] => {
+            let cols_str = spec[table_part.len() + 1..]
+                .trim_end()
+                .strip_suffix(')')
+                .context("unmatched parenthesis in column list")?;
+            let cols = split_outside_quotes(cols_str, ',')
+                .into_iter()
+                .filter(|c| !c.trim().is_empty())
+                .map(|c| resolve_identifier(c, "column"))
+                .collect::<Result<Vec<_>>>()?;
+            (*table_part, Some(cols))
+        }
+        [] => unreachable!("split always yields at least one part"),
     };
 
     // Split keyspace.table
-    let (keyspace, table) = if let Some(dot_pos) = table_part.find('.') {
-        let ks = table_part[..dot_pos].trim().to_string();
-        let tbl = table_part[dot_pos + 1..].trim().to_string();
-        (Some(ks), tbl)
-    } else {
-        (None, table_part.trim().to_string())
+    let (keyspace, table) = match split_outside_quotes(table_part, '.').as_slice() {
+        [table] => (None, resolve_identifier(table, "table")?),
+        [ks, table] => (
+            Some(resolve_identifier(ks, "keyspace")?),
+            resolve_identifier(table, "table")?,
+        ),
+        _ => bail!(
+            "invalid table name in COPY statement: {}",
+            table_part.trim()
+        ),
     };
 
-    if table.is_empty() {
-        bail!("missing table name in COPY statement");
-    }
-
     Ok((keyspace, table, columns))
+}
+
+/// Split `s` on `sep`, ignoring separators inside double-quoted identifiers.
+/// A doubled `""` toggles the quote state twice, so it needs no special case.
+fn split_outside_quotes(s: &str, sep: char) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut in_quotes = false;
+    let mut start = 0;
+    for (i, c) in s.char_indices() {
+        match c {
+            '"' => in_quotes = !in_quotes,
+            c if c == sep && !in_quotes => {
+                parts.push(&s[start..i]);
+                start = i + c.len_utf8();
+            }
+            _ => {}
+        }
+    }
+    parts.push(&s[start..]);
+    parts
+}
+
+/// Resolve one identifier from a COPY statement, rejecting empty names and
+/// unterminated quotes (`COPY " TO ...`).
+fn resolve_identifier(raw: &str, what: &str) -> Result<String> {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        bail!("missing {what} name in COPY statement");
+    }
+    if raw.starts_with('"') && (raw.len() < 2 || !raw.ends_with('"')) {
+        bail!("unterminated quoted {what} name in COPY statement: {raw}");
+    }
+    Ok(dequote_identifier(raw))
 }
 
 /// Parse the target and WITH options after the TO keyword.
@@ -1379,11 +1413,8 @@ pub async fn execute_copy_from(
     let start = Instant::now();
 
     // Resolve keyspace and table spec
-    let table_spec = match (&cmd.keyspace, current_keyspace) {
-        (Some(ks), _) => format!("{}.{}", ks, cmd.table),
-        (None, Some(ks)) => format!("\"{}\".{}", ks.replace('"', "\"\""), cmd.table),
-        (None, None) => cmd.table.clone(),
-    };
+    let keyspace = cmd.keyspace.as_deref().or(current_keyspace);
+    let table_spec = qualified_table(keyspace, &cmd.table);
 
     let source_name = match &cmd.source {
         CopyTarget::File(path) => format!("'{}'", path.display()),
@@ -1397,17 +1428,12 @@ pub async fn execute_copy_from(
     };
 
     // Query schema for column metadata: (name, kind, position, type_name)
-    let ks_for_schema = cmd
-        .keyspace
-        .as_deref()
-        .map(dequote_identifier)
-        .or(current_keyspace.map(str::to_string))
-        .context("no keyspace specified and no current keyspace set")?;
+    let ks_for_schema = keyspace.context("no keyspace specified and no current keyspace set")?;
     let schema_query = format!(
         "SELECT column_name, kind, position, type FROM system_schema.columns \
          WHERE keyspace_name = '{}' AND table_name = '{}'",
         ks_for_schema.replace('\'', "''"),
-        dequote_identifier(&cmd.table).replace('\'', "''")
+        cmd.table.replace('\'', "''")
     );
     let schema_result = session.execute_query(&schema_query).await?;
 
@@ -1469,12 +1495,12 @@ pub async fn execute_copy_from(
         Some(explicit) => explicit
             .iter()
             .map(|n| {
-                let n = dequote_identifier(n);
+                // Already resolved to stored names by parse_table_spec.
                 let t = type_map
-                    .get(&n)
+                    .get(n)
                     .cloned()
                     .unwrap_or_else(|| "text".to_string());
-                (n, t)
+                (n.clone(), t)
             })
             .collect(),
         None => schema_cols.into_iter().map(|(n, _, _, t)| (n, t)).collect(),
@@ -1506,9 +1532,10 @@ pub async fn execute_copy_from(
             .map(|h| {
                 // A header written by COPY TO holds stored names (`C0`); fall
                 // back to the CQL rule for hand-written ones (`NAME`, `"Foo"`).
-                let name = match h.trim() {
-                    n if type_map.contains_key(n) => n.to_string(),
-                    n => dequote_identifier(n),
+                // Match the untrimmed name first: a stored name may have spaces.
+                let name = match (h.as_str(), h.trim()) {
+                    (n, _) | (_, n) if type_map.contains_key(n) => n.to_string(),
+                    (_, n) => dequote_identifier(n),
                 };
                 let t = type_map
                     .get(&name)
@@ -1787,6 +1814,14 @@ fn dequote_identifier(name: &str) -> String {
     match name.strip_prefix('"').and_then(|n| n.strip_suffix('"')) {
         Some(inner) => inner.replace("\"\"", "\""),
         None => name.to_lowercase(),
+    }
+}
+
+/// `"ks"."table"`, or just `"table"` when there is no keyspace.
+fn qualified_table(keyspace: Option<&str>, table: &str) -> String {
+    match keyspace {
+        Some(ks) => format!("{}.{}", quote_identifier(ks), quote_identifier(table)),
+        None => quote_identifier(table),
     }
 }
 
@@ -2737,5 +2772,67 @@ mod tests {
     fn parse_copy_from_skipcols() {
         let cmd = parse_copy_from("COPY ks.t FROM '/tmp/in.csv' WITH SKIPCOLS = 'c, d,e'").unwrap();
         assert_eq!(cmd.options.skip_cols, vec!["c", "d", "e"]);
+    }
+
+    #[test]
+    fn qualified_table_quotes_both_parts() {
+        assert_eq!(qualified_table(Some("Ks"), "T"), "\"Ks\".\"T\"");
+        assert_eq!(qualified_table(None, "T"), "\"T\"");
+    }
+
+    #[test]
+    fn parse_copy_folds_unquoted_identifiers() {
+        let to = parse_copy_to("COPY Ks.Table (Col1, Col2) TO '/tmp/out.csv'").unwrap();
+        let from = parse_copy_from("COPY Ks.Table (Col1, Col2) FROM '/tmp/in.csv'").unwrap();
+        for (ks, table, cols) in [
+            (to.keyspace, to.table, to.columns),
+            (from.keyspace, from.table, from.columns),
+        ] {
+            assert_eq!(ks.as_deref(), Some("ks"));
+            assert_eq!(table, "table");
+            assert_eq!(cols, Some(vec!["col1".to_string(), "col2".to_string()]));
+        }
+    }
+
+    #[test]
+    fn parse_copy_keeps_quoted_identifiers() {
+        let to = parse_copy_to(r#"COPY "Ks"."Table" ("Col1", "Col2") TO '/tmp/out.csv'"#).unwrap();
+        let from =
+            parse_copy_from(r#"COPY "Ks"."Table" ("Col1", "Col2") FROM '/tmp/in.csv'"#).unwrap();
+        for (ks, table, cols) in [
+            (to.keyspace, to.table, to.columns),
+            (from.keyspace, from.table, from.columns),
+        ] {
+            assert_eq!(ks.as_deref(), Some("Ks"));
+            assert_eq!(table, "Table");
+            assert_eq!(cols, Some(vec!["Col1".to_string(), "Col2".to_string()]));
+        }
+    }
+
+    #[test]
+    fn parse_copy_punctuation_inside_quoted_identifiers() {
+        let cmd = parse_copy_to(r#"COPY "k.s"."t(x)" ("a, b", "c""d", e) TO STDOUT"#).unwrap();
+        assert_eq!(cmd.keyspace.as_deref(), Some("k.s"));
+        assert_eq!(cmd.table, "t(x)");
+        assert_eq!(
+            cmd.columns,
+            Some(vec![
+                "a, b".to_string(),
+                "c\"d".to_string(),
+                "e".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn parse_copy_rejects_malformed_identifiers() {
+        for stmt in [
+            r#"COPY " TO STDOUT"#,
+            r#"COPY "ks". TO STDOUT"#,
+            "COPY .t TO STDOUT",
+            "COPY a.b.c TO STDOUT",
+        ] {
+            assert!(parse_copy_to(stmt).is_err(), "{stmt} should not parse");
+        }
     }
 }
